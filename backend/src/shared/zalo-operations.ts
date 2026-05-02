@@ -209,7 +209,7 @@ async function sendMessage(accountId: string, threadId: string, threadType: 0 | 
 
 async function sendImage(accountId: string, threadId: string, threadType: 0 | 1, attachments: any[], io?: Server | null) {
   return exec({ accountId, category: 'message', operation: 'sendImage', io },
-    (api) => api.sendMessage({ attachments }, threadId, threadType));
+    (api) => api.sendMessage({ msg: '', attachments }, threadId, threadType));
 }
 
 async function sendSticker(accountId: string, stickerId: number, threadId: string, threadType: 0 | 1) {

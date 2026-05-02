@@ -44,6 +44,16 @@ html, body {
   animation: flow-bg 15s ease infinite;
 }
 
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.2; }
+  100% { opacity: 1; }
+}
+
+.blink-animation {
+  animation: blink 1.5s infinite linear;
+}
+
 .ai-core-orb {
   animation: liquid-morph 8s infinite var(--liquid-ease);
   box-shadow: 0 0 30px rgba(0, 242, 255, 0.2);

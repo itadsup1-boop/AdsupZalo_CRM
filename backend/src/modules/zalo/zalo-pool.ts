@@ -17,7 +17,9 @@ import { startMessageSync, stopMessageSync } from './zalo-message-sync.js';
 // zca-js has no reliable ESM type exports — load via CJS interop
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { Zalo } = require('zca-js') as { Zalo: new (opts: { logging: boolean; selfListen?: boolean }) => any };
+const { Zalo } = require('zca-js') as { Zalo: new (opts: { logging: boolean; selfListen?: boolean; imageMetadataGetter?: (path: string) => Promise<{ size: number; width: number; height: number } | null> }) => any };
+const sizeOf = require('image-size').imageSize;
+const fs_promises = require('node:fs/promises');
 
 interface ZaloCredentials {
   cookie: any;
@@ -46,9 +48,31 @@ class ZaloAccountPool {
     this.io = io;
   }
 
+  private createZaloInstance() {
+    return new Zalo({ 
+      logging: false, 
+      selfListen: true,
+      imageMetadataGetter: async (filePath: string) => {
+        try {
+          const buffer = await fs_promises.readFile(filePath);
+          const stats = await fs_promises.stat(filePath);
+          const dimensions = sizeOf(buffer);
+          return {
+            size: stats.size,
+            width: dimensions.width || 0,
+            height: dimensions.height || 0
+          };
+        } catch (err) {
+          logger.error('[zalo:metadata] Failed to get image metadata:', err);
+          return null;
+        }
+      }
+    });
+  }
+
   // Initiate QR-based login; emits QR events to frontend via Socket.IO
   async loginQR(accountId: string): Promise<void> {
-    const zalo = new Zalo({ logging: false, selfListen: true });
+    const zalo = this.createZaloInstance();
     this.instances.set(accountId, { zalo, api: null, status: 'qr_pending', lastActivity: new Date() });
 
     try {
@@ -121,7 +145,7 @@ class ZaloAccountPool {
 
   // Reconnect using previously saved session credentials
   async reconnect(accountId: string, credentials: ZaloCredentials): Promise<void> {
-    const zalo = new Zalo({ logging: false, selfListen: true });
+    const zalo = this.createZaloInstance();
     this.instances.set(accountId, { zalo, api: null, status: 'connecting', lastActivity: new Date() });
 
     try {

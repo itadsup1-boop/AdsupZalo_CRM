@@ -1,14 +1,16 @@
 <template>
   <v-menu offset-y :close-on-content-click="false" max-width="380">
     <template #activator="{ props: menuProps }">
-      <v-btn icon variant="text" v-bind="menuProps" class="mr-1">
+      <v-btn icon size="small" variant="text" v-bind="menuProps">
         <v-badge
           :content="notifications.length"
           :model-value="notifications.length > 0"
           color="error"
-          overlap
+          location="top end"
+          offset-x="3"
+          offset-y="3"
         >
-          <v-icon>mdi-bell-outline</v-icon>
+          <v-icon size="24">mdi-bell-outline</v-icon>
         </v-badge>
       </v-btn>
     </template>

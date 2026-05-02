@@ -31,6 +31,8 @@
       :editing-message="editingMessage"
       :typing-users="currentTypers"
       @send="sendMessage"
+      @send-voice="sendVoiceMessage"
+      @send-file="sendFileMessage"
       @ask-ai="generateAiSuggestion"
       @toggle-contact-panel="showContactPanel = !showContactPanel"
       :show-contact-panel="showContactPanel"
@@ -45,7 +47,7 @@
       @cancel-reply-edit="onCancelReplyEdit"
       @typing="onTyping"
       @refresh-thread="selectedConvId && fetchMessages(selectedConvId)"
-      style="flex: 1; min-width: 300px;"
+      style="flex: 1; min-width: 300px; min-height: 0;"
     />
 
     <!-- Contact panel — resizable -->
@@ -84,7 +86,7 @@ const {
   loadingConvs, loadingMsgs, sendingMsg, searchQuery, accountFilter, extraFilters,
   aiSuggestion, aiSuggestionLoading, aiSuggestionError,
   aiSummary, aiSummaryLoading, aiSentiment, aiSentimentLoading,
-  fetchConversations, fetchAiConfig, fetchMessages, selectConversation, sendMessage,
+  fetchConversations, fetchAiConfig, fetchMessages, selectConversation, sendMessage, sendVoiceMessage, sendFileMessage,
   generateAiSuggestion, generateAiSummary, generateAiSentiment,
   initSocket, destroySocket, getSocket,
 } = useChat();

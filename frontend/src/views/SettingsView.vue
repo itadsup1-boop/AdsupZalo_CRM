@@ -34,17 +34,40 @@
                 {{ item.isActive ? 'Hoạt động' : 'Vô hiệu' }}
               </v-chip>
             </template>
-            <template #item.actions="{ item }">
-              <v-btn v-if="authStore.isAdmin" icon size="small" title="Chỉnh sửa" @click="openEdit(item)">
-                <v-icon>mdi-pencil</v-icon>
-              </v-btn>
-              <v-btn v-if="authStore.isAdmin" icon size="small" title="Đặt lại mật khẩu" @click="openPassword(item)">
-                <v-icon>mdi-lock-reset</v-icon>
-              </v-btn>
-              <v-btn v-if="authStore.isOwner && item.id !== authStore.user?.id" icon size="small" color="error" title="Vô hiệu hóa" @click="confirmDelete(item)">
-                <v-icon>mdi-delete</v-icon>
-              </v-btn>
-            </template>
+              <template #item.actions="{ item }">
+                <div class="d-flex align-center justify-end" style="gap: 4px;">
+                  <v-btn v-if="authStore.isAdmin" icon size="small" variant="text" title="Chỉnh sửa" @click="openEdit(item)">
+                    <v-icon>mdi-pencil</v-icon>
+                  </v-btn>
+                  <v-btn v-if="authStore.isAdmin" icon size="small" variant="text" title="Đặt lại mật khẩu" @click="openPassword(item)">
+                    <v-icon>mdi-lock-reset</v-icon>
+                  </v-btn>
+                  <!-- Vô hiệu hóa / Kích hoạt -->
+                  <v-btn 
+                    v-if="authStore.isAdmin && item.id !== authStore.user?.id" 
+                    icon 
+                    size="small" 
+                    variant="text" 
+                    :color="item.isActive ? 'warning' : 'success'" 
+                    :title="item.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'" 
+                    @click="confirmToggleStatus(item)"
+                  >
+                    <v-icon>{{ item.isActive ? 'mdi-account-cancel-outline' : 'mdi-account-check-outline' }}</v-icon>
+                  </v-btn>
+                  <!-- Xóa vĩnh viễn -->
+                  <v-btn 
+                    v-if="authStore.isOwner && item.id !== authStore.user?.id" 
+                    icon 
+                    size="small" 
+                    variant="text" 
+                    color="error" 
+                    title="Xóa vĩnh viễn" 
+                    @click="confirmRealDelete(item)"
+                  >
+                    <v-icon>mdi-delete-forever</v-icon>
+                  </v-btn>
+                </div>
+              </template>
           </v-data-table>
         </v-card>
 
@@ -101,15 +124,40 @@
           </v-card>
         </v-dialog>
 
-        <!-- Delete confirm dialog -->
-        <v-dialog v-model="showDelete" max-width="400">
+        <!-- Disable/Enable confirm dialog -->
+        <v-dialog v-model="showToggleStatus" max-width="400">
           <v-card>
-            <v-card-title>Xác nhận vô hiệu hóa</v-card-title>
-            <v-card-text>Bạn có chắc muốn vô hiệu hóa nhân viên "{{ selectedUser?.fullName }}"?</v-card-text>
+            <v-card-title>{{ selectedUser?.isActive ? 'Xác nhận vô hiệu hóa' : 'Xác nhận kích hoạt' }}</v-card-title>
+            <v-card-text>
+              Bạn có chắc muốn {{ selectedUser?.isActive ? 'vô hiệu hóa' : 'kích hoạt lại' }} nhân viên "{{ selectedUser?.fullName }}"?
+              <div v-if="selectedUser?.isActive" class="text-caption text-grey mt-2">
+                * Nhân viên bị vô hiệu hóa sẽ không thể đăng nhập vào hệ thống.
+              </div>
+            </v-card-text>
             <v-card-actions>
               <v-spacer />
-              <v-btn @click="showDelete = false">Hủy</v-btn>
-              <v-btn color="error" :loading="saving" @click="handleDelete">Vô hiệu hóa</v-btn>
+              <v-btn @click="showToggleStatus = false">Hủy</v-btn>
+              <v-btn :color="selectedUser?.isActive ? 'warning' : 'success'" :loading="saving" @click="handleToggleStatus">
+                {{ selectedUser?.isActive ? 'Vô hiệu hóa' : 'Kích hoạt' }}
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
+
+        <!-- Delete Forever confirm dialog -->
+        <v-dialog v-model="showRealDelete" max-width="400">
+          <v-card>
+            <v-card-title class="text-error">Xóa vĩnh viễn nhân viên</v-card-title>
+            <v-card-text>
+              Bạn có chắc muốn <strong>XÓA VĨNH VIỄN</strong> nhân viên "{{ selectedUser?.fullName }}"?
+              <div class="text-caption text-error mt-2">
+                * Hành động này không thể hoàn tác. Mọi dữ liệu liên quan đến tài khoản này sẽ bị xóa.
+              </div>
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer />
+              <v-btn @click="showRealDelete = false">Hủy</v-btn>
+              <v-btn color="error" variant="flat" :loading="saving" @click="handleRealDelete">Xóa vĩnh viễn</v-btn>
             </v-card-actions>
           </v-card>
         </v-dialog>
@@ -142,7 +190,8 @@ const tab = ref('users');
 const showCreate = ref(false);
 const showEdit = ref(false);
 const showPassword = ref(false);
-const showDelete = ref(false);
+const showToggleStatus = ref(false);
+const showRealDelete = ref(false);
 const saving = ref(false);
 const dialogError = ref('');
 const newPassword = ref('');
@@ -195,9 +244,14 @@ function openPassword(user: OrgUser) {
   showPassword.value = true;
 }
 
-function confirmDelete(user: OrgUser) {
+function confirmToggleStatus(user: OrgUser) {
   selectedUser.value = user;
-  showDelete.value = true;
+  showToggleStatus.value = true;
+}
+
+function confirmRealDelete(user: OrgUser) {
+  selectedUser.value = user;
+  showRealDelete.value = true;
 }
 
 async function handleCreate() {
@@ -226,12 +280,20 @@ async function handlePassword() {
   if (res.ok) { showPassword.value = false; } else { dialogError.value = res.error || ''; }
 }
 
-async function handleDelete() {
+async function handleToggleStatus() {
+  if (!selectedUser.value) return;
+  saving.value = true;
+  const res = await updateUser(selectedUser.value.id, { isActive: !selectedUser.value.isActive });
+  saving.value = false;
+  if (res.ok) { showToggleStatus.value = false; }
+}
+
+async function handleRealDelete() {
   if (!selectedUser.value) return;
   saving.value = true;
   const res = await deleteUser(selectedUser.value.id);
   saving.value = false;
-  if (res.ok) { showDelete.value = false; }
+  if (res.ok) { showRealDelete.value = false; }
 }
 
 onMounted(fetchUsers);

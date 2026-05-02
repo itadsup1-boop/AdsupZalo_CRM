@@ -357,4 +357,203 @@ export async function chatRoutes(app: FastifyInstance) {
     if (updated.count === 0) return reply.status(404).send({ error: 'Conversation not found' });
     return { success: true, tab };
   });
+
+  // ── Send Voice Message ───────────────────────────────────────────────────
+  app.post('/api/v1/conversations/:id/voice', { preHandler: requireZaloAccess('chat') }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user!;
+    const { id } = request.params as { id: string };
+    const data = await request.file();
+    if (!data) return reply.status(400).send({ error: 'Missing voice file' });
+
+    const conversation = await prisma.conversation.findFirst({
+      where: { id, orgId: user.orgId },
+      include: { zaloAccount: true },
+    });
+    if (!conversation) return reply.status(404).send({ error: 'Conversation not found' });
+
+    const instance = zaloPool.getInstance(conversation.zaloAccountId);
+    if (!instance?.api) return reply.status(400).send({ error: 'Zalo account not connected' });
+
+    const limits = await zaloRateLimiter.checkLimits(conversation.zaloAccountId);
+    if (!limits.allowed) {
+      return reply.status(429).send({ error: limits.reason });
+    }
+
+    const { sendVoiceFile } = await import('../../shared/voice-sender.js');
+    const path = await import('node:path');
+    const fs = await import('node:fs/promises');
+    const { randomUUID } = await import('node:crypto');
+    const { createWriteStream } = await import('node:fs');
+    const { pipeline } = await import('node:stream/promises');
+    const { config } = await import('../../config/index.js');
+
+    // Mimetype mapping to extension
+    const mimeMap: Record<string, string> = {
+      'audio/webm': '.webm',
+      'audio/webm;codecs=opus': '.webm',
+      'audio/ogg': '.ogg',
+      'audio/ogg;codecs=opus': '.ogg',
+      'audio/mp3': '.mp3',
+      'audio/mpeg': '.mp3',
+      'audio/wav': '.wav',
+      'audio/m4a': '.m4a',
+      'audio/x-m4a': '.m4a',
+      'audio/mp4': '.m4a',
+      'audio/aac': '.aac'
+    };
+
+    let ext = mimeMap[data.mimetype] || path.extname(data.filename).toLowerCase();
+    if (!ext) ext = '.webm'; // default for browser media recorder
+    if (ext === '.weba') ext = '.webm'; // sometimes browser says audio/webm but gives .weba
+
+    const tempPath = path.join(config.uploadDir, `${randomUUID()}${ext}`);
+    
+    try {
+      await pipeline(data.file, createWriteStream(tempPath));
+
+      const threadId = conversation.externalThreadId || '';
+      const threadType = conversation.threadType === 'group' ? 1 : 0;
+
+      zaloRateLimiter.recordSend(conversation.zaloAccountId);
+      const result = await sendVoiceFile({
+        api: instance.api,
+        threadId,
+        threadType,
+        audioPath: tempPath,
+      });
+
+      // Optionally delete temp file after sending
+      fs.unlink(tempPath).catch(err => logger.error('Failed to clean up voice file:', err));
+
+      const sendResult = result.data as any;
+      const zaloMsgId = String(sendResult?.msgId || sendResult?.data?.msgId || '');
+
+      const message = await prisma.message.create({
+        data: {
+          id: randomUUID(),
+          conversationId: id,
+          zaloMsgId: zaloMsgId || null,
+          senderType: 'self',
+          senderUid: conversation.zaloAccount.zaloUid || '',
+          senderName: 'Staff',
+          content: '[Tin nhắn thoại]', // Voice messages don't have text
+          contentType: 'voice',
+          sentAt: new Date(),
+          repliedByUserId: user.id,
+        },
+      });
+
+      await prisma.conversation.update({
+        where: { id },
+        data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0 },
+      });
+
+      const io = (app as any).io as Server;
+      io?.emit('chat:message', { accountId: conversation.zaloAccountId, message, conversationId: id });
+
+      return message;
+    } catch (err: any) {
+      fs.unlink(tempPath).catch(() => {});
+      logger.error('[chat] Send voice error:', err);
+      return reply.status(500).send({ error: err.message || 'Failed to send voice message' });
+    }
+  });
+
+  // ── Send File / Image Message ────────────────────────────────────────────
+  app.post('/api/v1/conversations/:id/file', { preHandler: requireZaloAccess('chat') }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user!;
+    const { id } = request.params as { id: string };
+    
+    // Allow multiple files? fastify-multipart request.files()
+    const parts = request.files();
+    if (!parts) return reply.status(400).send({ error: 'Missing files' });
+
+    const conversation = await prisma.conversation.findFirst({
+      where: { id, orgId: user.orgId },
+      include: { zaloAccount: true },
+    });
+    if (!conversation) return reply.status(404).send({ error: 'Conversation not found' });
+
+    const instance = zaloPool.getInstance(conversation.zaloAccountId);
+    if (!instance?.api) return reply.status(400).send({ error: 'Zalo account not connected' });
+
+    const limits = await zaloRateLimiter.checkLimits(conversation.zaloAccountId);
+    if (!limits.allowed) {
+      return reply.status(429).send({ error: limits.reason });
+    }
+
+    const { zaloOps } = await import('../../shared/zalo-operations.js');
+    const path = await import('node:path');
+    const fs = await import('node:fs/promises');
+    const { randomUUID } = await import('node:crypto');
+    const { createWriteStream } = await import('node:fs');
+    const { pipeline } = await import('node:stream/promises');
+    const { config } = await import('../../config/index.js');
+
+    const tempPaths: string[] = [];
+
+    try {
+      for await (const part of parts) {
+        let ext = path.extname(part.filename).toLowerCase();
+        if (!ext && part.mimetype.startsWith('image/')) ext = '.jpg';
+        const tempPath = path.join(config.uploadDir, `${randomUUID()}${ext}`);
+        await pipeline(part.file, createWriteStream(tempPath));
+        tempPaths.push(tempPath);
+      }
+
+      if (tempPaths.length === 0) return reply.status(400).send({ error: 'No files uploaded' });
+
+      const threadId = conversation.externalThreadId || '';
+      const threadType = conversation.threadType === 'group' ? 1 : 0;
+
+      zaloRateLimiter.recordSend(conversation.zaloAccountId);
+      
+      const io = (app as any).io as Server;
+      const result = await zaloOps.sendImage(
+        conversation.zaloAccountId,
+        threadId,
+        threadType,
+        tempPaths,
+        io
+      );
+
+      // Clean up files
+      for (const tempPath of tempPaths) {
+        fs.unlink(tempPath).catch(err => logger.error('Failed to clean up file:', err));
+      }
+
+      const sendResult = result as any;
+      const zaloMsgId = String(sendResult?.msgId || sendResult?.data?.msgId || '');
+
+      const message = await prisma.message.create({
+        data: {
+          id: randomUUID(),
+          conversationId: id,
+          zaloMsgId: zaloMsgId || null,
+          senderType: 'self',
+          senderUid: conversation.zaloAccount.zaloUid || '',
+          senderName: 'Staff',
+          content: `[Gửi ${tempPaths.length} tập tin]`,
+          contentType: 'image',
+          sentAt: new Date(),
+          repliedByUserId: user.id,
+        },
+      });
+
+      await prisma.conversation.update({
+        where: { id },
+        data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0 },
+      });
+
+      io?.emit('chat:message', { accountId: conversation.zaloAccountId, message, conversationId: id });
+
+      return message;
+    } catch (err: any) {
+      for (const tempPath of tempPaths) {
+        fs.unlink(tempPath).catch(() => {});
+      }
+      logger.error('[chat] Send file error:', err);
+      return reply.status(500).send({ error: err.message || 'Failed to send files' });
+    }
+  });
 }

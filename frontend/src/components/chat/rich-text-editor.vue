@@ -141,16 +141,16 @@ onBeforeUnmount(() => { editor.value?.destroy(); });
 
 <style scoped>
 .rich-text-editor {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.15);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(var(--v-theme-surface), 0.8);
   transition: border-color 0.2s;
 }
 .rich-text-editor.focused {
-  border-color: rgba(0, 242, 255, 0.4);
+  border-color: rgba(0, 242, 255, 0.6);
 }
 .editor-toolbar {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.1);
 }
 .editor-content :deep(.tiptap-input) {
   padding: 8px 12px;
@@ -158,8 +158,9 @@ onBeforeUnmount(() => { editor.value?.destroy(); });
   max-height: 120px;
   overflow-y: auto;
   outline: none;
-  font-size: 0.875rem;
+  font-size: 16px;
   line-height: 1.5;
+  color: rgb(var(--v-theme-on-surface));
 }
 .editor-content :deep(.tiptap-input p) {
   margin: 0;
@@ -167,18 +168,19 @@ onBeforeUnmount(() => { editor.value?.destroy(); });
 .editor-content :deep(.tiptap-input p.is-editor-empty:first-child::before) {
   content: attr(data-placeholder);
   float: left;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(var(--v-theme-on-surface), 0.4);
   pointer-events: none;
   height: 0;
 }
 .editor-content :deep(.tiptap-input code) {
-  background: rgba(0, 242, 255, 0.08);
+  background: rgba(0, 242, 255, 0.1);
+  color: #00F2FF;
   padding: 2px 4px;
   border-radius: 4px;
   font-size: 0.85em;
 }
 .editor-content :deep(.tiptap-input pre) {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(var(--v-theme-on-surface), 0.05);
   padding: 8px 12px;
   border-radius: 6px;
   font-family: monospace;

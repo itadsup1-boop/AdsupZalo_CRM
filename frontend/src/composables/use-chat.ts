@@ -99,6 +99,7 @@ export function useChat() {
   const aiSentimentLoading = ref(false);
   const aiUsage = ref({ usedToday: 0, maxDaily: 500, remaining: 500, enabled: true });
   const aiConfig = ref<AiConfig>({ provider: 'anthropic', model: 'claude-sonnet-4-6', maxDaily: 500, enabled: true });
+  const isMobileChatActive = ref(false);
   let socket: Socket | null = null;
 
   const selectedConv = computed(() =>
@@ -287,6 +288,54 @@ export function useChat() {
     }
   }
 
+  async function sendVoiceMessage(audioBlob: Blob) {
+    if (!selectedConvId.value) return;
+    sendingMsg.value = true;
+    try {
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'voice_message.webm');
+      
+      const res = await api.post(`/conversations/${selectedConvId.value}/voice`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      if (!messages.value.find(m => m.id === res.data.id)) {
+        messages.value.push(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to send voice message:', err);
+      throw err;
+    } finally {
+      sendingMsg.value = false;
+    }
+  }
+
+  async function sendFileMessage(files: FileList | File[]) {
+    if (!selectedConvId.value || !files.length) return;
+    sendingMsg.value = true;
+    try {
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append('file', files[i]); // Note: backend expects 'file' for fastify-multipart request.files() if configured or just loops over parts
+      }
+      
+      const res = await api.post(`/conversations/${selectedConvId.value}/file`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      if (!messages.value.find(m => m.id === res.data.id)) {
+        messages.value.push(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to send files:', err);
+      throw err;
+    } finally {
+      sendingMsg.value = false;
+    }
+  }
+
   function initSocket() {
     socket = io({ transports: ['websocket', 'polling'] });
 
@@ -363,10 +412,13 @@ export function useChat() {
     selectConversation,
     sendMessage,
     sendMessageTo,
+    sendVoiceMessage,
+    sendFileMessage,
     generateAiSuggestion,
     generateAiSummary,
     generateAiSentiment,
     clearAiState,
+    isMobileChatActive,
     initSocket,
     destroySocket,
     getSocket: () => socket,

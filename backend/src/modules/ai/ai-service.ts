@@ -153,7 +153,12 @@ export async function generateAiOutput(input: { orgId: string; conversationId: s
   if (!withinQuota) throw new Error('AI daily quota exceeded');
 
   const apiKey = await getProviderApiKey(input.orgId, currentConfig.provider);
-  if (!apiKey) throw new Error('AI provider key is not configured');
+  if (!apiKey) {
+    if (input.type === 'sentiment') {
+      return { label: 'neutral', confidence: 0, reason: 'AI provider key is not configured' };
+    }
+    return { content: 'AI chưa được cấu hình. Vui lòng kiểm tra API Key trong cài đặt.', confidence: 0 };
+  }
 
   const contextText = buildConversationContext(conversation.messages);
   const language = detectLanguage(contextText);

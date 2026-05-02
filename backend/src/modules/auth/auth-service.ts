@@ -61,8 +61,8 @@ export async function setup(
 
 // Verify credentials, return JWT payload
 export async function login(email: string, password: string): Promise<JwtPayload> {
-  const user = await prisma.user.findUnique({
-    where: { email: email.toLowerCase().trim() },
+  const user = await prisma.user.findFirst({
+    where: { email: { equals: email.toLowerCase().trim(), mode: 'insensitive' } },
   });
 
   if (!user || !user.isActive) {

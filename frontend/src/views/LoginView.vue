@@ -3,12 +3,26 @@
     <div class="text-center mb-8">
       <div
         class="ai-core-orb mx-auto mb-4 d-flex align-center justify-center"
-        style="width: 64px; height: 64px; background: linear-gradient(135deg, #00F2FF, #0077B6);"
+        style="
+          width: 80px; 
+          height: 80px; 
+          border-radius: 50%; 
+          background: white; 
+          padding: 4px; 
+          overflow: hidden; 
+          box-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
+        "
       >
-        <v-icon size="32" color="white">mdi-robot</v-icon>
+        <img 
+          src="@/assets/logo-adsup.jpg" 
+          alt="Adsup Logo" 
+          style="width: 100%; height: 100%; object-fit: cover;"
+        />
       </div>
-      <h1 class="text-h5 font-weight-bold">Zalo<span style="color: #00F2FF;">CRM</span></h1>
-      <p class="text-caption mt-1" style="color: #8892b0;">Liquid Silicon • Multi-Account Zalo Management</p>
+      <h1 class="text-h4 font-weight-bold">
+        <span>Adsup</span><span style="color: #00F2FF; margin-left: 6px;">CRM</span>
+      </h1>
+      <p class="text-caption mt-1" style="color: #8892b0;">Giải pháp quản lý Zalo chuyên nghiệp</p>
     </div>
 
     <v-form @submit.prevent="handleLogin">

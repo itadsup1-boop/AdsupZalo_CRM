@@ -1,12 +1,17 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import vuetify from 'vite-plugin-vuetify';
+import { VitePWA } from 'vite-plugin-pwa';
 import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   plugins: [
     vue(),
     vuetify({ autoImport: true }),
+    VitePWA({
+      registerType: 'autoUpdate',
+      manifest: false, // Dùng file manifest.json trong thư mục public
+    }),
   ],
   resolve: {
     alias: {

@@ -40,10 +40,12 @@ export async function userRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: 'Không có quyền' });
     }
 
-    const { email, fullName, password, role = 'member', teamId } = request.body as any;
-    if (!email || !fullName || !password) {
+    const { email: rawEmail, fullName, password, role = 'member', teamId } = request.body as any;
+    if (!rawEmail || !fullName || !password) {
       return reply.status(400).send({ error: 'Email, họ tên, mật khẩu là bắt buộc' });
     }
+
+    const email = rawEmail.toLowerCase().trim();
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return reply.status(400).send({ error: 'Email đã tồn tại' });
@@ -87,7 +89,7 @@ export async function userRoutes(app: FastifyInstance) {
       return reply.status(403).send({ error: 'Không có quyền' });
     }
 
-    const { fullName, email, role, teamId, isActive } = request.body as any;
+    const { fullName, email: rawEmail, role, teamId, isActive } = request.body as any;
 
     if (id === currentUser.id && role && role !== currentUser.role) {
       return reply.status(400).send({ error: 'Không thể thay đổi role của chính mình' });
@@ -95,7 +97,7 @@ export async function userRoutes(app: FastifyInstance) {
 
     const updateData: any = {};
     if (fullName !== undefined) updateData.fullName = fullName;
-    if (email !== undefined) updateData.email = email;
+    if (rawEmail !== undefined) updateData.email = rawEmail.toLowerCase().trim();
     if (role !== undefined && currentUser.role === 'owner') updateData.role = role;
     if (teamId !== undefined) updateData.teamId = teamId || null;
     if (isActive !== undefined && currentUser.role === 'owner') updateData.isActive = isActive;
@@ -138,7 +140,7 @@ export async function userRoutes(app: FastifyInstance) {
     return { success: true };
   });
 
-  // DELETE /api/v1/users/:id — deactivate user (owner only)
+  // DELETE /api/v1/users/:id — delete user permanently (owner only)
   app.delete('/api/v1/users/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     const currentUser = request.user!;
     if (currentUser.role !== 'owner') {
@@ -150,11 +152,36 @@ export async function userRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Không thể xóa chính mình' });
     }
 
-    await prisma.user.update({
-      where: { id, orgId: currentUser.orgId },
-      data: { isActive: false },
-    });
+    try {
+      // 1. Unassign contacts assigned to this user
+      await prisma.contact.updateMany({
+        where: { assignedUserId: id, orgId: currentUser.orgId },
+        data: { assignedUserId: null },
+      });
 
-    return { success: true };
+      // 2. Delete Zalo account access records for this user
+      await prisma.zaloAccountAccess.deleteMany({
+        where: { userId: id },
+      });
+
+      // 3. Clear repliedByUserId in messages to avoid FK errors
+      await prisma.message.updateMany({
+        where: { repliedByUserId: id },
+        data: { repliedByUserId: null },
+      });
+
+      // 4. Finally delete the user
+      await prisma.user.delete({
+        where: { id, orgId: currentUser.orgId },
+      });
+
+      logger.info(`User permanently deleted: ${id} by ${currentUser.email}`);
+      return { success: true };
+    } catch (err: any) {
+      logger.error(`Failed to delete user ${id}: ${err.message}`);
+      return reply.status(400).send({ 
+        error: 'Không thể xóa nhân viên này vì đang sở hữu tài khoản Zalo hoặc dữ liệu quan trọng khác. Hãy chuyển quyền sở hữu trước khi xóa.' 
+      });
+    }
   });
 }

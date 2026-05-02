@@ -86,6 +86,7 @@
       <!-- Input area -->
       <div class="pa-2 chat-input-area">
         <AiSuggestionPanel
+          v-if="false"
           :suggestion="aiSuggestion"
           :loading="aiSuggestionLoading"
           :error="aiSuggestionError"
@@ -106,19 +107,87 @@
             @select="onTemplateSelect"
             @close="showTemplatePopup = false"
           />
-          <RichTextEditor
-            ref="editorRef"
-            v-model="inputText"
-            placeholder="Nhập tin nhắn... (gõ / để chèn mẫu)"
-            class="flex-grow-1 mr-2"
-            @submit="handleSend"
-            @typing="onTypingEvent"
-          />
-          <v-btn icon color="primary" :loading="sending" :disabled="!inputText.trim()" @click="handleSend">
-            <v-icon>mdi-send</v-icon>
-          </v-btn>
+          
+          <!-- Emoji Picker Menu -->
+          <v-menu v-model="showEmojiPicker" :close-on-content-click="false" location="top start" origin="bottom start">
+            <template v-slot:activator="{ props }">
+              <v-btn icon variant="text" size="small" class="mr-2 mb-1 text-grey" v-bind="props">
+                <v-icon size="28">mdi-emoticon-outline</v-icon>
+              </v-btn>
+            </template>
+            <v-card width="300" max-height="300" class="overflow-y-auto pa-2">
+              <div class="d-flex flex-wrap">
+                <v-btn
+                  v-for="emoji in popularEmojis"
+                  :key="emoji"
+                  variant="text"
+                  size="small"
+                  class="ma-1"
+                  style="min-width: 36px; font-size: 1.2rem;"
+                  @click="onSelectEmoji(emoji)"
+                >
+                  {{ emoji }}
+                </v-btn>
+              </div>
+            </v-card>
+          </v-menu>
+          
+          <!-- Pill Input Container -->
+          <div class="flex-grow-1 d-flex align-center rounded-xl px-2" style="background: rgba(var(--v-theme-on-surface), 0.05); border: 1px solid rgba(var(--v-theme-on-surface), 0.1); min-height: 44px;">
+            
+            <!-- Voice Recording UI -->
+            <div v-if="isRecording" class="d-flex align-center flex-grow-1 px-2">
+              <v-icon color="red" class="mr-2 blink-animation">mdi-record-circle</v-icon>
+              <span class="text-subtitle-2 text-red font-weight-medium">{{ recordingTimeString }}</span>
+              <v-spacer></v-spacer>
+              <v-btn icon variant="text" size="small" color="grey" @click="cancelRecording">
+                <v-icon size="22">mdi-delete-outline</v-icon>
+              </v-btn>
+              <v-btn icon class="send-btn ml-2" size="small" density="comfortable" color="primary" @click="stopAndSendRecording">
+                <v-icon size="18">mdi-send</v-icon>
+              </v-btn>
+            </div>
+
+            <!-- Normal Chat Input -->
+            <template v-else>
+              <RichTextEditor
+                ref="editorRef"
+                v-model="inputText"
+                placeholder="Tin nhắn"
+                class="flex-grow-1 zalo-like-input align-self-end"
+                :show-toolbar="false"
+                @submit="handleSend"
+                @typing="onTypingEvent"
+              />
+              
+              <div class="d-flex align-center pb-1 pr-1 align-self-end" v-if="!inputText.trim()">
+                <v-btn icon variant="text" size="small" class="text-grey" density="comfortable" @click="showNotImplementedToast">
+                  <v-icon size="22">mdi-dots-horizontal</v-icon>
+                </v-btn>
+                <v-btn icon variant="text" size="small" class="text-grey" density="comfortable" @click="startRecording">
+                  <v-icon size="22">mdi-microphone-outline</v-icon>
+                </v-btn>
+                <v-btn icon variant="text" size="small" class="text-grey" density="comfortable" @click="openFilePicker">
+                  <v-icon size="22">mdi-image-outline</v-icon>
+                </v-btn>
+                <input type="file" ref="fileInput" multiple style="display: none;" @change="onFileSelected" />
+              </div>
+              
+              <!-- Send button when typing -->
+              <div class="d-flex align-center pb-1 pr-1 pl-2 align-self-end" v-else>
+                <v-btn icon class="send-btn" size="small" density="comfortable" :loading="sending" @click="handleSend">
+                  <v-icon size="18">mdi-send</v-icon>
+                </v-btn>
+              </div>
+            </template>
+          </div>
         </div>
       </div>
+      
+      <!-- Feature under development notification -->
+      <v-snackbar v-model="notImplementedToast" color="info" :timeout="2000" location="bottom">
+        🚀 Tính năng này đang được phát triển ở phiên bản sau!
+      </v-snackbar>
     </template>
 
     <!-- Context menu -->
@@ -188,6 +257,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   send: [content: string, replyMessageId?: string | null];
+  'send-voice': [audioBlob: Blob];
+  'send-file': [files: File[]];
   'toggle-contact-panel': [];
   'ask-ai': [];
   'add-reaction': [msgId: string, reaction: string];
@@ -208,6 +279,120 @@ const messagesContainer = ref<HTMLElement | null>(null);
 const previewImageUrl = ref('');
 const showImagePreview = computed({ get: () => !!previewImageUrl.value, set: (v) => { if (!v) previewImageUrl.value = ''; } });
 const syncSnack = ref({ show: false, text: '', color: 'success' });
+const notImplementedToast = ref(false);
+
+const showEmojiPicker = ref(false);
+
+const isRecording = ref(false);
+const recordingTime = ref(0);
+const audioChunks = ref<Blob[]>([]);
+let mediaRecorder: MediaRecorder | null = null;
+let recordingTimer: any = null;
+
+const recordingTimeString = computed(() => {
+  const m = Math.floor(recordingTime.value / 60);
+  const s = recordingTime.value % 60;
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+});
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks.value = [];
+    
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunks.value.push(e.data);
+    };
+    
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach(track => track.stop());
+    };
+    
+    mediaRecorder.start();
+    isRecording.value = true;
+    recordingTime.value = 0;
+    
+    recordingTimer = setInterval(() => {
+      recordingTime.value++;
+    }, 1000);
+  } catch (err) {
+    console.error('Microphone access denied or error:', err);
+    alert('Không thể truy cập Microphone. Vui lòng kiểm tra quyền trên trình duyệt.');
+  }
+}
+
+function stopAndSendRecording() {
+  if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+  
+  mediaRecorder.onstop = () => {
+    const audioBlob = new Blob(audioChunks.value, { type: 'audio/webm' });
+    emit('send-voice', audioBlob);
+    cleanupRecording();
+  };
+  
+  mediaRecorder.stop();
+}
+
+function cancelRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.onstop = () => {
+      cleanupRecording();
+    };
+    mediaRecorder.stop();
+  } else {
+    cleanupRecording();
+  }
+}
+
+function cleanupRecording() {
+  isRecording.value = false;
+  clearInterval(recordingTimer);
+  audioChunks.value = [];
+  mediaRecorder = null;
+}
+
+const fileInput = ref<HTMLInputElement | null>(null);
+
+function openFilePicker() {
+  if (fileInput.value) {
+    fileInput.value.click();
+  }
+}
+
+function onFileSelected(event: Event) {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files.length > 0) {
+    emit('send-file', Array.from(target.files));
+    target.value = ''; // reset input
+  }
+}
+
+const popularEmojis = [
+  '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
+  '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
+  '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🥸',
+  '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️',
+  '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡',
+  '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓',
+  '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄',
+  '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵',
+  '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠',
+  '👍', '👎', '👌', '🤌', '🤏', '✌️', '🤞', '🫰', '🤟', '🤘',
+  '🤙', '👈', '👉', '👆', '👇', '☝️', '✋', '🤚', '🖐️', '🖖',
+  '👋', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳',
+  '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃', '🧠', '🫀',
+  '🫁', '🦷', '🦴', '👀', '👁️', '👅', '👄', '💋', '🩸'
+];
+
+function onSelectEmoji(emoji: string) {
+  // Append emoji to inputText
+  inputText.value += emoji;
+}
+
+function showNotImplementedToast() {
+  notImplementedToast.value = true;
+}
 
 // Context menu state
 const showContextMenu = ref(false);
@@ -415,4 +600,33 @@ watch(() => props.messages.length, async () => {
 .album-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
 .album-tile { width: 100%; aspect-ratio: 1/1; object-fit: cover; cursor: pointer; transition: transform 0.2s; }
 .album-tile:hover { transform: scale(1.02); }
+
+.chat-input-area {
+  background: rgba(var(--v-theme-surface), 1);
+  padding: 8px 12px 16px 12px !important;
+}
+
+.zalo-like-input {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.zalo-like-input :deep(.tiptap-input) {
+  padding: 10px 14px;
+  min-height: 40px;
+}
+.zalo-like-input :deep(.tiptap-input p.is-editor-empty:first-child::before) {
+  color: rgba(var(--v-theme-on-surface), 0.4);
+}
+
+.send-btn {
+  background: linear-gradient(135deg, #00F2FF, #0088FF) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 15px rgba(0, 242, 255, 0.3) !important;
+}
+.send-btn:disabled {
+  background: rgba(var(--v-theme-on-surface), 0.1) !important;
+  color: rgba(var(--v-theme-on-surface), 0.3) !important;
+  box-shadow: none !important;
+}
 </style>

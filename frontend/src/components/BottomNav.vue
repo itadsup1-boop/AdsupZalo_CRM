@@ -1,8 +1,27 @@
 <template>
-  <v-bottom-navigation grow :model-value="activeTab" @update:model-value="navigate" style="position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; padding-bottom: env(safe-area-inset-bottom);">
-    <v-btn v-for="tab in tabs" :key="tab.path" :value="tab.path">
-      <v-icon>{{ tab.icon }}</v-icon>
-      <span class="text-caption">{{ tab.title }}</span>
+  <v-bottom-navigation
+    grow
+    flat
+    active
+    color="primary"
+    :model-value="activeTab"
+    @update:model-value="navigate"
+    style="
+      padding-bottom: env(safe-area-inset-bottom); 
+      height: calc(68px + env(safe-area-inset-bottom)) !important;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    "
+  >
+    <v-btn 
+      v-for="tab in tabs" 
+      :key="tab.path" 
+      :value="tab.path"
+      variant="plain"
+      :ripple="false"
+      class="pb-1"
+    >
+      <v-icon size="24">{{ tab.icon }}</v-icon>
+      <span class="text-caption mt-1" style="font-weight: 500;">{{ tab.title }}</span>
     </v-btn>
   </v-bottom-navigation>
 </template>
