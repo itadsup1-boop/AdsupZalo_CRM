@@ -4,7 +4,7 @@
  * Owner/admin roles bypass the check (they have access to all accounts in their org).
  */
 import type { FastifyRequest, FastifyReply } from 'fastify';
-import { prisma } from '../../shared/database/prisma-client.js';
+import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 
 type Permission = 'read' | 'chat' | 'admin';
 
@@ -24,7 +24,8 @@ export function requireZaloAccess(minPermission: Permission) {
     // If accessing via conversation, look up the Zalo account from the conversation
     if (params.id && !params.zaloAccountId) {
       try {
-        const conv = await prisma.conversation.findFirst({
+        const db = getTenantPrisma(user.orgId);
+        const conv = await db.conversation.findFirst({
           where: { id: params.id, orgId: user.orgId },
           select: { zaloAccountId: true },
         });
@@ -37,7 +38,8 @@ export function requireZaloAccess(minPermission: Permission) {
     if (!zaloAccountId) return reply.status(404).send({ error: 'Not found' });
 
     try {
-      const access = await prisma.zaloAccountAccess.findFirst({
+      const db = getTenantPrisma(user.orgId);
+      const access = await db.zaloAccountAccess.findFirst({
         where: { zaloAccountId, userId: user.id },
       });
 

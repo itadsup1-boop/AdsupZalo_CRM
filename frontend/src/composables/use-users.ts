@@ -11,6 +11,7 @@ export interface OrgUser {
   fullName: string;
   role: string;
   isActive: boolean;
+  isPending: boolean;
   teamId: string | null;
   createdAt: string;
   team?: { id: string; name: string } | null;
@@ -50,6 +51,16 @@ export function useUsers() {
     }
   }
 
+  async function approveUser(id: string): Promise<{ ok: boolean; error?: string }> {
+    try {
+      await api.post(`/users/${id}/approve`);
+      await fetchUsers();
+      return { ok: true };
+    } catch (err: any) {
+      return { ok: false, error: err.response?.data?.error || 'Lỗi phê duyệt nhân viên' };
+    }
+  }
+
   async function updateUser(
     id: string,
     data: Partial<{ fullName: string; email: string; role: string; teamId: string; isActive: boolean }>,
@@ -82,5 +93,5 @@ export function useUsers() {
     }
   }
 
-  return { users, loading, error, fetchUsers, createUser, updateUser, resetPassword, deleteUser };
+  return { users, loading, error, fetchUsers, createUser, approveUser, updateUser, resetPassword, deleteUser };
 }

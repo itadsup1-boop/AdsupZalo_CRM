@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /login
+Disallow: /settings
+Disallow: /profile
+
+Sitemap: https://crm.adsup.vn/sitemap.xml

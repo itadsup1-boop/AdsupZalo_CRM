@@ -6,6 +6,7 @@
  * This is a safety net — the primary sync path is selfListen + old_messages.
  */
 import { prisma } from '../../shared/database/prisma-client.js';
+import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 import { logger } from '../../shared/utils/logger.js';
 import { handleIncomingMessage } from '../chat/message-handler.js';
 import { detectContentType, extractAlbumInfo } from './zalo-message-helpers.js';
@@ -29,7 +30,8 @@ async function syncGroupMessages(api: any, accountId: string): Promise<number> {
   if (!account) return 0;
 
   // Get most recently active group conversations
-  const groupConvs = await prisma.conversation.findMany({
+  const db = getTenantPrisma(account.orgId);
+  const groupConvs = await db.conversation.findMany({
     where: { zaloAccountId: accountId, threadType: 'group' },
     select: { id: true, externalThreadId: true },
     take: MAX_GROUPS_PER_SYNC,
@@ -52,7 +54,7 @@ async function syncGroupMessages(api: any, accountId: string): Promise<number> {
       if (msgIdMap.size === 0) continue;
 
       // Batch existence check — single query per group
-      const existing = await prisma.message.findMany({
+      const existing = await db.message.findMany({
         where: { conversationId: conv.id, zaloMsgId: { in: [...msgIdMap.keys()] } },
         select: { zaloMsgId: true },
       });

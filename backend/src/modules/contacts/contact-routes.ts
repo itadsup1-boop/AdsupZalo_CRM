@@ -4,8 +4,9 @@
  * All routes require JWT auth and are scoped to user's org.
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { prisma } from '../../shared/database/prisma-client.js';
+import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 import { authMiddleware } from '../auth/auth-middleware.js';
+import { requireRole } from '../auth/role-middleware.js';
 import { logger } from '../../shared/utils/logger.js';
 import { mergeContacts } from './merge-service.js';
 import { runContactIntelligence } from './contact-intelligence.js';
@@ -29,24 +30,47 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         assignedUserId = '',
       } = request.query as QueryParams;
 
-      const where: any = { orgId: user.orgId, mergedInto: null };
+      const db = getTenantPrisma(user.orgId);
+
+      // ── Build ownership-safe where clause ─────────────────────────────────
+      const where: any = { mergedInto: null };
+      
+      if (user.role === 'member') {
+        // Members see their assigned contacts OR unassigned ones (to take them)
+        where.OR = [
+          { assignedUserId: user.id },
+          { assignedUserId: null }
+        ];
+      } else if (assignedUserId) {
+        where.assignedUserId = assignedUserId;
+      }
+
       if (source) where.source = source;
       if (status) where.status = status;
-      if (assignedUserId) where.assignedUserId = assignedUserId;
+      
       if (search) {
-        where.OR = [
-          { fullName: { contains: search, mode: 'insensitive' } },
-          { crmName: { contains: search, mode: 'insensitive' } },
-          { phone: { contains: search } },
-          { email: { contains: search, mode: 'insensitive' } },
-        ];
+        const searchClause = {
+          OR: [
+            { fullName: { contains: search, mode: 'insensitive' } },
+            { crmName: { contains: search, mode: 'insensitive' } },
+            { phone: { contains: search } },
+            { email: { contains: search, mode: 'insensitive' } },
+          ],
+        };
+        // Ensure search doesn't break the ownership OR above
+        if (where.OR) {
+          where.AND = [ { OR: where.OR }, searchClause ];
+          delete where.OR;
+        } else {
+          where.AND = [ searchClause ];
+        }
       }
 
       const pageNum = parseInt(page);
       const limitNum = parseInt(limit);
 
       const [contacts, total] = await Promise.all([
-        prisma.contact.findMany({
+        db.contact.findMany({
           where,
           include: {
             assignedUser: { select: { id: true, fullName: true, email: true } },
@@ -56,7 +80,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
           skip: (pageNum - 1) * limitNum,
           take: limitNum,
         }),
-        prisma.contact.count({ where }),
+        db.contact.count({ where }),
       ]);
 
       return { contacts, total, page: pageNum, limit: limitNum };
@@ -72,20 +96,36 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       const user = request.user!;
       const orgId = user.orgId;
 
-      const pipeline = await prisma.contact.groupBy({
+      const db = getTenantPrisma(orgId);
+      const whereBase: any = { status: { not: null }, mergedInto: null };
+      
+      if (user.role === 'member') {
+        whereBase.OR = [
+          { assignedUserId: user.id },
+          { assignedUserId: null }
+        ];
+      }
+
+      const pipeline = await db.contact.groupBy({
         by: ['status'],
-        where: { orgId, status: { not: null }, mergedInto: null },
+        where: whereBase,
         _count: true,
       });
 
       // Fetch contacts per status for kanban cards (limit 20 per column)
-      const statuses = pipeline.map((g) => g.status ?? 'unknown');
+      const statuses = pipeline.map((g: any) => g.status ?? 'unknown');
       const contactsByStatus: Record<string, any[]> = {};
 
       await Promise.all(
-        statuses.map(async (st) => {
-          const where: any = { orgId, status: st ?? null, mergedInto: null };
-          const contacts = await prisma.contact.findMany({
+        statuses.map(async (st: string) => {
+          const where: any = { status: st ?? null, mergedInto: null };
+          if (user.role === 'member') {
+            where.OR = [
+              { assignedUserId: user.id },
+              { assignedUserId: null }
+            ];
+          }
+          const contacts = await db.contact.findMany({
             where,
             select: {
               id: true,
@@ -104,7 +144,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         }),
       );
 
-      const result = pipeline.map((g) => ({
+      const result = pipeline.map((g: any) => ({
         status: g.status ?? 'unknown',
         count: g._count,
         contacts: contactsByStatus[g.status ?? 'unknown'] ?? [],
@@ -123,8 +163,9 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       const user = request.user!;
       const { id } = request.params as { id: string };
 
-      const contact = await prisma.contact.findFirst({
-        where: { id, orgId: user.orgId },
+      const db = getTenantPrisma(user.orgId);
+      const contact = await db.contact.findFirst({
+        where: { id },
         include: {
           assignedUser: { select: { id: true, fullName: true, email: true } },
           appointments: { orderBy: { appointmentDate: 'desc' }, take: 10 },
@@ -133,6 +174,14 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       });
 
       if (!contact) return reply.status(404).send({ error: 'Contact not found' });
+      
+      if (user.role === 'member') {
+        // Can only view if assigned to them or unassigned
+        if (contact.assignedUserId !== null && contact.assignedUserId !== user.id) {
+          return reply.status(403).send({ error: 'Forbidden: You do not have access to this contact' });
+        }
+      }
+      
       return contact;
     } catch (err) {
       logger.error('[contacts] Detail error:', err);
@@ -146,7 +195,8 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       const user = request.user!;
       const body = request.body as Record<string, any>;
 
-      const contact = await prisma.contact.create({
+      const db = getTenantPrisma(user.orgId);
+      const contact = await db.contact.create({
         data: {
           orgId: user.orgId,
           fullName: body.fullName,
@@ -159,14 +209,14 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
           sourceDate: body.sourceDate ? new Date(body.sourceDate) : undefined,
           status: body.status ?? 'new',
           nextAppointment: body.nextAppointment ? new Date(body.nextAppointment) : undefined,
-          assignedUserId: body.assignedUserId,
+          assignedUserId: user.role === 'member' ? user.id : body.assignedUserId,
           notes: body.notes,
           tags: body.tags ?? [],
           metadata: body.metadata ?? {},
         },
       });
 
-      const org = await prisma.organization.findUnique({
+      const org = await db.organization.findUnique({
         where: { id: user.orgId },
         select: { id: true, name: true },
       });
@@ -198,11 +248,22 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       const { id } = request.params as { id: string };
       const body = request.body as Record<string, any>;
 
-      const existing = await prisma.contact.findFirst({
-        where: { id, orgId: user.orgId },
-        select: { id: true, status: true, fullName: true, phone: true, source: true, assignedUserId: true },
+      const db = getTenantPrisma(user.orgId);
+
+      // Pre-fetch for permission check
+      const existing = await db.contact.findFirst({
+        where: { id },
+        select: { status: true, assignedUserId: true },
       });
       if (!existing) return reply.status(404).send({ error: 'Contact not found' });
+      
+      if (user.role === 'member') {
+        // PERMISSION FIX: Member can update IF assigned to them OR IF unassigned (null)
+        const canUpdate = existing.assignedUserId === user.id || existing.assignedUserId === null;
+        if (!canUpdate) {
+          return reply.status(403).send({ error: 'Forbidden: You do not own this contact' });
+        }
+      }
 
       const updateData: any = {
         fullName: body.fullName,
@@ -214,16 +275,20 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         sourceDate: body.sourceDate ? new Date(body.sourceDate) : undefined,
         status: body.status,
         nextAppointment: body.nextAppointment ? new Date(body.nextAppointment) : undefined,
-        assignedUserId: body.assignedUserId,
+        // Members cannot re-assign contacts to others, but they can "claim" an unassigned one
+        assignedUserId: user.role === 'member' 
+          ? (existing.assignedUserId === null ? user.id : undefined) 
+          : body.assignedUserId,
         notes: body.notes,
         tags: body.tags,
         metadata: body.metadata,
       };
+      
       if (body.firstContactDate !== undefined) {
         updateData.firstContactDate = body.firstContactDate ? new Date(body.firstContactDate) : null;
       }
 
-      const updated = await prisma.contact.update({
+      const updated = await db.contact.update({
         where: { id },
         data: updateData,
         include: {
@@ -233,8 +298,8 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         },
       });
 
-      if (existing.status !== updated.status) {
-        const org = await prisma.organization.findUnique({
+      if (existing.status !== updated?.status) {
+        const org = await db.organization.findUnique({
           where: { id: user.orgId },
           select: { id: true, name: true },
         });
@@ -243,12 +308,12 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
           orgId: user.orgId,
           org,
           contact: {
-            id: updated.id,
-            fullName: updated.fullName,
-            phone: updated.phone,
-            status: updated.status,
-            source: updated.source,
-            assignedUserId: updated.assignedUserId,
+            id: updated!.id,
+            fullName: updated!.fullName,
+            phone: updated!.phone,
+            status: updated!.status,
+            source: updated!.source,
+            assignedUserId: updated!.assignedUserId,
           },
         });
       }
@@ -269,11 +334,18 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
 
       if (!Array.isArray(tags)) return reply.status(400).send({ error: 'tags must be an array' });
 
-      const existing = await prisma.contact.findFirst({ where: { id, orgId: user.orgId }, select: { id: true } });
+      const db = getTenantPrisma(user.orgId);
+      
+      const existing = await db.contact.findFirst({ where: { id }, select: { assignedUserId: true } });
       if (!existing) return reply.status(404).send({ error: 'Contact not found' });
 
-      const updated = await prisma.contact.update({ where: { id }, data: { tags } });
-      return updated;
+      if (user.role === 'member') {
+        const canUpdate = existing.assignedUserId === user.id || existing.assignedUserId === null;
+        if (!canUpdate) return reply.status(403).send({ error: 'Forbidden' });
+      }
+
+      await db.contact.update({ where: { id }, data: { tags } });
+      return { success: true };
     } catch (err) {
       logger.error('[contacts] Update tags error:', err);
       return reply.status(500).send({ error: 'Failed to update tags' });
@@ -286,10 +358,18 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       const user = request.user!;
       const { id } = request.params as { id: string };
 
-      const existing = await prisma.contact.findFirst({ where: { id, orgId: user.orgId }, select: { id: true } });
+      const db = getTenantPrisma(user.orgId);
+      
+      const existing = await db.contact.findFirst({ where: { id }, select: { assignedUserId: true } });
       if (!existing) return reply.status(404).send({ error: 'Contact not found' });
 
-      await prisma.contact.delete({ where: { id } });
+      if (user.role === 'member') {
+        if (existing.assignedUserId !== user.id) {
+          return reply.status(403).send({ error: 'Forbidden: Members can only delete their own assigned contacts' });
+        }
+      }
+
+      await db.contact.delete({ where: { id } });
       return { success: true };
     } catch (err) {
       logger.error('[contacts] Delete error:', err);
@@ -305,27 +385,29 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
 
       const pageNum = parseInt(page);
       const limitNum = parseInt(limit);
-      const where = { orgId: user.orgId, resolved: resolved === 'true' };
+      const db = getTenantPrisma(user.orgId);
+      const where = { resolved: resolved === 'true' };
 
       const [groups, total] = await Promise.all([
-        prisma.duplicateGroup.findMany({
+        db.duplicateGroup.findMany({
           where,
           orderBy: { createdAt: 'desc' },
           skip: (pageNum - 1) * limitNum,
           take: limitNum,
         }),
-        prisma.duplicateGroup.count({ where }),
+        db.duplicateGroup.count({ where }),
       ]);
 
       // Expand contact data for each group
       const expanded = await Promise.all(
-        groups.map(async (group) => {
-          const contacts = await prisma.contact.findMany({
+        groups.map(async (group: any) => {
+          const contacts = await db.contact.findMany({
             where: { id: { in: group.contactIds } },
             select: {
               id: true, fullName: true, phone: true, email: true,
               zaloUid: true, avatarUrl: true, source: true, status: true,
               tags: true, createdAt: true, leadScore: true, lastActivity: true,
+              assignedUserId: true
             },
           });
           return { ...group, contacts };
@@ -348,18 +430,19 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
 
       if (!primaryContactId) return reply.status(400).send({ error: 'primaryContactId is required' });
 
-      const group = await prisma.duplicateGroup.findFirst({
-        where: { id: groupId, orgId: user.orgId, resolved: false },
+      const db = getTenantPrisma(user.orgId);
+      const group = await db.duplicateGroup.findFirst({
+        where: { id: groupId, resolved: false },
       });
       if (!group) return reply.status(404).send({ error: 'Duplicate group not found' });
 
-      const secondaryIds = group.contactIds.filter((id) => id !== primaryContactId);
+      const secondaryIds = group.contactIds.filter((cid: string) => cid !== primaryContactId);
       if (secondaryIds.length === 0) return reply.status(400).send({ error: 'Primary must be in the group' });
 
       const merged = await mergeContacts(user.orgId, user.id, primaryContactId, secondaryIds);
 
       // Resolve the group
-      await prisma.duplicateGroup.update({ where: { id: groupId }, data: { resolved: true } });
+      await db.duplicateGroup.update({ where: { id: groupId }, data: { resolved: true } });
 
       return merged;
     } catch (err: any) {
@@ -368,17 +451,21 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
     }
   });
 
-  // ── POST /api/v1/contacts/intelligence/recompute — manual trigger ────────
-  app.post('/api/v1/contacts/intelligence/recompute', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      // Fire and forget — return 202 immediately
-      runContactIntelligence().catch((err) => {
-        logger.error('[contacts] Recompute error:', err);
-      });
-      return reply.status(202).send({ message: 'Intelligence recompute started' });
-    } catch (err) {
-      logger.error('[contacts] Recompute trigger error:', err);
-      return reply.status(500).send({ error: 'Failed to start recompute' });
-    }
-  });
+  // ── POST /api/v1/contacts/intelligence/recompute — admin/owner only ──────
+  app.post(
+    '/api/v1/contacts/intelligence/recompute',
+    { preHandler: [authMiddleware, requireRole('owner', 'admin')] },
+    async (_request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        // Fire and forget — return 202 immediately
+        runContactIntelligence().catch((err) => {
+          logger.error('[contacts] Recompute error:', err);
+        });
+        return reply.status(202).send({ message: 'Intelligence recompute started' });
+      } catch (err) {
+        logger.error('[contacts] Recompute trigger error:', err);
+        return reply.status(500).send({ error: 'Failed to start recompute' });
+      }
+    },
+  );
 }

@@ -37,7 +37,7 @@ const tabs = [
   { title: 'Chat', icon: 'mdi-message-text-outline', path: '/chat' },
   { title: 'Khách hàng', icon: 'mdi-account-group-outline', path: '/contacts' },
   { title: 'Lịch hẹn', icon: 'mdi-calendar-clock-outline', path: '/appointments' },
-  { title: 'Tổng quan', icon: 'mdi-view-dashboard-outline', path: '/' },
+  { title: 'Tổng quan', icon: 'mdi-view-dashboard-outline', path: '/dashboard' },
 ];
 
 const activeTab = computed(() => {

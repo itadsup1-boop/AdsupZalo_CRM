@@ -66,14 +66,17 @@ async function attemptReconnect(accountId: string): Promise<void> {
   const attempt = (async () => {
     const account = await prisma.zaloAccount.findUnique({
       where: { id: accountId },
-      select: { sessionData: true },
+      select: { orgId: true, sessionData: true },
     });
     const session = account?.sessionData as ZaloCredentials | null;
     if (!session?.imei) {
       throw new ZaloOpError('No saved session for reconnect', 'SESSION_EXPIRED', 401);
     }
+    if (!account?.orgId) {
+      throw new ZaloOpError('Account orgId not found', 'SESSION_EXPIRED', 401);
+    }
     logger.info(`[zalo-ops:${accountId}] Auto-reconnecting after session expiry...`);
-    await zaloPool.reconnect(accountId, session);
+    await zaloPool.reconnect(accountId, account.orgId, session);
   })();
 
   reconnecting.set(accountId, attempt);
@@ -256,6 +259,17 @@ async function deleteMessage(accountId: string, msgId: string, cliMsgId: string,
 async function undoMessage(accountId: string, msgId: string, cliMsgId: string, ownerId: string, threadId: string, threadType: 0 | 1) {
   return exec({ accountId, category: 'chat_action', operation: 'undo' },
     (api) => api.undo(msgId, cliMsgId, ownerId, threadId, threadType));
+}
+
+// ─── Labels / Tags ───────────────────────────────────────────────────────────
+async function getLabels(accountId: string) {
+  return exec({ accountId, category: 'query', operation: 'getLabels' },
+    (api) => api.getLabels());
+}
+
+async function updateLabels(accountId: string, labelData: any[], version: number) {
+  return exec({ accountId, category: 'chat_action', operation: 'updateLabels' },
+    (api) => (api as any).updateLabels({ labelData, version }));
 }
 
 async function editMessage(accountId: string, msgId: string, cliMsgId: string, content: string, threadId: string, threadType: 0 | 1) {
@@ -551,6 +565,8 @@ export const zaloOps = {
   editMessage,
   pinConversation,
   getPinConversations,
+  getLabels,
+  updateLabels,
 
   // Group management
   createGroup,

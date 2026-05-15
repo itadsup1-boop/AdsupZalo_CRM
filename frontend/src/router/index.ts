@@ -3,6 +3,12 @@ import { useAuthStore } from '@/stores/auth';
 
 const routes = [
   {
+    path: '/',
+    name: 'Landing',
+    component: () => import('@/views/LandingView.vue'),
+    meta: { layout: 'empty' },
+  },
+  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/LoginView.vue'),
@@ -15,7 +21,13 @@ const routes = [
     meta: { layout: 'auth' },
   },
   {
-    path: '/',
+    path: '/join',
+    name: 'Join',
+    component: () => import('@/views/JoinView.vue'),
+    meta: { layout: 'auth' },
+  },
+  {
+    path: '/dashboard',
     name: 'Dashboard',
     component: () => import('@/views/DashboardView.vue'),
     meta: { requiresAuth: true },
@@ -99,6 +111,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/call/:roomId',
+    name: 'VideoCall',
+    component: () => import('@/views/VideoCallView.vue'),
+    meta: { layout: 'empty' },
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/NotFoundView.vue'),
@@ -112,10 +130,15 @@ export const router = createRouter({
 
 // Auth guard
 router.beforeEach(async (to, _from, next) => {
+  console.log('Navigating to:', to.name, 'Path:', to.path);
   const authStore = useAuthStore();
 
-  // Skip guard for setup and login pages
-  if (to.name === 'Setup' || to.name === 'Login') {
+  // Skip guard for public pages
+  if (['Setup', 'Login', 'Landing', 'VideoCall', 'Join'].includes(to.name as string)) {
+    // If authenticated and trying to access login, go to dashboard
+    if (authStore.token && to.name === 'Login') {
+      return next('/dashboard');
+    }
     return next();
   }
 

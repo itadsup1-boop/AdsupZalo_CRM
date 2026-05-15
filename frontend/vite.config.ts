@@ -9,8 +9,18 @@ export default defineConfig({
     vue(),
     vuetify({ autoImport: true }),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       manifest: false, // Dùng file manifest.json trong thư mục public
+      devOptions: {
+        enabled: true,
+        type: 'module',
+      },
+      injectManifest: {
+        injectionPoint: undefined
+      }
     }),
   ],
   resolve: {
@@ -21,9 +31,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:3000',
+      '/api': 'http://localhost:3080',
       '/socket.io': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3080',
         ws: true,
       },
     },

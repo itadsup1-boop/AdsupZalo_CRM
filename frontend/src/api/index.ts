@@ -23,7 +23,7 @@ api.interceptors.response.use(
       localStorage.removeItem('token');
       // Use Vue Router instead of hard reload to prevent redirect loops
       const currentPath = router.currentRoute.value.path;
-      if (currentPath !== '/login' && currentPath !== '/setup') {
+      if (currentPath !== '/login' && currentPath !== '/setup' && currentPath !== '/') {
         router.replace('/login');
       }
     }

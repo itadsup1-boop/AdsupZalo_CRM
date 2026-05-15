@@ -3,10 +3,18 @@
  * Called from zalo-pool's startListener on every 'message' / 'undo' event.
  */
 import { prisma } from '../../shared/database/prisma-client.js';
+import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 import { logger } from '../../shared/utils/logger.js';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { emitWebhook } from '../api/webhook-service.js';
 import { runAutomationRules } from '../automation/automation-service.js';
+
+function generateMessageFingerprint(senderId: string, content: string, timestamp: number): string {
+  // Round timestamp to nearest 5 seconds to handle slight clock skews
+  const roundedTs = Math.floor(timestamp / 5000) * 5000;
+  const raw = `${senderId}|${content}|${roundedTs}`;
+  return createHash('sha256').update(raw).digest('hex');
+}
 
 export interface IncomingMessage {
   accountId: string;
@@ -55,32 +63,63 @@ export interface HandleMessageResult {
 
 export async function handleIncomingMessage(
   msg: IncomingMessage,
+  providedAccount?: { orgId: string; ownerUserId: string | null }
 ): Promise<HandleMessageResult | null> {
   try {
-    const account = await prisma.zaloAccount.findUnique({
-      where: { id: msg.accountId },
-      select: { orgId: true, ownerUserId: true },
-    });
+    let account = providedAccount;
+
+    if (!account) {
+      account = await prisma.zaloAccount.findUnique({
+        where: { id: msg.accountId },
+        select: { orgId: true, ownerUserId: true },
+      }) as any;
+    }
+    
     if (!account) return null;
 
-    const contactId = await upsertContact(msg, account.orgId);
+    const db = getTenantPrisma(account.orgId);
+    const contactId = await upsertContact(db, msg, account.orgId);
 
     // Update lastActivity for lead scoring freshness
     if (contactId) {
-      prisma.contact.update({
+      db.contact.update({
         where: { id: contactId },
         data: { lastActivity: new Date() },
       }).catch(() => {});
     }
 
-    const conversation = await findOrCreateConversation(msg, account.orgId, contactId);
+    // Consistency Check 1: Ensure contact belongs to the correct org
+    if (contactId) {
+      const contactCheck = await prisma.contact.findUnique({ where: { id: contactId }, select: { orgId: true } });
+      if (contactCheck && contactCheck.orgId !== account.orgId) {
+        throw new Error(`[Security] Cross-tenant violation: Contact ${contactId} does not belong to Org ${account.orgId}`);
+      }
+    }
+
+    const conversation = await findOrCreateConversation(db, msg, account.orgId, contactId, account.id);
+
+    // Consistency Check 2: Ensure conversation belongs to the correct org
+    const convCheck = await prisma.conversation.findUnique({ where: { id: conversation.id }, select: { orgId: true } });
+    if (convCheck && convCheck.orgId !== account.orgId) {
+      throw new Error(`[Security] Cross-tenant violation: Conversation ${conversation.id} does not belong to Org ${account.orgId}`);
+    }
 
     const sentAt = new Date(msg.timestamp);
+    const fingerprint = generateMessageFingerprint(msg.senderUid, msg.content || '', msg.timestamp);
 
-    // Dedup guard for self messages: if a self message with same content exists
-    // in the last 30 seconds, this is likely a selfListen echo of a CRM-sent message
+    // Dedup guard using Fingerprint
+    const existingFingerprint = await db.message.findUnique({
+      where: { messageFingerprint: fingerprint },
+      select: { id: true },
+    });
+    if (existingFingerprint) {
+      logger.debug(`[message-handler] Skipping duplicate message via fingerprint: ${fingerprint}`);
+      return null;
+    }
+
+    // Dedup guard for self messages (Legacy support)
     if (msg.isSelf && msg.msgId) {
-      const recentDupe = await prisma.message.findFirst({
+      const recentDupe = await db.message.findFirst({
         where: {
           conversationId: conversation.id,
           senderType: 'self',
@@ -92,7 +131,7 @@ export async function handleIncomingMessage(
       if (recentDupe) {
         // If the existing record has no zaloMsgId, backfill it for future dedup
         if (!recentDupe.zaloMsgId && msg.msgId) {
-          await prisma.message.update({
+          await db.message.update({
             where: { id: recentDupe.id },
             data: { zaloMsgId: msg.msgId },
           }).catch(() => {});
@@ -102,14 +141,31 @@ export async function handleIncomingMessage(
       }
     }
 
+    // Deduplication logic
+    let existing = null;
+    if (msg.msgId) {
+      existing = await db.message.findFirst({
+        where: { zaloMsgId: msg.msgId },
+      });
+    }
+
+    if (existing) {
+      return { message: existing as any, conversationId: conversation.id, orgId: account.orgId, contactId };
+    }
+
+    const finalFingerprint = generateMessageFingerprint(msg.senderUid, msg.content || '', msg.timestamp);
+
+    // Create new message
     let message;
     try {
-      message = await prisma.message.create({
+      message = await db.message.create({
         data: {
           id: randomUUID(),
+          orgId: account.orgId,
           conversationId: conversation.id,
-          zaloMsgId: msg.msgId || null,
-          senderType: msg.isSelf ? 'self' : 'contact',
+          messageFingerprint: finalFingerprint,
+          zaloMsgId: msg.msgId || `hydrated-${randomUUID()}`,
+          senderType: msg.isSelf ? 'self' : 'customer',
           senderUid: msg.senderUid,
           senderName: msg.senderName || null,
           content: msg.content || '',
@@ -122,20 +178,23 @@ export async function handleIncomingMessage(
           sentAt,
         },
       });
+
     } catch (err: any) {
       // P2002 = unique constraint violation → duplicate zaloMsgId, skip silently
       if (err?.code === 'P2002') {
         logger.debug(`[message-handler] Skipping duplicate zaloMsgId=${msg.msgId}`);
+        // Even if message is duplicate, ensure conversation timestamp is updated
+        await updateConversationAfterMessage(db, conversation.id, sentAt, msg.isSelf);
         return null;
       }
       throw err;
     }
 
-    await updateConversationAfterMessage(conversation.id, sentAt, msg.isSelf);
+    await updateConversationAfterMessage(db, conversation.id, sentAt, msg.isSelf);
 
     // Track first outbound contact date — set once when agent sends first message
     if (msg.isSelf && contactId) {
-      prisma.contact.updateMany({
+      db.contact.updateMany({
         where: { id: contactId, firstContactDate: null },
         data: { firstContactDate: new Date(msg.timestamp) },
       }).catch(() => {});
@@ -161,18 +220,99 @@ export async function handleIncomingMessage(
       sentAt: message.sentAt,
     });
 
+    // Send Push Notifications to assigned users
     if (!msg.isSelf) {
-      const org = await prisma.organization.findUnique({
+      void (async () => {
+        try {
+          const { sendPushNotification } = await import('../notifications/push-service.js');
+          
+          // 1. Find all users with access to this Zalo account
+          const access = await prisma.zaloAccountAccess.findMany({
+            where: { zaloAccountId: msg.accountId },
+            select: { userId: true }
+          });
+          
+          // 2. Also include the owner
+          const accountDetails = await prisma.zaloAccount.findUnique({
+            where: { id: msg.accountId },
+            select: { ownerUserId: true }
+          });
+          
+          const userIds = new Set(access.map(a => a.userId));
+          if (accountDetails?.ownerUserId) userIds.add(accountDetails.ownerUserId);
+          
+          // 3. Send notification to each user
+          for (const userId of userIds) {
+            await sendPushNotification(userId, account.orgId, {
+              title: msg.senderName || 'Tin nhắn mới',
+              body: msg.content?.substring(0, 100) || 'Bạn có tin nhắn mới từ Zalo',
+              data: {
+                conversationId: conversation.id,
+                url: `/chat/${conversation.id}`
+              }
+            });
+          }
+        } catch (err) {
+          logger.error('[push] Error in background push task:', err);
+        }
+      })();
+    }
+
+    // --- AUTO-REPLY FOR CALLS ---
+    // User requested to stop the video call auto-reply feature.
+    /*
+    if (msg.contentType === 'call' && !msg.isSelf) {
+      void (async () => {
+        try {
+          const { zaloPool } = await import('../zalo/zalo-pool.js');
+          const instance = zaloPool.getInstance(msg.accountId);
+          if (instance?.api) {
+            const threadType = msg.threadType === 'group' ? 1 : 0;
+            const autoReplyText = `Dạ hiện tại mình không tiện nghe máy trực tiếp trên này ạ. Phiền bạn nhấn vào link này để gọi video với mình qua Google Meet nha: https://meet.google.com/ads-up-crm \n\n(Hoặc bạn cứ để lại lời nhắn, mình sẽ phản hồi ngay nhé!)`;
+            
+            await instance.api.sendMessage(autoReplyText, msg.threadId, threadType);
+            
+            // Persist auto-reply to DB
+            await prisma.message.create({
+              data: {
+                id: randomUUID(),
+                orgId: account.orgId,
+                conversationId: conversation.id,
+                senderType: 'self',
+                senderUid: '',
+                senderName: 'AI Auto-Reply',
+                content: autoReplyText,
+                contentType: 'text',
+                sentAt: new Date(),
+              }
+            });
+            
+            await prisma.conversation.update({
+              where: { id: conversation.id },
+              data: { isReplied: true, unreadCount: 0, lastMessageAt: new Date() }
+            });
+          }
+        } catch (err) {
+          logger.error('[message-handler] Auto-reply call error:', err);
+        }
+      })();
+    }
+    */
+    // ----------------------------
+
+
+    if (!msg.isSelf) {
+      const org = await db.organization.findUnique({
         where: { id: account.orgId },
         select: { id: true, name: true },
       });
       const contact = contactId
-        ? await prisma.contact.findUnique({
+        ? await db.contact.findUnique({
             where: { id: contactId },
             select: { id: true, fullName: true, crmName: true, phone: true, status: true, source: true, assignedUserId: true },
           })
         : null;
-      const conversationDetails = await prisma.conversation.findUnique({
+      const conversationDetails = await db.conversation.findUnique({
         where: { id: conversation.id },
         select: { id: true, unreadCount: true, externalThreadId: true, threadType: true, zaloAccountId: true },
       });
@@ -208,20 +348,19 @@ export async function handleIncomingMessage(
 }
 
 // Upsert contact — handles both user and group conversations
-async function upsertContact(msg: IncomingMessage, orgId: string): Promise<string | null> {
+async function upsertContact(db: any, msg: IncomingMessage, orgId: string): Promise<string | null> {
   // Group messages: create/update a "contact" record representing the group
   if (msg.threadType === 'group') {
     const groupUid = msg.threadId;
-    let groupContact = await prisma.contact.findFirst({
-      where: { zaloUid: groupUid, orgId },
+    let groupContact = await db.contact.findFirst({
+      where: { zaloUid: groupUid },
       select: { id: true, fullName: true },
     });
 
     if (!groupContact) {
-      groupContact = await prisma.contact.create({
+      groupContact = await db.contact.create({
         data: {
           id: randomUUID(),
-          orgId,
           zaloUid: groupUid,
           fullName: msg.groupName || 'Nhóm',
           metadata: { isGroup: true },
@@ -231,7 +370,7 @@ async function upsertContact(msg: IncomingMessage, orgId: string): Promise<strin
       // Emit webhook for new contact created
       emitWebhook(orgId, 'contact.created', { contactId: groupContact.id, fullName: groupContact.fullName });
     } else if (msg.groupName && groupContact.fullName !== msg.groupName) {
-      await prisma.contact.update({
+      await db.contact.update({
         where: { id: groupContact.id },
         data: { fullName: msg.groupName },
       });
@@ -243,16 +382,15 @@ async function upsertContact(msg: IncomingMessage, orgId: string): Promise<strin
   const contactUid = msg.isSelf ? msg.threadId : msg.senderUid;
   const contactName = msg.isSelf ? '' : msg.senderName; // self msgs don't carry recipient name
 
-  let contact = await prisma.contact.findFirst({
-    where: { zaloUid: contactUid, orgId },
+  let contact = await db.contact.findFirst({
+    where: { zaloUid: contactUid },
     select: { id: true, fullName: true },
   });
 
   if (!contact) {
-    contact = await prisma.contact.create({
+    contact = await db.contact.create({
       data: {
         id: randomUUID(),
-        orgId,
         zaloUid: contactUid,
         fullName: contactName || 'Unknown',
       },
@@ -262,7 +400,7 @@ async function upsertContact(msg: IncomingMessage, orgId: string): Promise<strin
     emitWebhook(orgId, 'contact.created', { contactId: contact.id, fullName: contact.fullName });
   } else if (contactName && contact.fullName !== contactName && contact.fullName === 'Unknown') {
     // Update name only if currently "Unknown" — don't overwrite user-edited names
-    await prisma.contact.update({
+    await db.contact.update({
       where: { id: contact.id },
       data: { fullName: contactName },
     });
@@ -273,26 +411,28 @@ async function upsertContact(msg: IncomingMessage, orgId: string): Promise<strin
 
 // Find or create conversation — externalThreadId = threadId for both user and group
 async function findOrCreateConversation(
+  db: any,
   msg: IncomingMessage,
   orgId: string,
   contactId: string | null,
+  accountId: string, // NHẬN THÊM ACCOUNT ID TỪ BÊN NGOÀI
 ) {
   const externalThreadId = msg.threadId;
 
-  const existing = await prisma.conversation.findFirst({
-    where: { zaloAccountId: msg.accountId, externalThreadId },
+  const existing = await db.conversation.findFirst({
+    where: { orgId, zaloAccountId: accountId, externalThreadId }, // THÊM orgId VÀ DÙNG accountId CHUẨN
     select: { id: true },
   });
 
   if (existing) return existing;
 
-  return prisma.conversation.create({
+  return db.conversation.create({
     data: {
       id: randomUUID(),
-      orgId,
-      zaloAccountId: msg.accountId,
-      contactId: msg.threadType === 'user' ? contactId : contactId,
-      threadType: msg.threadType,
+      orgId, // THÊM orgId VÀO ĐÂY
+      zaloAccountId: accountId, // DÙNG accountId CHUẨN
+      contactId: contactId,
+      threadType: msg.threadType || 'personal',
       externalThreadId,
       lastMessageAt: new Date(msg.timestamp),
       unreadCount: msg.isSelf ? 0 : 1,
@@ -304,6 +444,7 @@ async function findOrCreateConversation(
 
 // Update conversation metadata after a new message
 async function updateConversationAfterMessage(
+  db: any,
   conversationId: string,
   sentAt: Date,
   isSelf: boolean,
@@ -316,13 +457,21 @@ async function updateConversationAfterMessage(
     updateData.unreadCount = { increment: 1 };
     updateData.isReplied = false;
   }
-  await prisma.conversation.update({ where: { id: conversationId }, data: updateData });
+  await db.conversation.update({ where: { id: conversationId }, data: updateData });
 }
 
 // Soft-delete a message by its Zalo message ID
 export async function handleMessageUndo(accountId: string, zaloMsgId: string): Promise<void> {
   try {
-    await prisma.message.updateMany({
+    // Need orgId for safe update
+    const account = await prisma.zaloAccount.findUnique({
+      where: { id: accountId },
+      select: { orgId: true },
+    });
+    if (!account) return;
+    const db = getTenantPrisma(account.orgId);
+    
+    await db.message.updateMany({
       where: { zaloMsgId: String(zaloMsgId) },
       data: { isDeleted: true, deletedAt: new Date() },
     });

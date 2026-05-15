@@ -92,6 +92,15 @@ export function useChatOperations() {
     }
   }
 
+  async function sendCard(convId: string, contactId: string): Promise<void> {
+    try {
+      await api.post(`/conversations/${convId}/card`, { contactId });
+    } catch (err) {
+      console.error('Failed to send card:', err);
+      throw err;
+    }
+  }
+
   // Reply/edit helpers
   function setReplyTo(msg: Message) { replyingTo.value = msg; editingMessage.value = null; }
   function clearReplyTo() { replyingTo.value = null; }
@@ -122,6 +131,25 @@ export function useChatOperations() {
     );
   }
 
+  async function getLabels(accountId: string): Promise<any[]> {
+    try {
+      const res = await api.get(`/zalo-accounts/${accountId}/labels`);
+      return res.data.labels || [];
+    } catch (err) {
+      console.error('Failed to get labels:', err);
+      return [];
+    }
+  }
+
+  async function updateConversationLabels(convId: string, labelIds: number[]): Promise<void> {
+    try {
+      await api.post(`/conversations/${convId}/labels`, { labelIds });
+    } catch (err) {
+      console.error('Failed to update labels:', err);
+      throw err;
+    }
+  }
+
   return {
     typingUsers,
     replyingTo,
@@ -138,6 +166,9 @@ export function useChatOperations() {
     clearReplyTo,
     setEditing,
     clearEditing,
+    sendCard,
+    getLabels,
+    updateConversationLabels,
     registerSocketListeners,
   };
 }

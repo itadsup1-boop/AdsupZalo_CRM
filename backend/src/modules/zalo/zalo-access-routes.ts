@@ -4,7 +4,7 @@
  * All write operations require owner/admin role.
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { prisma } from '../../shared/database/prisma-client.js';
+import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 import { authMiddleware } from '../auth/auth-middleware.js';
 import { requireRole } from '../auth/role-middleware.js';
 import { randomUUID } from 'node:crypto';
@@ -21,10 +21,11 @@ export async function zaloAccessRoutes(app: FastifyInstance): Promise<void> {
     const user = request.user!;
     const { id } = request.params as { id: string };
 
-    const account = await prisma.zaloAccount.findFirst({ where: { id, orgId: user.orgId } });
+    const db = getTenantPrisma(user.orgId);
+    const account = await db.zaloAccount.findFirst({ where: { id } });
     if (!account) return reply.status(404).send({ error: 'Zalo account not found' });
 
-    const accessList = await prisma.zaloAccountAccess.findMany({
+    const accessList = await db.zaloAccountAccess.findMany({
       where: { zaloAccountId: id },
       include: { user: { select: { id: true, fullName: true, email: true, role: true } } },
       orderBy: { createdAt: 'asc' },
@@ -47,15 +48,16 @@ export async function zaloAccessRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'permission phải là read, chat hoặc admin' });
       }
 
-      const account = await prisma.zaloAccount.findFirst({ where: { id, orgId: user.orgId } });
+      const db = getTenantPrisma(user.orgId);
+    const account = await db.zaloAccount.findFirst({ where: { id } });
       if (!account) return reply.status(404).send({ error: 'Zalo account not found' });
 
-      const targetUser = await prisma.user.findFirst({ where: { id: userId, orgId: user.orgId } });
+      const targetUser = await db.user.findFirst({ where: { id: userId } });
       if (!targetUser) return reply.status(404).send({ error: 'User not found in org' });
 
       try {
-        const access = await prisma.zaloAccountAccess.create({
-          data: { id: randomUUID(), zaloAccountId: id, userId, permission },
+        const access = await db.zaloAccountAccess.create({
+          data: { id: randomUUID(), orgId: user.orgId, zaloAccountId: id, userId, permission },
           include: { user: { select: { id: true, fullName: true, email: true } } },
         });
         logger.info(`Zalo access granted: ${targetUser.email} → account ${id} (${permission}) by ${user.email}`);
@@ -80,11 +82,12 @@ export async function zaloAccessRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'permission phải là read, chat hoặc admin' });
       }
 
-      const account = await prisma.zaloAccount.findFirst({ where: { id, orgId: user.orgId } });
+      const db = getTenantPrisma(user.orgId);
+    const account = await db.zaloAccount.findFirst({ where: { id } });
       if (!account) return reply.status(404).send({ error: 'Zalo account not found' });
 
       try {
-        const access = await prisma.zaloAccountAccess.update({
+        const access = await db.zaloAccountAccess.update({
           where: { id: accessId, zaloAccountId: id },
           data: { permission },
           include: { user: { select: { id: true, fullName: true, email: true } } },
@@ -105,11 +108,12 @@ export async function zaloAccessRoutes(app: FastifyInstance): Promise<void> {
       const user = request.user!;
       const { id, accessId } = request.params as { id: string; accessId: string };
 
-      const account = await prisma.zaloAccount.findFirst({ where: { id, orgId: user.orgId } });
+      const db = getTenantPrisma(user.orgId);
+    const account = await db.zaloAccount.findFirst({ where: { id } });
       if (!account) return reply.status(404).send({ error: 'Zalo account not found' });
 
       try {
-        await prisma.zaloAccountAccess.delete({ where: { id: accessId, zaloAccountId: id } });
+        await db.zaloAccountAccess.delete({ where: { id: accessId, zaloAccountId: id } });
         logger.info(`Zalo access revoked: accessId ${accessId} by ${user.email}`);
         return reply.status(204).send();
       } catch {

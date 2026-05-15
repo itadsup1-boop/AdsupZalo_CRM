@@ -3,6 +3,7 @@
  * Detects content type from msgType and updates contact avatars fire-and-forget.
  */
 import { prisma } from '../../shared/database/prisma-client.js';
+import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 import { logger } from '../../shared/utils/logger.js';
 
 // Well-known msgType keyword patterns — used to suppress noise logging
@@ -98,11 +99,21 @@ export function extractAlbumInfo(contentType: string, rawContent: unknown): Albu
  * Fire-and-forget: fill in a missing avatarUrl on a Contact row.
  * Only updates rows where avatarUrl is currently null.
  */
-export function updateContactAvatar(zaloUid: string, avatarUrl: string): void {
-  prisma.contact
-    .updateMany({
+export async function updateContactAvatar(zaloUid: string, avatarUrl: string): Promise<void> {
+  try {
+    const contacts = await prisma.contact.findMany({
       where: { zaloUid, avatarUrl: null },
-      data: { avatarUrl },
-    })
-    .catch(() => {});
+      select: { orgId: true },
+    });
+
+    for (const c of contacts) {
+      const db = getTenantPrisma(c.orgId);
+      await db.contact.updateMany({
+        where: { zaloUid },
+        data: { avatarUrl },
+      });
+    }
+  } catch (err) {
+    logger.error('[zalo-message-helpers] updateContactAvatar error:', err);
+  }
 }

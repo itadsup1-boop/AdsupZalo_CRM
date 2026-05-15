@@ -109,4 +109,33 @@ export async function notificationRoutes(app: FastifyInstance) {
 
     return { notifications };
   });
+
+  // POST /api/v1/notifications/subscribe — Save push subscription
+  app.post<{
+    Body: { endpoint: string; keys: { p256dh: string; auth: string } };
+  }>('/api/v1/notifications/subscribe', async (request, reply) => {
+    const user = request.user!;
+    const { endpoint, keys } = request.body;
+
+    if (!endpoint || !keys) {
+      return reply.status(400).send({ error: 'Missing endpoint or keys' });
+    }
+
+    const db = getTenantPrisma(user.orgId);
+    try {
+      await db.pushSubscription.upsert({
+        where: { endpoint },
+        update: { userId: user.id, keys },
+        create: {
+          userId: user.id,
+          endpoint,
+          keys,
+        },
+      });
+      return { success: true };
+    } catch (err) {
+      logger.error('[push] Failed to save subscription:', err);
+      return reply.status(500).send({ error: 'Failed to save subscription' });
+    }
+  });
 }

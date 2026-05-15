@@ -14,9 +14,57 @@
     <v-window v-model="tab">
       <!-- Tab 1: User management -->
       <v-window-item value="users">
+        <!-- Secure Join Token Section -->
+        <v-card v-if="authStore.isAdmin" class="mb-6 pa-4" variant="tonal" color="primary">
+          <div class="d-flex align-center flex-wrap" style="gap: 16px;">
+            <div>
+              <div class="text-subtitle-2 font-weight-bold mb-1">Mã tham gia bảo mật (Join Token)</div>
+              <div class="text-caption">Gửi mã 15 phút này cho nhân viên để họ vào thẳng tổ chức.</div>
+            </div>
+            <v-spacer />
+            
+            <v-btn 
+              v-if="!currentInviteToken" 
+              color="primary" 
+              prepend-icon="mdi-shield-key-outline" 
+              @click="handleGenerateToken" 
+              :loading="generatingToken"
+            >
+              Tạo mã tham gia (15p)
+            </v-btn>
+
+            <div v-else class="d-flex align-center" style="background: rgba(var(--v-theme-primary), 0.1); padding: 8px 16px; border-radius: 8px; border: 1px dashed currentColor;">
+              <div class="mr-4">
+                <span class="text-caption d-block" style="line-height: 1;">Mã đã sẵn sàng</span>
+                <span class="text-body-2 font-weight-bold">Hết hạn sau 15 phút</span>
+              </div>
+              <v-btn color="primary" variant="flat" size="small" @click:click="copyInviteToken" prepend-icon="mdi-content-copy">
+                Sao chép mã
+              </v-btn>
+              <v-btn icon size="small" variant="text" @click:click="currentInviteToken = ''" class="ml-2" title="Hủy">
+                <v-icon size="small">mdi-close</v-icon>
+              </v-btn>
+            </div>
+          </div>
+        </v-card>
+
+        <!-- Pending Requests Section -->
+        <v-alert v-if="pendingUsers.length > 0" type="info" variant="tonal" class="mb-6 border-info">
+          <template #prepend>
+            <v-icon color="info" size="large">mdi-account-clock-outline</v-icon>
+          </template>
+          <div class="d-flex align-center justify-space-between w-100">
+            <div>
+              <div class="text-subtitle-1 font-weight-bold">Yêu cầu tham gia mới ({{ pendingUsers.length }})</div>
+              <div class="text-caption">Có nhân viên đang chờ bạn phê duyệt để tham gia vào tổ chức.</div>
+            </div>
+            <v-btn color="info" @click="scrollToPending" variant="flat" size="small">Xem danh sách</v-btn>
+          </div>
+        </v-alert>
+
         <div class="d-flex align-center mb-4">
           <v-btn v-if="authStore.isAdmin" color="primary" prepend-icon="mdi-plus" @click="openCreate">
-            Thêm nhân viên
+            Thêm nhân viên thủ công
           </v-btn>
         </div>
 
@@ -30,42 +78,53 @@
               <v-chip :color="roleColor(item.role)" size="small" variant="flat">{{ roleLabel(item.role) }}</v-chip>
             </template>
             <template #item.isActive="{ item }">
-              <v-chip :color="item.isActive ? 'success' : 'default'" size="small" variant="flat">
+              <v-chip v-if="item.isPending" color="warning" size="small" variant="flat" prepend-icon="mdi-clock-outline">
+                Chờ duyệt
+              </v-chip>
+              <v-chip v-else :color="item.isActive ? 'success' : 'default'" size="small" variant="flat">
                 {{ item.isActive ? 'Hoạt động' : 'Vô hiệu' }}
               </v-chip>
             </template>
               <template #item.actions="{ item }">
                 <div class="d-flex align-center justify-end" style="gap: 4px;">
-                  <v-btn v-if="authStore.isAdmin" icon size="small" variant="text" title="Chỉnh sửa" @click="openEdit(item)">
-                    <v-icon>mdi-pencil</v-icon>
-                  </v-btn>
-                  <v-btn v-if="authStore.isAdmin" icon size="small" variant="text" title="Đặt lại mật khẩu" @click="openPassword(item)">
-                    <v-icon>mdi-lock-reset</v-icon>
-                  </v-btn>
-                  <!-- Vô hiệu hóa / Kích hoạt -->
-                  <v-btn 
-                    v-if="authStore.isAdmin && item.id !== authStore.user?.id" 
-                    icon 
-                    size="small" 
-                    variant="text" 
-                    :color="item.isActive ? 'warning' : 'success'" 
-                    :title="item.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'" 
-                    @click="confirmToggleStatus(item)"
-                  >
-                    <v-icon>{{ item.isActive ? 'mdi-account-cancel-outline' : 'mdi-account-check-outline' }}</v-icon>
-                  </v-btn>
-                  <!-- Xóa vĩnh viễn -->
-                  <v-btn 
-                    v-if="authStore.isOwner && item.id !== authStore.user?.id" 
-                    icon 
-                    size="small" 
-                    variant="text" 
-                    color="error" 
-                    title="Xóa vĩnh viễn" 
-                    @click="confirmRealDelete(item)"
-                  >
-                    <v-icon>mdi-delete-forever</v-icon>
-                  </v-btn>
+                  <template v-if="item.isPending">
+                    <v-btn icon size="small" color="success" variant="tonal" title="Chấp nhận" @click="handleApprove(item)">
+                      <v-icon>mdi-check</v-icon>
+                    </v-btn>
+                    <v-btn icon size="small" color="error" variant="tonal" title="Từ chối" @click="confirmRealDelete(item)">
+                      <v-icon>mdi-close</v-icon>
+                    </v-btn>
+                  </template>
+                  <template v-else>
+                    <v-btn v-if="authStore.isAdmin || item.id === authStore.user?.id" icon size="small" variant="text" title="Chỉnh sửa" @click="openEdit(item)">
+                      <v-icon>mdi-pencil</v-icon>
+                    </v-btn>
+                    <v-btn v-if="authStore.isAdmin || item.id === authStore.user?.id" icon size="small" variant="text" title="Đặt lại mật khẩu" @click="openPassword(item)">
+                      <v-icon>mdi-lock-reset</v-icon>
+                    </v-btn>
+                    <v-btn 
+                      v-if="authStore.isAdmin && item.id !== authStore.user?.id" 
+                      icon 
+                      size="small" 
+                      variant="text" 
+                      :color="item.isActive ? 'warning' : 'success'" 
+                      :title="item.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'" 
+                      @click="confirmToggleStatus(item)"
+                    >
+                      <v-icon>{{ item.isActive ? 'mdi-account-cancel-outline' : 'mdi-account-check-outline' }}</v-icon>
+                    </v-btn>
+                    <v-btn 
+                      v-if="authStore.isOwner && item.id !== authStore.user?.id" 
+                      icon 
+                      size="small" 
+                      variant="text" 
+                      color="error" 
+                      title="Xóa vĩnh viễn" 
+                      @click="confirmRealDelete(item)"
+                    >
+                      <v-icon>mdi-delete-forever</v-icon>
+                    </v-btn>
+                  </template>
                 </div>
               </template>
           </v-data-table>
@@ -144,20 +203,24 @@
           </v-card>
         </v-dialog>
 
-        <!-- Delete Forever confirm dialog -->
+        <!-- Delete Forever / Reject confirm dialog -->
         <v-dialog v-model="showRealDelete" max-width="400">
           <v-card>
-            <v-card-title class="text-error">Xóa vĩnh viễn nhân viên</v-card-title>
+            <v-card-title :class="selectedUser?.isPending ? 'text-info' : 'text-error'">
+              {{ selectedUser?.isPending ? 'Từ chối yêu cầu tham gia' : 'Xóa vĩnh viễn nhân viên' }}
+            </v-card-title>
             <v-card-text>
-              Bạn có chắc muốn <strong>XÓA VĨNH VIỄN</strong> nhân viên "{{ selectedUser?.fullName }}"?
-              <div class="text-caption text-error mt-2">
+              Bạn có chắc muốn {{ selectedUser?.isPending ? 'TỪ CHỐI' : 'XÓA VĨNH VIỄN' }} nhân viên "{{ selectedUser?.fullName }}"?
+              <div v-if="!selectedUser?.isPending" class="text-caption text-error mt-2">
                 * Hành động này không thể hoàn tác. Mọi dữ liệu liên quan đến tài khoản này sẽ bị xóa.
               </div>
             </v-card-text>
             <v-card-actions>
               <v-spacer />
               <v-btn @click="showRealDelete = false">Hủy</v-btn>
-              <v-btn color="error" variant="flat" :loading="saving" @click="handleRealDelete">Xóa vĩnh viễn</v-btn>
+              <v-btn :color="selectedUser?.isPending ? 'info' : 'error'" variant="flat" :loading="saving" @click="handleRealDelete">
+                {{ selectedUser?.isPending ? 'Từ chối' : 'Xóa vĩnh viễn' }}
+              </v-btn>
             </v-card-actions>
           </v-card>
         </v-dialog>
@@ -173,17 +236,21 @@
         <OrgSettings />
       </v-window-item>
     </v-window>
+
+    <v-snackbar v-model="snackbar" timeout="2000">
+      {{ snackbarText }}
+    </v-snackbar>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useUsers, type OrgUser } from '@/composables/use-users';
 import { useAuthStore } from '@/stores/auth';
 import TeamManagement from '@/components/settings/TeamManagement.vue';
 import OrgSettings from '@/components/settings/OrgSettings.vue';
 
-const { users, loading, error, fetchUsers, createUser, updateUser, resetPassword, deleteUser } = useUsers();
+const { users, loading, error, fetchUsers, createUser, approveUser, updateUser, resetPassword, deleteUser } = useUsers();
 const authStore = useAuthStore();
 
 const tab = ref('users');
@@ -193,9 +260,15 @@ const showPassword = ref(false);
 const showToggleStatus = ref(false);
 const showRealDelete = ref(false);
 const saving = ref(false);
+const generatingToken = ref(false);
+const currentInviteToken = ref('');
 const dialogError = ref('');
 const newPassword = ref('');
 const selectedUser = ref<OrgUser | null>(null);
+const snackbar = ref(false);
+const snackbarText = ref('');
+
+const pendingUsers = computed(() => users.value.filter(u => u.isPending));
 
 const form = ref({ fullName: '', email: '', password: '', role: 'member' });
 
@@ -222,6 +295,45 @@ function roleLabel(role: string) {
   if (role === 'owner') return 'Chủ sở hữu';
   if (role === 'admin') return 'Quản trị viên';
   return 'Nhân viên';
+}
+
+async function handleGenerateToken() {
+  generatingToken.value = true;
+  try {
+    currentInviteToken.value = await authStore.generateInviteToken();
+    snackbarText.value = 'Đã tạo mã tham gia thành công';
+    snackbar.value = true;
+  } catch (err) {
+    snackbarText.value = 'Lỗi khi tạo mã';
+    snackbar.value = true;
+  } finally {
+    generatingToken.value = false;
+  }
+}
+
+function copyInviteToken() {
+  if (!currentInviteToken.value) return;
+  navigator.clipboard.writeText(currentInviteToken.value);
+  snackbarText.value = 'Đã sao chép token tham gia!';
+  snackbar.value = true;
+}
+
+function scrollToPending() {
+  // Simple scroll to the first pending user in table (could be improved with a filter)
+  window.scrollTo({ top: 400, behavior: 'smooth' });
+}
+
+async function handleApprove(user: OrgUser) {
+  saving.value = true;
+  const res = await approveUser(user.id);
+  saving.value = false;
+  if (res.ok) {
+    snackbarText.value = `Đã chấp nhận nhân viên ${user.fullName}`;
+    snackbar.value = true;
+  } else {
+    snackbarText.value = res.error || 'Lỗi khi phê duyệt';
+    snackbar.value = true;
+  }
 }
 
 function openCreate() {

@@ -1,0 +1,14 @@
+{
+  "name": "Adsup CRM",
+  "short_name": "Adsup CRM",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a73e8",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/logo-premium.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/logo-premium.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/logo-premium.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

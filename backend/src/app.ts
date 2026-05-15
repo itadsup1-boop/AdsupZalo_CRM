@@ -51,6 +51,7 @@ import { groupModerationRoutes } from './modules/zalo/group-moderation-routes.js
 import { friendRoutes } from './modules/zalo/friend-routes.js';
 import { profileRoutes } from './modules/zalo/profile-routes.js';
 import { credentialRoutes } from './modules/zalo/credential-routes.js';
+import { ingestionRoutes } from './modules/ingestion/ingestion-routes.js';
 import { eventBuffer } from './shared/event-buffer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -61,7 +62,19 @@ async function bootstrap() {
   // ── Plugins ──────────────────────────────────────────────────────────────
 
   await app.register(cors, {
-    origin: config.isProduction ? config.appUrl : true,
+    origin: (origin, cb) => {
+      // Allow same origin, extension origins, and configured app URL
+      if (!origin) return cb(null, true); // server-to-server
+      if (
+        origin === config.appUrl ||
+        origin.startsWith('chrome-extension://') ||
+        origin.startsWith('moz-extension://') ||
+        (!config.isProduction)
+      ) {
+        return cb(null, true);
+      }
+      return cb(new Error('Not allowed by CORS'), false);
+    },
     credentials: true,
   });
 
@@ -95,7 +108,21 @@ async function bootstrap() {
       origin: config.isProduction ? config.appUrl : '*',
       credentials: true,
     },
+    transports: ['websocket', 'polling'],
   });
+
+  // Redis Adapter for Scaling
+  try {
+    const { createAdapter } = await import('@socket.io/redis-adapter');
+    const { createClient } = await import('redis');
+    const pubClient = createClient({ url: config.redisUrl || 'redis://localhost:6379' });
+    const subClient = pubClient.duplicate();
+    await Promise.all([pubClient.connect(), subClient.connect()]);
+    io.adapter(createAdapter(pubClient, subClient));
+    logger.info('[app] Socket.IO Redis Adapter connected');
+  } catch (err) {
+    logger.warn('[app] Redis Adapter failed, falling back to in-memory:', (err as Error).message);
+  }
 
   // Attach io to app so route handlers can emit events
   app.decorate('io', io);
@@ -115,6 +142,10 @@ async function bootstrap() {
 
   // Register chat Socket.IO event handlers
   registerChatSocketHandlers(io);
+
+  // Register call Socket.IO event handlers
+  const { registerCallSocketHandlers } = await import('./modules/call/call-socket.js');
+  registerCallSocketHandlers(io);
 
   // ── Routes ────────────────────────────────────────────────────────────────
 
@@ -141,12 +172,27 @@ async function bootstrap() {
   await app.register(automationRoutes);
   await app.register(templateRoutes);
   await app.register(aiRoutes);
+  await app.register(ingestionRoutes, { prefix: '/api/v1/ingestion' });
   await app.register(chatOperationsRoutes);
   await app.register(groupRoutes);
   await app.register(groupModerationRoutes);
   await app.register(friendRoutes);
   await app.register(profileRoutes);
   await app.register(credentialRoutes);
+  await app.register(ingestionRoutes);
+
+  // 7.2 Error Tracking: Sentry
+  if (config.sentryDsn) {
+    const Sentry = await import('@sentry/node');
+    Sentry.init({ dsn: config.sentryDsn, environment: config.nodeEnv });
+    logger.info('[app] Sentry Error Tracking initialized');
+  }
+
+  // 7.1 Prometheus Metrics Endpoint
+  app.get('/metrics', async (request, reply) => {
+    const { metrics } = await import('./shared/utils/metrics.js');
+    reply.type(metrics.contentType).send(await metrics.getMetrics());
+  });
 
   // Liveness/readiness probe — also checks DB connectivity
   app.get('/health', async () => {
@@ -192,6 +238,15 @@ async function bootstrap() {
     startZaloHealthCheck();
     startContactIntelligence();
     await eventBuffer.start(io);
+
+    // Kích hoạt bộ xử lý tin nhắn từ Robot (Giai đoạn 4)
+    const { queueService } = await import('./shared/queue/queue-service.js');
+    await queueService.init();
+    await queueService.consume('zalo_ingestion_queue', async (data) => {
+      const { messageProcessor } = await import('./modules/ingestion/processors/zalo-processors.js');
+      await messageProcessor(data);
+    });
+    logger.info('[app] RabbitMQ Consumer activated for history hydration');
   } catch (err) {
     logger.error('Failed to start server:', err);
     process.exit(1);
@@ -201,7 +256,7 @@ async function bootstrap() {
   try {
     const accounts = await prisma.zaloAccount.findMany({
       where: { sessionData: { not: Prisma.JsonNull } },
-      select: { id: true, sessionData: true },
+      select: { id: true, orgId: true, sessionData: true },
     });
     logger.info(`Attempting reconnect for ${accounts.length} Zalo account(s)`);
     for (const account of accounts) {
@@ -211,7 +266,7 @@ async function bootstrap() {
         userAgent: string;
       } | null;
       if (session?.imei) {
-        zaloPool.reconnect(account.id, session).catch((err) => {
+        zaloPool.reconnect(account.id, account.orgId, session).catch((err) => {
           logger.warn(`Auto-reconnect failed for account ${account.id}:`, err);
         });
       }

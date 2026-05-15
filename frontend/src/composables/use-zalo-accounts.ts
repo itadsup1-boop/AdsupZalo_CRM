@@ -48,7 +48,7 @@ export function useZaloAccounts() {
       case 'connected': return 'Đã kết nối';
       case 'qr_pending': return 'Chờ QR';
       case 'connecting': return 'Đang kết nối...';
-      default: return 'Ngắt kết nối';
+      default: return status || 'Ngắt kết nối';
     }
   }
 

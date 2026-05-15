@@ -1,0 +1,9 @@
+2026/05/12-12:05:50.208 33d243 Reusing MANIFEST /home/hai-anh/Code /ZaloCRM-main/backend/browser-profiles/test-account/Default/Local Storage/leveldb/MANIFEST-000001
+2026/05/12-12:05:50.214 33d243 Recovering log #92
+2026/05/12-12:05:50.215 33d243 Reusing old log /home/hai-anh/Code /ZaloCRM-main/backend/browser-profiles/test-account/Default/Local Storage/leveldb/000092.log 
+2026/05/12-12:06:50.236 33d247 Level-0 table #97: started
+2026/05/12-12:06:50.252 33d247 Level-0 table #97: 104661 bytes OK
+2026/05/12-12:06:50.256 33d247 Delete type=0 #92
+2026/05/12-13:46:27.102 33d247 Level-0 table #99: started
+2026/05/12-13:46:27.111 33d247 Level-0 table #99: 25843 bytes OK
+2026/05/12-13:46:27.115 33d247 Delete type=0 #96

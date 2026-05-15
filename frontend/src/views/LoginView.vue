@@ -4,23 +4,23 @@
       <div
         class="ai-core-orb mx-auto mb-4 d-flex align-center justify-center"
         style="
-          width: 80px; 
-          height: 80px; 
-          border-radius: 50%; 
-          background: white; 
-          padding: 4px; 
-          overflow: hidden; 
-          box-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
+          width: 100px; 
+          height: 40px; 
+          background: transparent; 
+          padding: 0;
+          overflow: visible; 
+          transform: scale(1.1);
+          margin-top: 20px;
         "
       >
         <img 
-          src="@/assets/logo-adsup.jpg" 
+          src="@/assets/logo-cropped.png" 
           alt="Adsup Logo" 
-          style="width: 100%; height: 100%; object-fit: cover;"
+          style="width: 100%; height: 100%; object-fit: contain;"
         />
       </div>
       <h1 class="text-h4 font-weight-bold">
-        <span>Adsup</span><span style="color: #00F2FF; margin-left: 6px;">CRM</span>
+        <span>Adsup</span><span class="text-primary" style="margin-left: 6px;">CRM</span>
       </h1>
       <p class="text-caption mt-1" style="color: #8892b0;">Giải pháp quản lý Zalo chuyên nghiệp</p>
     </div>
@@ -46,6 +46,17 @@
         <v-icon start>mdi-login</v-icon>
         Đăng nhập
       </v-btn>
+
+      <div class="text-center mt-6">
+        <p class="text-body-2 mb-2" style="color: #8892b0;">
+          Bạn là nhân viên mới? 
+          <router-link to="/join" class="text-primary font-weight-bold text-decoration-none">Tham gia tổ chức</router-link>
+        </p>
+        <p class="text-body-2 mb-0" style="color: #8892b0;">
+          Chưa có tài khoản? 
+          <router-link to="/setup" class="text-primary font-weight-bold text-decoration-none">Đăng ký tổ chức mới</router-link>
+        </p>
+      </div>
     </v-form>
 
     <v-alert v-if="error" type="error" class="mt-4" density="compact" closable variant="tonal">
@@ -63,6 +74,7 @@ const email = ref('');
 const password = ref('');
 const loading = ref(false);
 const error = ref('');
+const success = ref(false);
 const router = useRouter();
 const authStore = useAuthStore();
 
@@ -78,7 +90,8 @@ async function handleLogin() {
   error.value = '';
   try {
     await authStore.login(email.value, password.value);
-    router.push('/');
+    success.value = true;
+    setTimeout(() => router.push('/dashboard'), 1000);
   } catch (err: any) {
     error.value = err.response?.data?.error || 'Đăng nhập thất bại';
   } finally {

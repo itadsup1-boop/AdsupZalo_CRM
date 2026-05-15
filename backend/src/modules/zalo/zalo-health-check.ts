@@ -15,7 +15,7 @@ export function startZaloHealthCheck(): void {
     try {
       const accounts = await prisma.zaloAccount.findMany({
         where: { sessionData: { not: Prisma.JsonNull } },
-        select: { id: true, displayName: true, sessionData: true },
+        select: { id: true, orgId: true, displayName: true, sessionData: true },
       });
 
       for (const acc of accounts) {
@@ -24,7 +24,7 @@ export function startZaloHealthCheck(): void {
           const session = acc.sessionData as any;
           if (session?.imei) {
             logger.info(`[health-check] Reconnecting ${acc.displayName || acc.id}...`);
-            zaloPool.reconnect(acc.id, session).catch((err) => {
+            zaloPool.reconnect(acc.id, acc.orgId, session).catch((err) => {
               logger.warn(`[health-check] Reconnect failed for ${acc.id}:`, err);
             });
           }
@@ -41,7 +41,7 @@ export function startZaloHealthCheck(): void {
     try {
       const accounts = await prisma.zaloAccount.findMany({
         where: { sessionData: { not: Prisma.JsonNull } },
-        select: { id: true, sessionData: true },
+        select: { id: true, orgId: true, sessionData: true },
       });
 
       for (const acc of accounts) {
@@ -50,7 +50,7 @@ export function startZaloHealthCheck(): void {
           // Disconnect then reconnect to force cookie refresh
           zaloPool.disconnect(acc.id);
           await new Promise((r) => setTimeout(r, 5000));
-          zaloPool.reconnect(acc.id, session).catch((err) => {
+          zaloPool.reconnect(acc.id, acc.orgId, session).catch((err) => {
             logger.warn(`[health-check] Daily refresh failed for ${acc.id}:`, err);
           });
         }

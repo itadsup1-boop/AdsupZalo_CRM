@@ -1,0 +1,14 @@
+{
+  "name": "Adsup CRM",
+  "short_name": "Adsup CRM",
+  "description": "Giải pháp quản lý Zalo chuyên nghiệp",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050b14",
+  "theme_color": "#00F2FF",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/logo-v5-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/logo-v5-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" }
+  ]
+}

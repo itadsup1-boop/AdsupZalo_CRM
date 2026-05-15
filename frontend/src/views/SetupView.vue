@@ -1,19 +1,22 @@
 <template>
   <v-card class="pa-6" elevation="8">
     <div class="text-center mb-6">
-      <v-icon icon="mdi-cog" size="64" color="primary" />
-      <h1 class="text-h5 mt-2">Thiết lập ban đầu</h1>
-      <p class="text-body-2 text-grey mt-1">Tạo tổ chức và tài khoản quản trị viên</p>
+      <v-icon icon="mdi-domain-plus" size="64" color="primary" />
+      <h1 class="text-h5 mt-2">Đăng ký Tổ chức mới</h1>
+      <p class="text-body-2 text-grey mt-1">Bắt đầu quản lý Zalo chuyên nghiệp cho doanh nghiệp của bạn</p>
     </div>
     <v-form @submit.prevent="handleSetup" ref="form">
-      <v-text-field v-model="orgName" label="Tên tổ chức / phòng khám" prepend-inner-icon="mdi-domain" :rules="[v => !!v || 'Bắt buộc']" class="mb-2" />
-      <v-text-field v-model="fullName" label="Họ tên quản trị viên" prepend-inner-icon="mdi-account" :rules="[v => !!v || 'Bắt buộc']" class="mb-2" />
+      <v-text-field v-model="orgName" label="Tên tổ chức / doanh nghiệp" prepend-inner-icon="mdi-domain" :rules="[v => !!v || 'Bắt buộc']" class="mb-2" />
+      <v-text-field v-model="fullName" label="Họ tên người quản lý" prepend-inner-icon="mdi-account" :rules="[v => !!v || 'Bắt buộc']" class="mb-2" />
       <v-text-field v-model="email" label="Email đăng nhập" type="email" prepend-inner-icon="mdi-email" :rules="[v => !!v || 'Bắt buộc']" class="mb-2" />
       <v-text-field v-model="password" label="Mật khẩu" type="password" prepend-inner-icon="mdi-lock" :rules="[v => v.length >= 6 || 'Tối thiểu 6 ký tự']" class="mb-4" />
-      <v-btn type="submit" color="primary" block size="large" :loading="loading">Tạo tài khoản</v-btn>
+      <v-btn type="submit" color="primary" block size="large" :loading="loading">Đăng ký ngay</v-btn>
     </v-form>
     <v-alert v-if="error" type="error" class="mt-4" density="compact" closable>{{ error }}</v-alert>
-    <v-alert v-if="success" type="success" class="mt-4" density="compact">Tạo thành công! Đang chuyển hướng...</v-alert>
+    <v-alert v-if="success" type="success" class="mt-4" density="compact">Đăng ký thành công! Đang chuyển hướng...</v-alert>
+    <div class="text-center mt-4">
+      <router-link to="/login" class="text-body-2 text-decoration-none">Đã có tài khoản? Đăng nhập</router-link>
+    </div>
   </v-card>
 </template>
 
@@ -38,9 +41,9 @@ async function handleSetup() {
   try {
     await authStore.setup({ orgName: orgName.value, fullName: fullName.value, email: email.value, password: password.value });
     success.value = true;
-    setTimeout(() => router.push('/'), 1000);
+    setTimeout(() => router.push('/dashboard'), 1000);
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'Thiết lập thất bại';
+    error.value = err.response?.data?.error || 'Đăng ký thất bại';
   } finally {
     loading.value = false;
   }

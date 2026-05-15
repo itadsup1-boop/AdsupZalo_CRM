@@ -4,8 +4,9 @@
  */
 import type { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../auth/auth-middleware.js';
+import { requireRole } from '../auth/role-middleware.js';
 import { zaloPool } from './zalo-pool.js';
-import { prisma } from '../../shared/database/prisma-client.js';
+import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 
 export async function zaloRoutes(app: FastifyInstance): Promise<void> {
   // All routes in this plugin require auth
@@ -14,8 +15,16 @@ export async function zaloRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/zalo-accounts — list accounts with live status from pool
   app.get('/api/v1/zalo-accounts', async (request) => {
     const user = request.user!;
-    const accounts = await prisma.zaloAccount.findMany({
-      where: { orgId: user.orgId },
+    const db = getTenantPrisma(user.orgId);
+
+    const where: any = {};
+    if (user.role === 'member') {
+      // Members only see accounts they have explicit access to
+      where.access = { some: { userId: user.id } };
+    }
+
+    const accounts = await db.zaloAccount.findMany({
+      where,
       select: {
         id: true,
         zaloUid: true,
@@ -40,11 +49,13 @@ export async function zaloRoutes(app: FastifyInstance): Promise<void> {
   // POST /api/v1/zalo-accounts — create a new account record
   app.post<{ Body: { displayName?: string } }>(
     '/api/v1/zalo-accounts',
+    { preHandler: requireRole('owner', 'admin') },
     async (request, reply) => {
       const user = request.user!;
       const { displayName } = request.body ?? {};
 
-      const account = await prisma.zaloAccount.create({
+      const db = getTenantPrisma(user.orgId);
+      const account = await db.zaloAccount.create({
         data: {
           orgId: user.orgId,
           ownerUserId: user.id,
@@ -60,19 +71,21 @@ export async function zaloRoutes(app: FastifyInstance): Promise<void> {
   // POST /api/v1/zalo-accounts/:id/login — initiate QR login
   app.post<{ Params: { id: string } }>(
     '/api/v1/zalo-accounts/:id/login',
+    { preHandler: requireRole('owner', 'admin') },
     async (request, reply) => {
       const { id } = request.params;
       const user = request.user!;
 
-      const account = await prisma.zaloAccount.findFirst({
-        where: { id, orgId: user.orgId },
+      const db = getTenantPrisma(user.orgId);
+      const account = await db.zaloAccount.findFirst({
+        where: { id },
       });
       if (!account) {
         return reply.status(404).send({ error: 'Account not found' });
       }
 
       // Fire-and-forget — QR delivered via Socket.IO
-      zaloPool.loginQR(id).catch(() => {
+      zaloPool.loginQR(id, user.orgId).catch(() => {
         // errors are emitted via socket; no need to crash here
       });
 
@@ -83,12 +96,14 @@ export async function zaloRoutes(app: FastifyInstance): Promise<void> {
   // POST /api/v1/zalo-accounts/:id/reconnect — force reconnect using saved session
   app.post<{ Params: { id: string } }>(
     '/api/v1/zalo-accounts/:id/reconnect',
+    { preHandler: requireRole('owner', 'admin') },
     async (request, reply) => {
       const { id } = request.params;
       const user = request.user!;
 
-      const account = await prisma.zaloAccount.findFirst({
-        where: { id, orgId: user.orgId },
+      const db = getTenantPrisma(user.orgId);
+      const account = await db.zaloAccount.findFirst({
+        where: { id },
       });
       if (!account) {
         return reply.status(404).send({ error: 'Account not found' });
@@ -105,7 +120,7 @@ export async function zaloRoutes(app: FastifyInstance): Promise<void> {
       }
 
       // Fire-and-forget — result emitted via Socket.IO
-      zaloPool.reconnect(id, session).catch(() => {});
+      zaloPool.reconnect(id, user.orgId, session).catch(() => {});
 
       return { message: 'Reconnect initiated' };
     },
@@ -114,19 +129,21 @@ export async function zaloRoutes(app: FastifyInstance): Promise<void> {
   // DELETE /api/v1/zalo-accounts/:id — disconnect and delete record
   app.delete<{ Params: { id: string } }>(
     '/api/v1/zalo-accounts/:id',
+    { preHandler: requireRole('owner', 'admin') },
     async (request, reply) => {
       const { id } = request.params;
       const user = request.user!;
 
-      const account = await prisma.zaloAccount.findFirst({
-        where: { id, orgId: user.orgId },
+      const db = getTenantPrisma(user.orgId);
+      const account = await db.zaloAccount.findFirst({
+        where: { id },
       });
       if (!account) {
         return reply.status(404).send({ error: 'Account not found' });
       }
 
       zaloPool.disconnect(id);
-      await prisma.zaloAccount.delete({ where: { id } });
+      await db.zaloAccount.delete({ where: { id } });
 
       return reply.status(204).send();
     },
@@ -139,8 +156,9 @@ export async function zaloRoutes(app: FastifyInstance): Promise<void> {
       const { id } = request.params;
       const user = request.user!;
 
-      const account = await prisma.zaloAccount.findFirst({
-        where: { id, orgId: user.orgId },
+      const db = getTenantPrisma(user.orgId);
+      const account = await db.zaloAccount.findFirst({
+        where: { id },
         select: { id: true, status: true },
       });
       if (!account) {

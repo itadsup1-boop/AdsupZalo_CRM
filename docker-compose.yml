@@ -19,6 +19,8 @@ services:
         condition: service_healthy
     volumes:
       - file_storage:/var/lib/zalo-crm/files
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     tmpfs:
       - /tmp
     security_opt:

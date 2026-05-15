@@ -1,0 +1,23 @@
+2026/05/12-11:53:05.718 335ecf Reusing MANIFEST /home/hai-anh/Code /ZaloCRM-main/backend/browser-profiles/test-account/Default/Local Storage/leveldb/MANIFEST-000001
+2026/05/12-11:53:05.725 335ecf Recovering log #82
+2026/05/12-11:53:05.726 335ecf Level-0 table #86: started
+2026/05/12-11:53:05.729 335ecf Level-0 table #86: 22817 bytes OK
+2026/05/12-11:53:05.733 335ecf Delete type=0 #82
+2026/05/12-11:54:05.740 335ed6 Level-0 table #89: started
+2026/05/12-11:54:05.744 335ed6 Level-0 table #89: 104581 bytes OK
+2026/05/12-11:54:05.750 335ed6 Delete type=0 #87
+2026/05/12-11:59:39.329 335ed6 Level-0 table #91: started
+2026/05/12-11:59:39.334 335ed6 Level-0 table #91: 23842 bytes OK
+2026/05/12-11:59:39.336 335ed6 Delete type=0 #88
+2026/05/12-12:04:15.769 335ed6 Level-0 table #93: started
+2026/05/12-12:04:16.340 335ed6 Level-0 table #93: 28425 bytes OK
+2026/05/12-12:04:16.427 335ed6 Delete type=0 #90
+2026/05/12-12:04:16.460 335ed6 Compacting 4@0 + 1@1 files
+2026/05/12-12:04:16.812 335ed6 Generated table #94@0: 147 keys, 103597 bytes
+2026/05/12-12:04:16.939 335ed6 Compacted 4@0 + 1@1 files => 103597 bytes
+2026/05/12-12:04:17.000 335ed6 compacted to: files[ 0 1 0 0 0 0 0 ]
+2026/05/12-12:04:17.018 335ed6 Delete type=2 #86
+2026/05/12-12:04:17.030 335ed6 Delete type=2 #93
+2026/05/12-12:04:17.030 335ed6 Delete type=2 #89
+2026/05/12-12:04:17.030 335ed6 Delete type=2 #84
+2026/05/12-12:04:17.030 335ed6 Delete type=2 #91

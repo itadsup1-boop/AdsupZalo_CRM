@@ -42,6 +42,7 @@ export async function sendTemplateAction(input: {
   return prisma.message.create({
     data: {
       id: randomUUID(),
+      orgId: input.orgId,
       conversationId: input.conversationId,
       zaloMsgId: zaloMsgId || null,
       senderType: 'self',

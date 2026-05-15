@@ -68,19 +68,19 @@ export async function chatRoutes(app: FastifyInstance) {
     if (accountId) baseWhere.zaloAccountId = accountId;
     if (tab) baseWhere.tab = tab;
 
-    // Members can only see conversations from Zalo accounts they have access to
-    if (user.role === 'member') {
-      const accessibleAccounts = await prisma.zaloAccountAccess.findMany({
-        where: { userId: user.id },
-        select: { zaloAccountId: true },
-      });
-      const accessibleIds = accessibleAccounts.map((a) => a.zaloAccountId);
-      // Intersect with user-selected account filter if present
-      if (accountId && accessibleIds.includes(accountId)) {
-        baseWhere.zaloAccountId = accountId;
-      } else {
-        baseWhere.zaloAccountId = { in: accessibleIds };
-      }
+    // SaaS RBAC: Permission Engine
+    if (user.role === 'staff' || user.role === 'viewer') {
+      const assignmentFilter = {
+        OR: [
+          { contact: { assignedUserId: user.id } },
+          { contact: { assignedUserId: null } },
+          { contactId: null },
+        ],
+      };
+      baseWhere.AND = [
+        ...(baseWhere.AND || []),
+        assignmentFilter
+      ];
     }
 
     const [unread, unreplied, total] = await Promise.all([
@@ -149,17 +149,32 @@ export async function chatRoutes(app: FastifyInstance) {
       }
     }
 
-    // Members can only see conversations from Zalo accounts they have access to
+    // Members see their assigned contacts OR unassigned ones
     if (user.role === 'member') {
       const accessibleAccounts = await prisma.zaloAccountAccess.findMany({
         where: { userId: user.id },
         select: { zaloAccountId: true },
       });
       const accessibleIds = accessibleAccounts.map((a) => a.zaloAccountId);
+
+      const assignmentFilter = {
+        OR: [
+          { contact: { assignedUserId: user.id } },
+          { contact: { assignedUserId: null } },
+          { contactId: null },
+        ],
+      };
+
       if (accountId && accessibleIds.includes(accountId)) {
-        where.zaloAccountId = accountId;
+        where.AND = [
+          { zaloAccountId: accountId },
+          assignmentFilter,
+        ];
       } else {
-        where.zaloAccountId = { in: accessibleIds };
+        where.AND = [
+          { zaloAccountId: { in: accessibleIds } },
+          assignmentFilter,
+        ];
       }
     }
 
@@ -298,6 +313,7 @@ export async function chatRoutes(app: FastifyInstance) {
       const message = await prisma.message.create({
         data: {
           id: randomUUID(),
+          orgId: user.orgId,
           conversationId: id,
           zaloMsgId: zaloMsgId || null,
           senderType: 'self',
@@ -312,7 +328,7 @@ export async function chatRoutes(app: FastifyInstance) {
       });
 
       await prisma.conversation.update({
-        where: { id },
+        where: { orgId: user.orgId, id },
         data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0 },
       });
 
@@ -431,6 +447,7 @@ export async function chatRoutes(app: FastifyInstance) {
       const message = await prisma.message.create({
         data: {
           id: randomUUID(),
+          orgId: user.orgId,
           conversationId: id,
           zaloMsgId: zaloMsgId || null,
           senderType: 'self',
@@ -444,7 +461,7 @@ export async function chatRoutes(app: FastifyInstance) {
       });
 
       await prisma.conversation.update({
-        where: { id },
+        where: { orgId: user.orgId, id },
         data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0 },
       });
 
@@ -528,6 +545,7 @@ export async function chatRoutes(app: FastifyInstance) {
       const message = await prisma.message.create({
         data: {
           id: randomUUID(),
+          orgId: user.orgId,
           conversationId: id,
           zaloMsgId: zaloMsgId || null,
           senderType: 'self',
@@ -541,7 +559,7 @@ export async function chatRoutes(app: FastifyInstance) {
       });
 
       await prisma.conversation.update({
-        where: { id },
+        where: { orgId: user.orgId, id },
         data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0 },
       });
 

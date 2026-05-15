@@ -33,11 +33,28 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('token', res.data.token);
   }
 
+  async function join(data: { token: string; fullName: string; email: string; password: string }) {
+    const res = await api.post('/join', data);
+    token.value = res.data.token;
+    user.value = res.data.user;
+    localStorage.setItem('token', res.data.token);
+  }
+
+  async function submitJoinRequest(data: { orgName: string; fullName: string; email: string; password: string }) {
+    const res = await api.post('/join-request', data);
+    return res.data.message;
+  }
+
   async function login(email: string, password: string) {
     const res = await api.post('/auth/login', { email, password });
     token.value = res.data.token;
     user.value = res.data.user;
     localStorage.setItem('token', res.data.token);
+  }
+
+  async function generateInviteToken() {
+    const res = await api.post('/organization/invite-token');
+    return res.data.token;
   }
 
   async function fetchProfile() {
@@ -61,5 +78,5 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  return { user, token, needsSetup, isAuthenticated, isOwner, isAdmin, checkSetup, setup, login, fetchProfile, logout, init };
+  return { user, token, needsSetup, isAuthenticated, isOwner, isAdmin, checkSetup, setup, join, submitJoinRequest, login, generateInviteToken, fetchProfile, logout, init };
 });

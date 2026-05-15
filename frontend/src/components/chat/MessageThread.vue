@@ -11,6 +11,10 @@
     <template v-else>
       <!-- Header -->
       <div class="pa-3 d-flex align-center" style="border-bottom: 1px solid var(--border-glow, rgba(0,242,255,0.1));">
+        <!-- Back button for mobile -->
+        <v-btn v-if="showBack" icon size="small" variant="text" class="mr-1" @click="$emit('go-back')">
+          <v-icon>mdi-arrow-left</v-icon>
+        </v-btn>
         <v-avatar size="36" color="grey-lighten-2" class="mr-3">
           <v-icon v-if="conversation.threadType === 'group'" icon="mdi-account-group" />
           <v-img v-else-if="conversation.contact?.avatarUrl" :src="conversation.contact.avatarUrl" />
@@ -20,12 +24,75 @@
           <div class="font-weight-medium">{{ conversation.contact?.fullName || 'Unknown' }}</div>
           <div class="text-caption text-grey">{{ conversation.zaloAccount?.displayName || 'Zalo' }}</div>
         </div>
-        <v-btn size="small" variant="tonal" color="primary" class="mr-2" :loading="aiSuggestionLoading" @click="$emit('ask-ai')">
+        <v-btn size="small" variant="tonal" color="primary" class="mr-1" :loading="aiSuggestionLoading" @click="$emit('ask-ai')">
           Ask AI
         </v-btn>
-        <v-btn size="small" variant="tonal" color="info" class="mr-2" @click="onLinkClick">
-          Link
-        </v-btn>
+
+
+        <v-menu v-model="showTagMenu" :close-on-content-click="false" location="bottom end">
+          <template v-slot:activator="{ props }">
+            <v-btn size="small" variant="tonal" color="deep-purple-accent-1" class="mr-1" v-bind="props" :loading="loadingTags" @click="fetchTagsIfNeeded">
+              Phân loại <v-icon size="small" class="ml-1">mdi-chevron-down</v-icon>
+            </v-btn>
+          </template>
+          <v-card width="280">
+            <v-card-text class="pa-2">
+              <div class="text-caption text-grey mb-2 px-2">Theo thẻ phân loại</div>
+              <v-list density="compact" class="pa-0">
+                <v-list-item
+                  v-for="tag in availableTags"
+                  :key="tag.id"
+                  @click="toggleTag(tag)"
+                >
+                  <template v-slot:prepend>
+                    <v-checkbox-btn
+                      :model-value="conversationHasTag(tag)"
+                      color="primary"
+                      class="mr-2"
+                      style="pointer-events: none;"
+                    ></v-checkbox-btn>
+                    <v-icon :color="getTagColor(tag.color)" class="mr-2">mdi-label</v-icon>
+                  </template>
+                  <v-list-item-title>{{ tag.text }}</v-list-item-title>
+                </v-list-item>
+              </v-list>
+              <v-divider class="my-2"></v-divider>
+              <v-btn variant="text" block color="primary" size="small" @click="showLabelManager = true; showTagMenu = false">Quản lý thẻ phân loại</v-btn>
+            </v-card-text>
+          </v-card>
+        </v-menu>
+
+        <!-- Label Manager Dialog -->
+        <LabelManagerDialog
+          v-if="conversation?.zaloAccountId"
+          v-model="showLabelManager"
+          :account-id="conversation.zaloAccountId"
+          @updated="onLabelsUpdated"
+        />
+
+        <!-- On desktop: show all buttons inline -->
+        <template class="d-none d-sm-flex">
+          <v-btn size="small" variant="tonal" color="success" class="mr-1" @click="onVideoCallClick">
+            <v-icon left size="small" class="mr-1">mdi-video</v-icon> Gọi Video
+          </v-btn>
+          <v-btn size="small" variant="tonal" color="info" class="mr-1" @click="onLinkClick">
+            Link
+          </v-btn>
+        </template>
+
+        <!-- On mobile: collapse secondary actions into a menu -->
+        <v-menu location="bottom end">
+          <template v-slot:activator="{ props }">
+            <v-btn icon size="small" variant="text" class="mr-1" v-bind="props">
+              <v-icon size="20">mdi-dots-vertical</v-icon>
+            </v-btn>
+          </template>
+          <v-list density="compact">
+            <v-list-item prepend-icon="mdi-video" title="Gọi Video" @click="onVideoCallClick" />
+            <v-list-item prepend-icon="mdi-link" title="Gửi Link" @click="onLinkClick" />
+          </v-list>
+        </v-menu>
+
         <v-btn
           :icon="showContactPanel ? 'mdi-account-details' : 'mdi-account-details-outline'"
           size="small" variant="text"
@@ -86,7 +153,7 @@
       <!-- Input area -->
       <div class="pa-2 chat-input-area">
         <AiSuggestionPanel
-          v-if="false"
+          v-if="aiSuggestionLoading || aiSuggestion || aiSuggestionError"
           :suggestion="aiSuggestion"
           :loading="aiSuggestionLoading"
           :error="aiSuggestionError"
@@ -161,9 +228,19 @@
               />
               
               <div class="d-flex align-center pb-1 pr-1 align-self-end" v-if="!inputText.trim()">
-                <v-btn icon variant="text" size="small" class="text-grey" density="comfortable" @click="showNotImplementedToast">
-                  <v-icon size="22">mdi-dots-horizontal</v-icon>
-                </v-btn>
+                <!-- More Actions Menu -->
+                <v-menu location="top start">
+                  <template v-slot:activator="{ props }">
+                    <v-btn icon variant="text" size="small" class="text-grey" density="comfortable" v-bind="props">
+                      <v-icon size="22">mdi-dots-horizontal</v-icon>
+                    </v-btn>
+                  </template>
+                  <v-list density="compact" width="180">
+                    <v-list-item prepend-icon="mdi-map-marker-outline" title="Gửi vị trí" @click="showLocationDialog = true" />
+                    <v-list-item prepend-icon="mdi-card-account-details-outline" title="Gửi danh thiếp" @click="openCardDialog" />
+                  </v-list>
+                </v-menu>
+
                 <v-btn icon variant="text" size="small" class="text-grey" density="comfortable" @click="startRecording">
                   <v-icon size="22">mdi-microphone-outline</v-icon>
                 </v-btn>
@@ -183,6 +260,121 @@
           </div>
         </div>
       </div>
+
+      <!-- Location Dialog -->
+      <v-dialog v-model="showLocationDialog" max-width="450">
+        <v-card class="rounded-xl pa-2">
+          <v-card-title class="d-flex align-center">
+            <v-icon color="primary" class="mr-2">mdi-map-marker-radius</v-icon>
+            Gửi vị trí
+          </v-card-title>
+          <v-card-text>
+            <p class="text-caption mb-4">Gửi link bản đồ Google Maps cho khách hàng (Zalo sẽ tự động hiển thị thẻ bản đồ).</p>
+            
+            <div class="d-flex align-center mb-4">
+              <v-btn 
+                color="secondary" 
+                variant="tonal" 
+                prepend-icon="mdi-crosshairs-gps" 
+                class="flex-grow-1 rounded-pill"
+                @click="getCurrentLocation"
+                :loading="gettingLocation"
+              >
+                Lấy vị trí hiện tại của tôi
+              </v-btn>
+            </div>
+            
+            <div class="text-caption text-center text-grey mb-4">HOẶC DÁN LINK TỰ DO</div>
+            
+            <v-text-field 
+              v-model="locationData.link" 
+              label="Link Google Maps" 
+              placeholder="https://goo.gl/maps/..." 
+              variant="outlined" 
+              density="comfortable" 
+              class="mb-2" 
+            />
+            <v-text-field 
+              v-model="locationData.desc" 
+              label="Mô tả tin nhắn (Không bắt buộc)" 
+              placeholder="Ví dụ: Dạ, văn phòng công ty em ở đây ạ." 
+              variant="outlined" 
+              density="comfortable" 
+              hide-details 
+            />
+          </v-card-text>
+          <v-card-actions class="pa-4">
+            <v-spacer></v-spacer>
+            <v-btn variant="text" @click="showLocationDialog = false">Hủy</v-btn>
+            <v-btn 
+              color="primary" 
+              variant="flat" 
+              class="px-6 rounded-pill" 
+              @click="onSendLocation" 
+              :loading="sendingLocation"
+              :disabled="!locationData.link"
+            >
+              Gửi vị trí
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <!-- Business Card Dialog -->
+      <v-dialog v-model="showCardDialog" max-width="450" scrollable>
+        <v-card class="rounded-xl">
+          <v-card-title class="d-flex align-center pa-4 pb-2">
+            <v-icon color="success" class="mr-2">mdi-card-account-details</v-icon>
+            Chia sẻ danh thiếp
+          </v-card-title>
+          <div class="px-4 pb-2">
+            <v-text-field
+              v-model="cardSearch"
+              placeholder="Tìm nhân viên hoặc khách hàng..."
+              variant="outlined"
+              density="compact"
+              prepend-inner-icon="mdi-magnify"
+              hide-details
+              class="mt-2"
+            />
+          </div>
+          <v-divider></v-divider>
+          <v-card-text style="height: 350px;" class="pa-0">
+            <v-list v-if="filteredCardItems.length">
+              <v-list-item
+                v-for="item in filteredCardItems"
+                :key="item.id"
+                @click="selectedCardItem = item"
+                :active="selectedCardItem?.id === item.id"
+                color="primary"
+              >
+                <template v-slot:prepend>
+                  <v-avatar size="32" color="grey-lighten-3">
+                    <v-img v-if="item.avatarUrl" :src="item.avatarUrl" />
+                    <v-icon v-else icon="mdi-account" />
+                  </v-avatar>
+                </template>
+                <v-list-item-title class="font-weight-medium">{{ item.name }}</v-list-item-title>
+                <v-list-item-subtitle>{{ item.sub }}</v-list-item-subtitle>
+              </v-list-item>
+            </v-list>
+            <div v-else class="text-center pa-8 text-grey">Không tìm thấy kết quả</div>
+          </v-card-text>
+          <v-divider></v-divider>
+          <v-card-actions class="pa-4">
+            <v-spacer></v-spacer>
+            <v-btn variant="text" @click="showCardDialog = false">Hủy</v-btn>
+            <v-btn
+              color="success"
+              variant="flat"
+              class="px-6 rounded-pill"
+              :disabled="!selectedCardItem"
+              @click="onSendCard"
+              :loading="sendingCard"
+            >Chia sẻ</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
       
       <!-- Feature under development notification -->
       <v-snackbar v-model="notImplementedToast" color="info" :timeout="2000" location="bottom">
@@ -237,6 +429,7 @@ import TypingIndicator from '@/components/chat/typing-indicator.vue';
 import ReplyPreviewBar from '@/components/chat/reply-preview-bar.vue';
 import ForwardDialog from '@/components/chat/forward-dialog.vue';
 import RichTextEditor from '@/components/chat/rich-text-editor.vue';
+import LabelManagerDialog from '@/components/chat/LabelManagerDialog.vue';
 
 interface TemplateItem { id: string; name: string; content: string; category: string | null; isPersonal: boolean; }
 
@@ -246,6 +439,7 @@ const props = defineProps<{
   loading: boolean;
   sending: boolean;
   showContactPanel?: boolean;
+  showBack?: boolean;
   aiSuggestion: string;
   aiSuggestionLoading: boolean;
   aiSuggestionError: string;
@@ -260,6 +454,7 @@ const emit = defineEmits<{
   'send-voice': [audioBlob: Blob];
   'send-file': [files: File[]];
   'toggle-contact-panel': [];
+  'go-back': [];
   'ask-ai': [];
   'add-reaction': [msgId: string, reaction: string];
   'delete-message': [msgId: string];
@@ -275,10 +470,13 @@ const emit = defineEmits<{
 }>();
 
 const inputText = ref('');
+
 const messagesContainer = ref<HTMLElement | null>(null);
 const previewImageUrl = ref('');
 const showImagePreview = computed({ get: () => !!previewImageUrl.value, set: (v) => { if (!v) previewImageUrl.value = ''; } });
 const syncSnack = ref({ show: false, text: '', color: 'success' });
+
+
 const notImplementedToast = ref(false);
 
 const showEmojiPicker = ref(false);
@@ -390,10 +588,6 @@ function onSelectEmoji(emoji: string) {
   inputText.value += emoji;
 }
 
-function showNotImplementedToast() {
-  notImplementedToast.value = true;
-}
-
 // Context menu state
 const showContextMenu = ref(false);
 const contextMsg = ref<Message | null>(null);
@@ -402,6 +596,187 @@ const contextPos = ref({ x: 0, y: 0 });
 // Forward dialog
 const showForwardDialog = ref(false);
 const editorRef = ref<InstanceType<typeof RichTextEditor> | null>(null);
+
+// --- New Features: Location & Card & Tags ---
+import { useChatOperations } from '@/composables/use-chat-operations';
+const { sendCard: apiSendCard, getLabels, updateConversationLabels } = useChatOperations();
+
+// Tagging System
+const showTagMenu = ref(false);
+const showLabelManager = ref(false);
+const loadingTags = ref(false);
+const availableTags = ref<any[]>([]);
+
+async function fetchTagsIfNeeded() {
+  if (availableTags.value.length > 0 || !props.conversation) return;
+  loadingTags.value = true;
+  try {
+    availableTags.value = await getLabels(props.conversation.zaloAccountId);
+  } finally {
+    loadingTags.value = false;
+  }
+}
+
+function conversationHasTag(tag: any) {
+  if (!props.conversation || !props.conversation.externalThreadId) return false;
+  return tag.conversations?.includes(props.conversation.externalThreadId);
+}
+
+async function toggleTag(tag: any) {
+  if (!props.conversation || !props.conversation.externalThreadId) return;
+  const hasTag = conversationHasTag(tag);
+  
+  // Optimistic update
+  if (hasTag) {
+    tag.conversations = tag.conversations.filter((id: string) => id !== props.conversation!.externalThreadId);
+  } else {
+    tag.conversations = [...(tag.conversations || []), props.conversation.externalThreadId];
+  }
+  
+  const activeIds = availableTags.value.filter(t => conversationHasTag(t)).map(t => t.id);
+  
+  try {
+    await updateConversationLabels(props.conversation.id, activeIds);
+  } catch (err) {
+    if (hasTag) {
+      tag.conversations = [...(tag.conversations || []), props.conversation!.externalThreadId];
+    } else {
+      tag.conversations = tag.conversations.filter((id: string) => id !== props.conversation!.externalThreadId);
+    }
+  }
+}
+
+function getTagColor(color: string | number) {
+  const colorMap: Record<string, string> = {
+    '1': '#F44336',
+    '2': '#E91E63',
+    '3': '#FF9800',
+    '4': '#FFEB3B',
+    '5': '#4CAF50',
+    '6': '#2196F3',
+    '7': '#9C27B0',
+    '8': '#607D8B',
+    '9': '#009688',
+  };
+  return colorMap[String(color)] || String(color) || 'primary';
+}
+
+function onLabelsUpdated() {
+  // Refresh tags list after label manager saves changes
+  availableTags.value = [];
+  fetchTagsIfNeeded();
+}
+
+const showLocationDialog = ref(false);
+const sendingLocation = ref(false);
+const locationData = ref({ link: '', desc: 'Vị trí hiện tại của tôi' });
+const gettingLocation = ref(false);
+
+function getCurrentLocation() {
+  if (!navigator.geolocation) {
+    alert('Trình duyệt của bạn không hỗ trợ lấy vị trí.');
+    return;
+  }
+  gettingLocation.value = true;
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+      locationData.value.link = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+      gettingLocation.value = false;
+    },
+    (err) => {
+      console.error('Error getting location:', err);
+      alert('Không thể lấy vị trí. Vui lòng kiểm tra quyền truy cập vị trí trên trình duyệt.');
+      gettingLocation.value = false;
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+async function onSendLocation() {
+  if (!props.conversation || !locationData.value.link) return;
+  sendingLocation.value = true;
+  try {
+    // Send description text first if exists
+    if (locationData.value.desc) {
+      await api.post(`/conversations/${props.conversation.id}/messages`, {
+        content: locationData.value.desc,
+      });
+    }
+    // Then send the link which Zalo converts to a rich map card
+    await api.post(`/conversations/${props.conversation.id}/link`, { 
+      url: locationData.value.link 
+    });
+    
+    showLocationDialog.value = false;
+    emit('refresh-thread');
+  } catch (err) {
+    console.error('Failed to send location link:', err);
+  } finally {
+    sendingLocation.value = false;
+  }
+}
+
+const showCardDialog = ref(false);
+const sendingCard = ref(false);
+const cardSearch = ref('');
+const cardItems = ref<{ id: string; name: string; avatarUrl: string | null; sub: string }[]>([]);
+const selectedCardItem = ref<any>(null);
+
+const filteredCardItems = computed(() => {
+  const s = cardSearch.value.toLowerCase().trim();
+  if (!s) return cardItems.value;
+  return cardItems.value.filter(i => i.name.toLowerCase().includes(s) || i.sub.toLowerCase().includes(s));
+});
+
+async function openCardDialog() {
+  showCardDialog.value = true;
+  cardSearch.value = '';
+  selectedCardItem.value = null;
+  
+  // Load some potential card targets (staff + recent contacts)
+  try {
+    const [staffRes, contactRes] = await Promise.all([
+      api.get('/users'),
+      api.get('/contacts', { params: { limit: 20 } })
+    ]);
+    
+    const staff = (staffRes.data.users || []).map((u: any) => ({
+      id: u.id,
+      name: u.fullName,
+      avatarUrl: u.avatarUrl,
+      sub: `Nhân viên · ${u.role}`
+    }));
+    
+    const contacts = (contactRes.data.contacts || []).map((c: any) => ({
+      id: c.id,
+      name: c.fullName,
+      avatarUrl: c.avatarUrl,
+      sub: `Khách hàng · ${c.phone || c.email || 'Zalo'}`
+    }));
+    
+    cardItems.value = [...staff, ...contacts];
+  } catch (err) {
+    console.error('Failed to load card items:', err);
+  }
+}
+
+async function onSendCard() {
+  if (!props.conversation || !selectedCardItem.value) return;
+  sendingCard.value = true;
+  try {
+    // Note: Zalo card sharing usually needs the external UID or a valid card payload
+    // Our API takes a contactId and resolves it on backend if possible
+    await apiSendCard(props.conversation.id, selectedCardItem.value.id);
+    showCardDialog.value = false;
+    emit('refresh-thread');
+  } catch (err) {
+    console.error('Failed to send card:', err);
+  } finally {
+    sendingCard.value = false;
+  }
+}
 
 // Typing indicator — computed from prop
 const currentTypers = computed(() => props.typingUsers || []);
@@ -498,6 +873,19 @@ async function onLinkClick() {
   } catch (err) {
     console.error('Failed to send link:', err);
   }
+}
+
+function onVideoCallClick() {
+  if (!props.conversation) return;
+  const roomId = props.conversation.id; // Using conversation ID as room ID
+  const callUrl = `${window.location.origin}/call/${roomId}`;
+  
+  // Send automated message with the link
+  const messageContent = `Dạ mời anh/chị nhấn vào link sau để tham gia phòng gọi video trực tiếp ạ: ${callUrl}`;
+  emit('send', messageContent, undefined);
+
+  // Open the video call room in a new tab for the sale agent
+  window.open(callUrl, '_blank');
 }
 
 function onForward(targetIds: string[]) {

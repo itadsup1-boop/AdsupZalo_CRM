@@ -10,8 +10,8 @@ export async function mergeContacts(
   userId: string,
   primaryId: string,
   secondaryIds: string[],
-): Promise<object> {
-  return prisma.$transaction(async (tx) => {
+): Promise<any> {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // Fetch primary
     const primary = await tx.contact.findUnique({ where: { id: primaryId } });
     if (!primary) throw new Error(`Contact ${primaryId} not found in org`);

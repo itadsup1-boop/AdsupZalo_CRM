@@ -4,8 +4,9 @@
     <!-- Conversation list — resizable -->
     <div class="chat-panel-left" :style="{ width: leftWidth + 'px' }">
       <ConversationList
-        :conversations="conversations"
+        :conversations="filteredConversations"
         :selected-id="selectedConvId"
+        :account-id="accountFilter"
         :loading="loadingConvs"
         v-model:search="searchQuery"
         @select="selectConversation"
@@ -56,6 +57,7 @@
       <ChatContactPanel
         :contact-id="selectedConv.contact.id"
         :contact="selectedConv.contact"
+        :conversation="selectedConv"
         :ai-summary="aiSummary"
         :ai-summary-loading="aiSummaryLoading"
         :ai-sentiment="aiSentiment"
@@ -63,7 +65,7 @@
         @refresh-ai-summary="generateAiSummary"
         @refresh-ai-sentiment="generateAiSentiment"
         @close="showContactPanel = false"
-        @saved="fetchConversations()"
+        @saved="onContactSaved"
       />
     </div>
   </div>
@@ -88,7 +90,7 @@ const {
   aiSummary, aiSummaryLoading, aiSentiment, aiSentimentLoading,
   fetchConversations, fetchAiConfig, fetchMessages, selectConversation, sendMessage, sendVoiceMessage, sendFileMessage,
   generateAiSuggestion, generateAiSummary, generateAiSentiment,
-  initSocket, destroySocket, getSocket,
+  initSocket, destroySocket, getSocket, requestNotificationPermission,
 } = useChat();
 
 const {
@@ -99,6 +101,16 @@ const {
   registerSocketListeners,
   unpinConversation,
 } = useChatOperations();
+
+// Active Zalo label filter (received from ConversationList via update:filters)
+const activeZaloLabelConvIds = ref<string[] | null>(null); // null = no label filter
+
+const filteredConversations = computed(() => {
+  if (activeZaloLabelConvIds.value === null) return conversations.value;
+  return conversations.value.filter(c =>
+    c.externalThreadId && activeZaloLabelConvIds.value!.includes(c.externalThreadId)
+  );
+});
 
 // Typing users for current conversation
 const currentTypers = computed(() =>
@@ -159,6 +171,18 @@ function onFilterAccount(id: string | null) {
 function onFiltersUpdate(params: Record<string, string>) {
   extraFilters.value = params;
   fetchConversations();
+  if (params._zaloLabelConvIds !== undefined) {
+    // If param is present (even if empty string), label filtering is ACTIVE.
+    activeZaloLabelConvIds.value = params._zaloLabelConvIds.length > 0
+      ? params._zaloLabelConvIds.split(',')
+      : []; // Active but zero matches
+  } else {
+    activeZaloLabelConvIds.value = null; // Filter inactive
+  }
+}
+
+function onContactSaved() {
+  fetchConversations();
 }
 
 function onConversationMoved(_id: string, _tab: string) {
@@ -213,6 +237,9 @@ onMounted(() => {
     fetchAiConfig();
     initSocket();
     registerSocketListeners(getSocket());
+    
+    // Request notification permission if not yet decided
+    requestNotificationPermission();
   }
 });
 onUnmounted(() => {

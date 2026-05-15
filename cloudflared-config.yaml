@@ -1,0 +1,7 @@
+tunnel: eef51e9f-3b43-4bea-9e4e-0b8f17282ee4
+credentials-file: /home/hai-anh/.cloudflared/eef51e9f-3b43-4bea-9e4e-0b8f17282ee4.json
+
+ingress:
+  - hostname: crm.adsup.vn
+    service: http://localhost:3080
+  - service: http_status:404

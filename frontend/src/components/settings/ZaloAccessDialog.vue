@@ -140,7 +140,14 @@ async function fetchAccess() {
   loading.value = true;
   try {
     const res = await api.get(`/zalo-accounts/${props.accountId}/access`);
-    accessList.value = res.data.access ?? res.data;
+    const rawList = res.data.access ?? res.data;
+    accessList.value = rawList.map((r: any) => ({
+      id: r.id,
+      userId: r.userId,
+      permission: r.permission,
+      fullName: r.user?.fullName || 'Không rõ',
+      email: r.user?.email || 'N/A',
+    }));
   } catch {
     accessList.value = [];
   } finally {

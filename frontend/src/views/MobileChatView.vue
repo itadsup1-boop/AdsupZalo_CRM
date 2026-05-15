@@ -5,6 +5,7 @@
       <ConversationList
         :conversations="conversations"
         :selected-id="selectedConvId"
+        :account-id="accountFilter"
         :loading="loadingConvs"
         v-model:search="searchQuery"
         @select="selectConversation"
@@ -14,49 +15,48 @@
 
     <!-- Message thread (shown when conversation selected) -->
     <div v-else style="height: 100%; display: flex; flex-direction: column;">
-      <!-- Back button bar -->
-      <div class="d-flex align-center pa-2" style="flex-shrink: 0;">
-        <v-btn icon variant="text" size="small" @click="goBack">
-          <v-icon>mdi-arrow-left</v-icon>
-        </v-btn>
-        <span v-if="selectedConv" class="text-body-2 font-weight-medium ml-1">
-          {{ selectedConv.contact?.fullName || 'Chat' }}
-        </span>
-      </div>
-
       <MessageThread
         :conversation="selectedConv"
         :messages="allMessages"
         :loading="loadingMsgs"
         :sending="sendingMsg"
         :show-contact-panel="showContactPanel"
+        :show-back="true"
         :ai-suggestion="(null as any)"
         :ai-suggestion-loading="false"
         :ai-suggestion-error="(null as any)"
         @send="handleSend"
         @send-voice="sendVoiceMessage"
         @send-file="sendFileMessage"
+        @go-back="goBack"
         @toggle-contact-panel="handleToggleContactPanel"
         @refresh-thread="selectedConvId && fetchMessages(selectedConvId)"
         style="flex: 1; min-height: 0;"
       />
     </div>
 
-    <!-- Contact Details Overlay -->
-    <v-dialog v-model="showContactPanel" fullscreen transition="dialog-bottom-transition">
-      <v-card style="display: flex; flex-direction: column; height: 100vh;">
-        <v-toolbar color="surface" flat style="border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.1);">
-          <v-btn icon @click="showContactPanel = false">
-            <v-icon>mdi-arrow-left</v-icon>
-          </v-btn>
+    <!-- Contact Details Bottom Sheet -->
+    <v-bottom-sheet v-model="showContactPanel" max-height="85vh">
+      <v-card style="border-radius: 20px 20px 0 0; display: flex; flex-direction: column; max-height: 85vh;">
+        <!-- Handle bar -->
+        <div class="d-flex justify-center pt-2 pb-1">
+          <div style="width: 36px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.2);"></div>
+        </div>
+
+        <v-toolbar color="surface" flat density="compact" class="px-2" style="flex-shrink: 0;">
           <v-toolbar-title class="text-subtitle-1 font-weight-bold">Thông tin khách hàng</v-toolbar-title>
+          <v-spacer />
+          <v-btn icon size="small" @click="showContactPanel = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
         </v-toolbar>
-        
-        <v-card-text class="pa-0 flex-grow-1 overflow-y-auto">
+
+        <v-card-text class="pa-0 overflow-y-auto" style="flex: 1;">
           <ChatContactPanel
             v-if="selectedConv?.contact"
             :contact-id="selectedConv.contact.id"
             :contact="selectedConv.contact"
+            :conversation="selectedConv"
             :ai-summary="aiSummary"
             :ai-summary-loading="aiSummaryLoading"
             :ai-sentiment="aiSentiment"
@@ -68,7 +68,7 @@
           />
         </v-card-text>
       </v-card>
-    </v-dialog>
+    </v-bottom-sheet>
   </div>
 </template>
 
@@ -86,7 +86,7 @@ const {
   aiSummary, aiSummaryLoading, aiSentiment, aiSentimentLoading,
   fetchConversations, fetchMessages, selectConversation, sendMessage, sendMessageTo, sendVoiceMessage, sendFileMessage,
   generateAiSummary, generateAiSentiment,
-  initSocket, destroySocket,
+  initSocket, destroySocket, requestNotificationPermission,
   isMobileChatActive,
 } = useChat();
 
@@ -151,6 +151,7 @@ onMounted(() => {
   fetchConversations();
   initSocket();
   window.addEventListener('online', onOnline);
+  requestNotificationPermission();
 });
 
 onUnmounted(() => {
@@ -168,7 +169,7 @@ watch(searchQuery, () => {
  
 <style scoped>
 .mobile-chat {
-  height: calc(100dvh - 120px); /* Use dynamic viewport height */
+  height: calc(100dvh - 56px - env(safe-area-inset-top, 0px)); /* app bar + safe area */
   display: flex;
   flex-direction: column;
   overflow: hidden;

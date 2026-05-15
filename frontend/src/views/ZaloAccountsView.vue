@@ -3,7 +3,7 @@
     <div class="d-flex align-center mb-4">
       <h1 class="text-h4">Tài khoản Zalo</h1>
       <v-spacer />
-      <v-btn color="primary" prepend-icon="mdi-plus" @click="showAddDialog = true">Thêm Zalo</v-btn>
+      <v-btn v-if="authStore.isAdmin" color="primary" prepend-icon="mdi-plus" @click="showAddDialog = true">Thêm Zalo</v-btn>
     </div>
 
     <v-card>
@@ -20,13 +20,16 @@
           <v-btn icon size="small" color="success" @click="syncContacts(item.id)" title="Đồng bộ danh bạ Zalo" :loading="syncing === item.id">
             <v-icon>mdi-account-sync</v-icon>
           </v-btn>
-          <v-btn v-if="item.liveStatus !== 'connected'" icon size="small" color="primary" @click="loginAccount(item.id)" title="Đăng nhập QR">
+          <v-btn icon size="small" color="deep-purple" @click="syncFull(item.id)" title="Đồng bộ toàn bộ danh bạ & nhóm" :loading="syncingFull === item.id">
+            <v-icon>mdi-history</v-icon>
+          </v-btn>
+          <v-btn v-if="authStore.isAdmin && item.liveStatus !== 'connected'" icon size="small" color="primary" @click="loginAccount(item.id)" title="Đăng nhập QR">
             <v-icon>mdi-qrcode</v-icon>
           </v-btn>
-          <v-btn v-if="item.liveStatus === 'disconnected' && item.sessionData" icon size="small" color="info" @click="reconnectAccount(item.id)" title="Kết nối lại">
+          <v-btn v-if="authStore.isAdmin && item.liveStatus === 'disconnected' && item.sessionData" icon size="small" color="info" @click="reconnectAccount(item.id)" title="Kết nối lại">
             <v-icon>mdi-refresh</v-icon>
           </v-btn>
-          <v-btn icon size="small" color="error" @click="confirmDelete(item)" title="Xóa">
+          <v-btn v-if="authStore.isAdmin" icon size="small" color="error" @click="confirmDelete(item)" title="Xóa">
             <v-icon>mdi-delete</v-icon>
           </v-btn>
         </template>
@@ -115,6 +118,7 @@ const authStore = useAuthStore();
 
 const showAddDialog = ref(false);
 const syncing = ref<string | null>(null);
+const syncingFull = ref<string | null>(null);
 const showDeleteDialog = ref(false);
 const showAccessDialog = ref(false);
 const newAccountName = ref('');
@@ -133,11 +137,24 @@ async function syncContacts(accountId: string) {
   syncing.value = accountId;
   try {
     const res = await api.post(`/zalo-accounts/${accountId}/sync-contacts`);
-    alert(`Đồng bộ thành công: ${res.data.created} mới, ${res.data.updated} cập nhật`);
+    alert(`Đồng bộ danh bạ thành công: ${res.data.created} mới, ${res.data.updated} cập nhật`);
   } catch (err: any) {
     alert('Đồng bộ thất bại: ' + (err.response?.data?.error || err.message));
   } finally {
     syncing.value = null;
+  }
+}
+
+async function syncFull(accountId: string) {
+  syncingFull.value = accountId;
+  try {
+    const res = await api.post(`/zalo-accounts/${accountId}/sync-full`);
+    const s = res.data.stats;
+    alert(`Đồng bộ lịch sử thành công!\n+${s.contactsCreated} liên hệ\n+${s.groupsCreated} nhóm\n+${s.messagesSynced} tin nhắn`);
+  } catch (err: any) {
+    alert('Đồng bộ thất bại: ' + (err.response?.data?.error || err.message));
+  } finally {
+    syncingFull.value = null;
   }
 }
 

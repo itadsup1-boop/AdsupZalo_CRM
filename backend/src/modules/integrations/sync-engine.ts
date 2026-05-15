@@ -56,6 +56,7 @@ export async function runSync(integration: Integration) {
   try {
     log = await prisma.syncLog.create({
       data: {
+        orgId: integration.orgId,
         integrationId: integration.id,
         direction: result.direction,
         recordCount: result.recordCount,

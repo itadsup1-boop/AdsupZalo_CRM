@@ -49,6 +49,8 @@ interface RawMessage extends Omit<Message, 'reactions' | 'reply'> {
 
 export interface Conversation {
   id: string;
+  zaloAccountId: string;
+  externalThreadId?: string;
   threadType: 'user' | 'group';
   contact: Contact | null;
   zaloAccount: ZaloAccount | null;
@@ -81,6 +83,9 @@ export interface Message {
   reactions?: MessageReactionView[];
 }
 
+// Module-level singleton so all components share the same state
+const isMobileChatActive = ref(false);
+
 export function useChat() {
   const conversations = ref<Conversation[]>([]);
   const selectedConvId = ref<string | null>(null);
@@ -99,7 +104,6 @@ export function useChat() {
   const aiSentimentLoading = ref(false);
   const aiUsage = ref({ usedToday: 0, maxDaily: 500, remaining: 500, enabled: true });
   const aiConfig = ref<AiConfig>({ provider: 'anthropic', model: 'claude-sonnet-4-6', maxDaily: 500, enabled: true });
-  const isMobileChatActive = ref(false);
   let socket: Socket | null = null;
 
   const selectedConv = computed(() =>
@@ -336,10 +340,140 @@ export function useChat() {
     }
   }
 
+  function playNotificationSound() {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      
+      // First ding (C5)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(523.25, ctx.currentTime);
+      gain1.gain.setValueAtTime(0, ctx.currentTime);
+      gain1.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+      gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(ctx.currentTime);
+      osc1.stop(ctx.currentTime + 0.2);
+
+      // Second ding (E5)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
+      gain2.gain.setValueAtTime(0, ctx.currentTime + 0.1);
+      gain2.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.15);
+      gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(ctx.currentTime + 0.1);
+      osc2.stop(ctx.currentTime + 0.4);
+    } catch (err) {
+      console.error('Audio playback failed', err);
+    }
+  }
+
+  function urlBase64ToUint8Array(base64String: string) {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  async function subscribeToPushNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      
+      // Get the server's public key (hardcoded or from config)
+      const publicKey = 'BIYO5VLdNqPx64e34KS-9LgLz-Bt2Syn5qRXvIuJ7r73R6YarsnUxiV-u3lcz1NHaxSWhbeOavN9KEX4d1iirKc';
+      
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey)
+      });
+
+      // Send subscription to backend
+      const subJSON = subscription.toJSON();
+      await api.post('/notifications/subscribe', {
+        endpoint: subJSON.endpoint,
+        keys: subJSON.keys
+      });
+      
+      console.log('[push] Subscribed successfully');
+    } catch (err) {
+      console.error('[push] Failed to subscribe:', err);
+    }
+  }
+
+  function requestNotificationPermission() {
+    if ('Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            subscribeToPushNotifications();
+          }
+        });
+      } else if (Notification.permission === 'granted') {
+        subscribeToPushNotifications();
+      }
+    }
+  }
+
+  function showBrowserNotification(message: any, conversationId: string) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    
+    // Don't show notification if user is actively looking at this exact chat
+    if (document.visibilityState === 'visible' && selectedConvId.value === conversationId) {
+      return; 
+    }
+
+    let title = message.senderName || 'Tin nhắn mới';
+    let bodyText = message.content || 'Bạn có tin nhắn mới';
+    
+    if (message.contentType !== 'text' && message.contentType !== 'text_link') {
+       bodyText = `[${message.contentType}]`;
+    } else if (bodyText.length > 80) {
+       bodyText = bodyText.substring(0, 80) + '...';
+    }
+
+    try {
+      const notification = new Notification(title, {
+        body: bodyText,
+        icon: '/pwa-192x192.png', 
+        tag: 'zalo-msg-' + conversationId,
+      });
+
+      notification.onclick = () => {
+        window.focus();
+        if (selectedConvId.value !== conversationId) {
+          selectConversation(conversationId);
+        }
+        notification.close();
+      };
+    } catch (e) {
+      console.error('Browser notification error', e);
+    }
+  }
+
   function initSocket() {
     socket = io({ transports: ['websocket', 'polling'] });
 
     socket.on('chat:message', (data: { message: Message; conversationId: string }) => {
+      // Play sound and show notification if message is not from self
+      if (data.message.senderType !== 'self') {
+        playNotificationSound();
+        showBrowserNotification(data.message, data.conversationId);
+      }
+
       if (data.conversationId === selectedConvId.value) {
         if (!messages.value.find(m => m.id === data.message.id)) {
           messages.value.push(normalizeMessage(data.message as RawMessage));
@@ -422,5 +556,6 @@ export function useChat() {
     initSocket,
     destroySocket,
     getSocket: () => socket,
+    requestNotificationPermission,
   };
 }

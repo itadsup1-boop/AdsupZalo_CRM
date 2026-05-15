@@ -5,7 +5,7 @@
  */
 import type { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../auth/auth-middleware.js';
-import { prisma } from '../../shared/database/prisma-client.js';
+import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 import { logger } from '../../shared/utils/logger.js';
 
 /** Shape matching openzca StoredCredentials */
@@ -35,8 +35,9 @@ export async function credentialRoutes(app: FastifyInstance) {
     const { accountId } = request.params as { accountId: string };
     const user = request.user!;
 
-    const account = await prisma.zaloAccount.findFirst({
-      where: { id: accountId, orgId: user.orgId },
+    const db = getTenantPrisma(user.orgId);
+    const account = await db.zaloAccount.findFirst({
+      where: { id: accountId },
       select: { id: true, sessionData: true, displayName: true },
     });
     if (!account) {
@@ -45,7 +46,7 @@ export async function credentialRoutes(app: FastifyInstance) {
 
     // Only owner/admin or explicit admin permission on account
     if (!['owner', 'admin'].includes(user.role)) {
-      const access = await prisma.zaloAccountAccess.findFirst({
+      const access = await db.zaloAccountAccess.findFirst({
         where: { zaloAccountId: accountId, userId: user.id },
       });
       if (!access || access.permission !== 'admin') {
@@ -69,8 +70,9 @@ export async function credentialRoutes(app: FastifyInstance) {
     const { accountId } = request.params as { accountId: string };
     const user = request.user!;
 
-    const account = await prisma.zaloAccount.findFirst({
-      where: { id: accountId, orgId: user.orgId },
+    const db = getTenantPrisma(user.orgId);
+    const account = await db.zaloAccount.findFirst({
+      where: { id: accountId },
       select: { id: true },
     });
     if (!account) {
@@ -79,7 +81,7 @@ export async function credentialRoutes(app: FastifyInstance) {
 
     // Only owner/admin or explicit admin permission on account
     if (!['owner', 'admin'].includes(user.role)) {
-      const access = await prisma.zaloAccountAccess.findFirst({
+      const access = await db.zaloAccountAccess.findFirst({
         where: { zaloAccountId: accountId, userId: user.id },
       });
       if (!access || access.permission !== 'admin') {
@@ -95,7 +97,7 @@ export async function credentialRoutes(app: FastifyInstance) {
     }
 
     try {
-      await prisma.zaloAccount.update({
+      await db.zaloAccount.update({
         where: { id: accountId },
         data: {
           sessionData: body as any,

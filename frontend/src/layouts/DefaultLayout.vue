@@ -19,7 +19,7 @@
           "
         >
           <img 
-            src="@/assets/logo-adsup.jpg" 
+            src="@/assets/logo-cropped.png" 
             alt="Adsup Logo" 
             style="width: 100%; height: 100%; object-fit: cover;"
           />
@@ -149,7 +149,7 @@ onMounted(() => {
 });
 
 const menuItems = [
-  { title: 'Dashboard', icon: 'mdi-view-dashboard-outline', path: '/' },
+  { title: 'Dashboard', icon: 'mdi-view-dashboard-outline', path: '/dashboard' },
   { title: 'Tin nhắn', icon: 'mdi-message-text-outline', path: '/chat' },
   { title: 'Nhóm', icon: 'mdi-account-group', path: '/groups' },
   { title: 'Bạn bè', icon: 'mdi-account-multiple-outline', path: '/friends' },

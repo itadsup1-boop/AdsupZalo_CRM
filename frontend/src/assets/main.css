@@ -3,10 +3,10 @@
 :root {
   --navy-deep: #0A192F;
   --navy-light: #112240;
-  --cyan-electric: #00F2FF;
+  --primary-brand: #1a73e8;
   --card-glass: rgba(17, 34, 64, 0.7);
   --liquid-ease: cubic-bezier(0.4, 0, 0.2, 1);
-  --border-glow: rgba(0, 242, 255, 0.1);
+  --border-glow: rgba(26, 115, 232, 0.1);
 }
 
 html, body {
@@ -56,7 +56,7 @@ html, body {
 
 .ai-core-orb {
   animation: liquid-morph 8s infinite var(--liquid-ease);
-  box-shadow: 0 0 30px rgba(0, 242, 255, 0.2);
+  box-shadow: 0 0 30px rgba(26, 115, 232, 0.2);
 }
 
 /* Glass card effect */
@@ -77,8 +77,8 @@ html, body {
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0, 242, 255, 0.2); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0, 242, 255, 0.4); }
+::-webkit-scrollbar-thumb { background: rgba(26, 115, 232, 0.2); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(26, 115, 232, 0.4); }
 
 .v-theme--light ::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); }
 
@@ -102,6 +102,25 @@ html, body {
   border-bottom: 1px solid var(--border-glow) !important;
 }
 
+/* iPhone safe area: extend app bar behind notch/Dynamic Island */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .v-app-bar {
+    height: calc(56px + env(safe-area-inset-top)) !important;
+    padding-top: env(safe-area-inset-top) !important;
+  }
+
+  /* Push main content down by the safe area amount on top of Vuetify's offset */
+  .v-main {
+    --v-layout-top: calc(56px + env(safe-area-inset-top)) !important;
+  }
+
+  /* Mobile chat height should also account for the safe area */
+  .mobile-chat {
+    height: calc(100dvh - 56px - env(safe-area-inset-top)) !important;
+  }
+}
+
+
 .v-theme--light .v-app-bar {
   background: rgba(255, 255, 255, 0.95) !important;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
@@ -110,12 +129,12 @@ html, body {
 
 /* List items hover - cyan glow */
 .v-list-item:hover {
-  background: rgba(0, 242, 255, 0.05) !important;
+  background: rgba(26, 115, 232, 0.05) !important;
 }
 
 .v-list-item--active {
-  background: rgba(0, 242, 255, 0.08) !important;
-  border-left: 3px solid var(--cyan-electric);
+  background: rgba(26, 115, 232, 0.08) !important;
+  border-left: 3px solid var(--primary-brand);
 }
 
 .v-theme--light .v-list-item:hover {
@@ -128,8 +147,8 @@ html, body {
 }
 
 .v-field--focused {
-  border-color: var(--cyan-electric) !important;
-  box-shadow: 0 0 12px rgba(0, 242, 255, 0.15);
+  border-color: var(--primary-brand) !important;
+  box-shadow: 0 0 12px rgba(26, 115, 232, 0.15);
 }
 
 /* Chat bubbles */
@@ -157,8 +176,8 @@ html, body {
 
 /* Received messages - left aligned */
 .message-bubble:not(.bg-primary) {
-  background: linear-gradient(135deg, rgba(0, 242, 255, 0.08), rgba(0, 242, 255, 0.03)) !important;
-  border: 1px solid rgba(0, 242, 255, 0.15) !important;
+  background: linear-gradient(135deg, rgba(26, 115, 232, 0.08), rgba(26, 115, 232, 0.03)) !important;
+  border: 1px solid rgba(26, 115, 232, 0.15) !important;
   border-radius: 4px 24px 24px 24px !important;
   color: #E6F1FF !important;
 }
@@ -210,7 +229,7 @@ html, body {
 }
 
 .v-btn--variant-flat:hover {
-  box-shadow: 0 0 16px rgba(0, 242, 255, 0.2);
+  box-shadow: 0 0 16px rgba(26, 115, 232, 0.2);
   transform: translateY(-1px);
 }
 
@@ -243,17 +262,17 @@ html, body {
 
 /* Tabs */
 .v-tab--selected {
-  color: var(--cyan-electric) !important;
+  color: var(--primary-brand) !important;
 }
 
 /* Status dot animation */
 .status-dot {
-  box-shadow: 0 0 10px rgba(0, 242, 255, 0.8);
+  box-shadow: 0 0 10px rgba(26, 115, 232, 0.8);
 }
 
 /* Progress linear */
 .v-progress-linear {
-  background: rgba(0, 242, 255, 0.1) !important;
+  background: rgba(26, 115, 232, 0.1) !important;
 }
 
 /* Smooth transitions for everything */
@@ -272,8 +291,8 @@ html, body {
 
 /* Conversation list active item */
 .conversation-active {
-  background: rgba(0, 242, 255, 0.05);
-  border: 1px solid rgba(0, 242, 255, 0.2) !important;
+  background: rgba(26, 115, 232, 0.05);
+  border: 1px solid rgba(26, 115, 232, 0.2) !important;
 }
 
 .v-theme--light .conversation-active {

@@ -99,6 +99,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
         update: { emoji: mapReaction(reaction) },
         create: {
           id: randomUUID(),
+          orgId: user.orgId,
           messageId: refs.messageId,
           reactorId: user.id,
           emoji: mapReaction(reaction),
@@ -299,6 +300,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
       await prisma.message.create({
         data: {
           id: randomUUID(),
+          orgId: user.orgId,
           conversationId: id,
           senderType: 'self',
           senderUid: '',
@@ -332,6 +334,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
       await prisma.message.create({
         data: {
           id: randomUUID(),
+          orgId: user.orgId,
           conversationId: id,
           senderType: 'self',
           senderUid: '',
@@ -349,6 +352,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
 
   // ── POST /card ───────────────────────────────────────────────────────────────
   app.post('/api/v1/conversations/:id/card', chatAccess, async (request: FastifyRequest, reply: FastifyReply) => {
+    // ... [existing POST /card code] ...
     const user = request.user!;
     const { id } = request.params as { id: string };
     const { contactId } = request.body as { contactId: string };
@@ -359,17 +363,38 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
     if (!conv) return;
 
     try {
+      let targetZaloUid = '';
+      let targetPhone = '';
+
+      const contactTarget = await prisma.contact.findFirst({ where: { id: contactId, orgId: user.orgId } });
+      if (contactTarget) {
+        targetZaloUid = contactTarget.zaloUid || '';
+        targetPhone = contactTarget.phone || '';
+      } else {
+        const userTarget = await prisma.zaloAccount.findFirst({ where: { ownerUserId: contactId, orgId: user.orgId } });
+        if (userTarget) {
+          targetZaloUid = userTarget.zaloUid || '';
+          targetPhone = userTarget.phone || '';
+        }
+      }
+
+      if (!targetZaloUid && !targetPhone) {
+        return reply.status(400).send({ error: 'Cannot share this contact because they do not have a Zalo UID or phone number.' });
+      }
+
+      const cardData = { userId: targetZaloUid };
       const threadType = conv.threadType === 'group' ? 1 : 0;
-      const result = await zaloOps.sendCard(conv.zaloAccountId, conv.externalThreadId || '', threadType, contactId);
+      const result = await zaloOps.sendCard(conv.zaloAccountId, conv.externalThreadId || '', threadType, cardData);
 
       await prisma.message.create({
         data: {
           id: randomUUID(),
+          orgId: user.orgId,
           conversationId: id,
           senderType: 'self',
           senderUid: '',
           senderName: 'Staff',
-          content: contactId,
+          content: targetZaloUid || targetPhone || contactId,
           contentType: 'contact_card',
           sentAt: new Date(),
           repliedByUserId: user.id,
@@ -379,17 +404,147 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
       return { success: true, result };
     } catch (err) { return handleError(err, reply); }
   });
+
+  // ── GET /labels ──────────────────────────────────────────────────────────────
+  app.get('/api/v1/zalo-accounts/:id/labels', { preHandler: requireZaloAccess('read') }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user!;
+    const { id } = request.params as { id: string };
+    
+    const account = await prisma.zaloAccount.findFirst({ where: { id, orgId: user.orgId } });
+    if (!account) return reply.status(404).send({ error: 'Account not found' });
+
+    try {
+      const result = await zaloOps.getLabels(account.id) as any;
+      return { success: true, labels: result?.labelData || [], version: result?.version || 0 };
+    } catch (err) { return handleError(err, reply); }
+  });
+
+  // ── PUT /labels ── full replace (used by label manager UI) ──────────────────
+  app.put('/api/v1/zalo-accounts/:id/labels', { preHandler: requireZaloAccess('chat') }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user!;
+    const { id } = request.params as { id: string };
+    const { labelData, version } = request.body as { labelData: any[]; version: number };
+
+    if (!Array.isArray(labelData)) return reply.status(400).send({ error: 'labelData array required' });
+
+    const account = await prisma.zaloAccount.findFirst({ where: { id, orgId: user.orgId } });
+    if (!account) return reply.status(404).send({ error: 'Account not found' });
+
+    try {
+      const result = await zaloOps.updateLabels(account.id, labelData, version || 0) as any;
+      return { success: true, labels: result?.labelData || labelData };
+    } catch (err) { return handleError(err, reply); }
+  });
+
+  // ── POST /labels ─────────────────────────────────────────────────────────────
+  app.post('/api/v1/conversations/:id/labels', chatAccess, async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user!;
+    const { id } = request.params as { id: string };
+    const { labelIds } = request.body as { labelIds: number[] }; // Array of active label IDs for this conversation
+
+    if (!Array.isArray(labelIds)) return reply.status(400).send({ error: 'labelIds array required' });
+
+    const conv = await getConversation(id, user.orgId, reply);
+    if (!conv || !conv.externalThreadId) return;
+
+    try {
+      // 1. Fetch current labels from Zalo (need version for the update call)
+      const labelsRes = await zaloOps.getLabels(conv.zaloAccountId) as any;
+      const allLabels = (labelsRes?.labelData || []) as any[];
+      const version = labelsRes?.version || 0;
+
+      // 2. Modify conversations array for each label
+      const updatedLabels = allLabels.map((lbl: any) => {
+        const hasTag = labelIds.includes(lbl.id);
+        const convs = new Set(lbl.conversations || []);
+        
+        if (hasTag) {
+          convs.add(conv.externalThreadId);
+        } else {
+          convs.delete(conv.externalThreadId);
+        }
+        
+        return {
+          ...lbl,
+          conversations: Array.from(convs)
+        };
+      });
+
+      // 3. Update back to Zalo — must include version!
+      const result = await zaloOps.updateLabels(conv.zaloAccountId, updatedLabels, version);
+      
+      // Emit socket event to update frontend instantly
+      const io = (app as any).io as Server;
+      io?.emit('chat:labels-updated', { conversationId: id, labelIds });
+
+      return { success: true, result };
+    } catch (err) { return handleError(err, reply); }
+  });
 }
+
+
 
 // Socket.IO event handlers for chat operations
 export function registerChatSocketHandlers(io: Server): void {
+  // Store presence data in-memory (for production, use Redis)
+  const presence = new Map<string, { userId: string; userName: string; conversationId: string | null }>();
+
   io.on('connection', (socket) => {
-    socket.on('chat:typing', (data: { conversationId: string; userId: string; userName: string }) => {
-      try {
-        eventBuffer.recordTyping(data.conversationId, data.userId, data.userName);
-      } catch (err) {
-        logger.error('[socket] chat:typing error:', err);
+    logger.info(`[socket] Client connected: ${socket.id}`);
+
+    // 1. Join room (Org-based isolation)
+    socket.on('join:org', (orgId: string) => {
+      socket.join(`org:${orgId}`);
+      logger.info(`[socket] Client ${socket.id} joined org:${orgId}`);
+    });
+
+    // 2. Presence & Viewing
+    socket.on('presence:viewing', (data: { orgId: string; userId: string; userName: string; conversationId: string | null }) => {
+      presence.set(socket.id, { userId: data.userId, userName: data.userName, conversationId: data.conversationId });
+      
+      // Broadcast presence to others in the same org
+      io.to(`org:${data.orgId}`).emit('presence:update', Array.from(presence.values()));
+      
+      // Handle Conversation Locking logic
+      if (data.conversationId) {
+        socket.join(`conv:${data.conversationId}`);
+        // Notify others that this conversation is being viewed/locked
+        socket.to(`org:${data.orgId}`).emit('chat:locked', {
+          conversationId: data.conversationId,
+          lockedBy: data.userId,
+          lockedByName: data.userName,
+          expiresAt: new Date(Date.now() + 30000).toISOString() // 30s lock
+        });
       }
+    });
+
+    // 3. Typing indicator
+    socket.on('chat:typing', (data: { orgId: string; conversationId: string; userId: string; userName: string; isTyping: boolean }) => {
+      socket.to(`org:${data.orgId}`).emit('chat:typing', data);
+      
+      if (data.isTyping) {
+        eventBuffer.recordTyping(data.conversationId, data.userId, data.userName);
+      }
+    });
+
+    // 4. Seen status
+    socket.on('chat:seen', (data: { orgId: string; conversationId: string; userId: string; lastMsgId: string }) => {
+      socket.to(`org:${data.orgId}`).emit('chat:seen', data);
+      
+      // Update DB seen status
+      prisma.conversation.update({
+        where: { id: data.conversationId },
+        data: { unreadCount: 0, isReplied: true }
+      }).catch(err => logger.error('[socket] Failed to update seen status:', err));
+    });
+
+    socket.on('disconnect', () => {
+      const p = presence.get(socket.id);
+      if (p) {
+        presence.delete(socket.id);
+        // Clean up locks if needed
+      }
+      logger.info(`[socket] Client disconnected: ${socket.id}`);
     });
   });
 }

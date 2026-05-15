@@ -68,9 +68,11 @@ async function resolveGroupName(api: any, groupId: string): Promise<string> {
 
 export interface ListenerContext {
   accountId: string;
+  orgId: string;
   api: any;
   io: Server | null;
   userInfoCache: Map<string, UserInfoCacheEntry>;
+  zaloUid?: string;
   onDisconnected: (accountId: string) => void;
 }
 
@@ -79,7 +81,8 @@ export interface ListenerContext {
  * Calls listener.start() with retryOnClose at the end.
  */
 export function attachZaloListener(ctx: ListenerContext): void {
-  const { accountId, api, io, userInfoCache, onDisconnected } = ctx;
+  const { accountId, api, io, userInfoCache, zaloUid: ctxZaloUid, onDisconnected } = ctx;
+  const currentZaloUid = ctxZaloUid || api.me?.uid;
   const listener = api.listener;
 
   listener.on('connected', () => {
@@ -91,6 +94,13 @@ export function attachZaloListener(ctx: ListenerContext): void {
       // ThreadType in zca-js: 0 = User, 1 = Group
       const isGroup = message.type === 1;
       const senderUid = String(message.data?.uidFrom || '');
+      const isSelf = message.isSelf || (senderUid && currentZaloUid && String(senderUid) === String(currentZaloUid));
+
+      if (isSelf || message.isSelf) {
+        logger.info(`[zalo:${accountId}] Self message detected: senderUid=${senderUid}, currentZaloUid=${currentZaloUid}, isSelf=${message.isSelf}`);
+      } else if (senderUid) {
+        logger.debug(`[zalo:${accountId}] Incoming message: senderUid=${senderUid}, currentZaloUid=${currentZaloUid}`);
+      }
 
       // Resolve display name — prefer zaloName from API over dName
       let senderName: string = message.data?.dName || '';
@@ -114,9 +124,20 @@ export function attachZaloListener(ctx: ListenerContext): void {
       }
 
       const rawContent = message.data?.content;
-      const content =
-        typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent || '');
       const contentType = detectContentType(message.data?.msgType, rawContent);
+      
+      const isSuspicious = typeof rawContent === 'string' && rawContent.includes('sendBubbleMessage');
+      if (isSuspicious) {
+        logger.info(`[zalo:${accountId}] Suspicious message content detected:`, JSON.stringify(message, null, 2));
+      }
+      
+      let content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent || '');
+      
+      // Hiển thị nhãn thân thiện cho các loại tin nhắn đặc biệt
+      if (contentType === 'call' || content === 'sendBubbleMessage') {
+        content = '📞 Cuộc gọi đến';
+      }
+
       const album = extractAlbumInfo(contentType, rawContent);
 
       const result = await handleIncomingMessage({
@@ -127,7 +148,7 @@ export function attachZaloListener(ctx: ListenerContext): void {
         contentType,
         msgId: String(message.data?.msgId || ''),
         timestamp: parseInt(message.data?.ts || String(Date.now())),
-        isSelf: message.isSelf || false,
+        isSelf: isSelf,
         threadId: message.threadId || '',
         threadType: isGroup ? 'group' : 'user',
         groupName,
@@ -166,6 +187,7 @@ export function attachZaloListener(ctx: ListenerContext): void {
     for (const message of messages) {
       try {
         const senderUid = String(message.data?.uidFrom || '');
+        const isSelf = message.isSelf || (senderUid && currentZaloUid && String(senderUid) === String(currentZaloUid));
         let senderName = message.data?.dName || '';
 
         // Resolve display name for non-self messages
@@ -193,7 +215,7 @@ export function attachZaloListener(ctx: ListenerContext): void {
           contentType,
           msgId: String(message.data?.msgId || ''),
           timestamp: parseInt(message.data?.ts || String(Date.now())),
-          isSelf: message.isSelf || false,
+          isSelf: isSelf,
           threadId: message.threadId || '',
           threadType,
           groupName,

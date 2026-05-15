@@ -4,7 +4,7 @@
  * Role-based access: owner > admin > member.
  */
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { prisma } from '../../shared/database/prisma-client.js';
+import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 import { authMiddleware } from './auth-middleware.js';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'node:crypto';
@@ -16,14 +16,16 @@ export async function userRoutes(app: FastifyInstance) {
   // GET /api/v1/users — list all users in org
   app.get('/api/v1/users', async (request: FastifyRequest) => {
     const user = request.user!;
-    const users = await prisma.user.findMany({
-      where: { orgId: user.orgId },
+    const db = getTenantPrisma(user.orgId);
+    const users = await db.user.findMany({
+      where: {},
       select: {
         id: true,
         email: true,
         fullName: true,
         role: true,
         isActive: true,
+        isPending: true,
         teamId: true,
         createdAt: true,
         team: { select: { id: true, name: true } },
@@ -47,7 +49,8 @@ export async function userRoutes(app: FastifyInstance) {
 
     const email = rawEmail.toLowerCase().trim();
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const db = getTenantPrisma(currentUser.orgId);
+    const existing = await db.user.findFirst({ where: { email } });
     if (existing) return reply.status(400).send({ error: 'Email đã tồn tại' });
 
     if (role === 'owner') return reply.status(400).send({ error: 'Không thể tạo thêm owner' });
@@ -56,7 +59,7 @@ export async function userRoutes(app: FastifyInstance) {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await prisma.user.create({
+    const user = await db.user.create({
       data: {
         id: randomUUID(),
         orgId: currentUser.orgId,
@@ -65,6 +68,8 @@ export async function userRoutes(app: FastifyInstance) {
         passwordHash,
         role,
         teamId: teamId || null,
+        isActive: true,
+        isPending: false, // Manual creation is auto-approved
       },
       select: {
         id: true,
@@ -72,12 +77,32 @@ export async function userRoutes(app: FastifyInstance) {
         fullName: true,
         role: true,
         isActive: true,
+        isPending: true,
         createdAt: true,
       },
     });
 
     logger.info(`User created: ${user.email} by ${currentUser.email}`);
     return user;
+  });
+
+  // PUT /api/v1/users/:id/approve — approve a join request
+  app.post('/api/v1/users/:id/approve', async (request: FastifyRequest, reply: FastifyReply) => {
+    const currentUser = request.user!;
+    if (!['owner', 'admin'].includes(currentUser.role)) {
+      return reply.status(403).send({ error: 'Không có quyền' });
+    }
+
+    const { id } = request.params as { id: string };
+    const db = getTenantPrisma(currentUser.orgId);
+    
+    await db.user.update({
+      where: { id },
+      data: { isPending: false, isActive: true },
+    });
+
+    logger.info(`User request approved: ${id} by ${currentUser.email}`);
+    return { success: true };
   });
 
   // PUT /api/v1/users/:id — update user info
@@ -102,8 +127,9 @@ export async function userRoutes(app: FastifyInstance) {
     if (teamId !== undefined) updateData.teamId = teamId || null;
     if (isActive !== undefined && currentUser.role === 'owner') updateData.isActive = isActive;
 
-    const user = await prisma.user.update({
-      where: { id, orgId: currentUser.orgId },
+    const db = getTenantPrisma(currentUser.orgId);
+    const user = await db.user.update({
+      where: { id },
       data: updateData,
       select: {
         id: true,
@@ -111,6 +137,7 @@ export async function userRoutes(app: FastifyInstance) {
         fullName: true,
         role: true,
         isActive: true,
+        isPending: true,
         teamId: true,
       },
     });
@@ -132,8 +159,9 @@ export async function userRoutes(app: FastifyInstance) {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    await prisma.user.update({
-      where: { id, orgId: currentUser.orgId },
+    const db = getTenantPrisma(currentUser.orgId);
+    await db.user.update({
+      where: { id },
       data: { passwordHash },
     });
 
@@ -143,44 +171,57 @@ export async function userRoutes(app: FastifyInstance) {
   // DELETE /api/v1/users/:id — delete user permanently (owner only)
   app.delete('/api/v1/users/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     const currentUser = request.user!;
-    if (currentUser.role !== 'owner') {
-      return reply.status(403).send({ error: 'Chỉ owner có quyền xóa nhân viên' });
+    if (currentUser.role !== 'owner' && currentUser.role !== 'admin') {
+       // admin can reject but only owner can delete permanent accounts
+       // but for simplicity we allow both to reject/delete if it's pending
     }
 
     const { id } = request.params as { id: string };
+    const db = getTenantPrisma(currentUser.orgId);
+    
+    // Check if user is pending
+    const target = await db.user.findUnique({ where: { id } });
+    if (!target) return reply.status(404).send({ error: 'User not found' });
+
+    // Admins can reject pending users, but only Owner can delete active accounts
+    if (target.role === 'owner') return reply.status(403).send({ error: 'Cannot delete owner' });
+    if (!target.isPending && currentUser.role !== 'owner') {
+      return reply.status(403).send({ error: 'Chỉ owner mới có quyền xóa nhân viên đang hoạt động' });
+    }
+
     if (id === currentUser.id) {
       return reply.status(400).send({ error: 'Không thể xóa chính mình' });
     }
 
     try {
       // 1. Unassign contacts assigned to this user
-      await prisma.contact.updateMany({
-        where: { assignedUserId: id, orgId: currentUser.orgId },
+      await db.contact.updateMany({
+        where: { assignedUserId: id },
         data: { assignedUserId: null },
       });
 
       // 2. Delete Zalo account access records for this user
-      await prisma.zaloAccountAccess.deleteMany({
+      await db.zaloAccountAccess.deleteMany({
         where: { userId: id },
       });
 
       // 3. Clear repliedByUserId in messages to avoid FK errors
-      await prisma.message.updateMany({
+      await db.message.updateMany({
         where: { repliedByUserId: id },
         data: { repliedByUserId: null },
       });
 
       // 4. Finally delete the user
-      await prisma.user.delete({
-        where: { id, orgId: currentUser.orgId },
+      await db.user.delete({
+        where: { id },
       });
 
-      logger.info(`User permanently deleted: ${id} by ${currentUser.email}`);
+      logger.info(`User permanently deleted/rejected: ${id} by ${currentUser.email}`);
       return { success: true };
     } catch (err: any) {
       logger.error(`Failed to delete user ${id}: ${err.message}`);
       return reply.status(400).send({ 
-        error: 'Không thể xóa nhân viên này vì đang sở hữu tài khoản Zalo hoặc dữ liệu quan trọng khác. Hãy chuyển quyền sở hữu trước khi xóa.' 
+        error: 'Không thể xóa nhân viên này vì đang sở hữu dữ liệu quan trọng khác. Hãy kiểm tra lại.' 
       });
     }
   });

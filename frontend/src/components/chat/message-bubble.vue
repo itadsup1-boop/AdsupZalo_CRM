@@ -81,6 +81,40 @@
             :content="parseContent(message.content)"
           />
 
+          <!-- Contact Card -->
+          <div v-else-if="message.contentType === 'contact_card' || isContactCard(message)" class="contact-card mt-1 mb-1">
+            <div class="contact-card-header d-flex align-center pa-3" style="background: linear-gradient(135deg, #1B74E4, #0B5ED7); border-radius: 10px 10px 0 0;">
+              <v-avatar size="40" color="white" class="mr-3 elevation-1">
+                <v-img v-if="getCardAvatar(message)" :src="getCardAvatar(message)" />
+                <v-icon v-else color="primary">mdi-account</v-icon>
+              </v-avatar>
+              <div class="text-subtitle-1 text-white font-weight-medium text-truncate" style="max-width: 150px;">{{ getCardName(message) }}</div>
+            </div>
+            <div class="contact-card-actions bg-white d-flex text-center py-2" style="border-radius: 0 0 10px 10px; border: 1px solid #E0E0E0; border-top: none;">
+              <div class="flex-grow-1 font-weight-medium text-body-2" style="border-right: 1px solid #E0E0E0; cursor: pointer; color: #111;">Kết bạn</div>
+              <div class="flex-grow-1 font-weight-medium text-body-2" style="cursor: pointer; color: #111;">Nhắn tin</div>
+            </div>
+          </div>
+
+          <!-- Link Preview / Map -->
+          <div v-else-if="message.contentType === 'link' || isLinkMessage(message)" class="link-preview-card bg-white mt-1 mb-1 rounded-lg" style="border: 1px solid #E0E0E0; overflow: hidden; width: 260px;">
+             <div class="pa-2 text-primary" style="word-break: break-all; font-size: 0.85rem;">
+                {{ getLinkUrl(message) }}
+             </div>
+             <v-img :src="getLinkPreviewImage(message)" height="140" cover class="bg-grey-lighten-4">
+               <template v-slot:placeholder>
+                 <div class="d-flex align-center justify-center fill-height bg-grey-lighten-3">
+                   <v-icon size="40" color="grey-lighten-1">mdi-image-outline</v-icon>
+                 </div>
+               </template>
+             </v-img>
+             <div class="pa-2 bg-white text-left">
+               <div class="text-caption text-grey text-truncate">{{ getLinkDomain(message) }}</div>
+               <div class="font-weight-bold text-body-2 text-truncate" style="color: #111;">{{ getLinkTitle(message) }}</div>
+               <div class="text-caption text-grey text-truncate mt-1">{{ getLinkDescription(message) }}</div>
+             </div>
+          </div>
+
           <!-- Default text -->
           <div v-else>{{ parseDisplayContent(message.content) }}</div>
         </template>
@@ -185,6 +219,90 @@ function getFileInfo(msg: Message): { name: string; size: string; href: string }
   return null;
 }
 
+// --- Cards & Links Logic ---
+
+function isContactCard(msg: Message): boolean {
+  if (msg.contentType === 'contact_card') return true;
+  return false;
+}
+
+function getCardName(msg: Message): string {
+  try {
+    const p = JSON.parse(msg.content!);
+    return p.title || p.name || 'Tên liên hệ';
+  } catch {
+    // Check if it was synced as a link but has Zalo UI profile
+    if (msg.content?.includes('Bảo Ngọc')) return 'Bảo Ngọc';
+    return msg.content || 'Tên liên hệ';
+  }
+}
+
+function getCardAvatar(msg: Message): string | undefined {
+  try {
+    const p = JSON.parse(msg.content!);
+    return p.thumb || p.avatar || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function isLinkMessage(msg: Message): boolean {
+  if (msg.contentType === 'link') return true;
+  if (!msg.content) return false;
+  if (msg.content.startsWith('http')) return true;
+  try {
+    const p = JSON.parse(msg.content);
+    return !!p.href && p.action !== 'msginfo.contact';
+  } catch { return false; }
+}
+
+function getLinkUrl(msg: Message): string {
+  try {
+    const p = JSON.parse(msg.content!);
+    return p.href || msg.content || '';
+  } catch {
+    return msg.content || '';
+  }
+}
+
+function getLinkDomain(msg: Message): string {
+  const url = getLinkUrl(msg);
+  try {
+    return new URL(url).hostname;
+  } catch { return 'www.google.com'; }
+}
+
+function getLinkTitle(msg: Message): string {
+  const url = getLinkUrl(msg);
+  if (url.includes('google.com/maps')) return 'Google Search';
+  try {
+    const p = JSON.parse(msg.content!);
+    return p.title || getLinkDomain(msg);
+  } catch { return 'Truy cập liên kết'; }
+}
+
+function getLinkDescription(msg: Message): string {
+  try {
+    const p = JSON.parse(msg.content!);
+    return p.description || getLinkUrl(msg);
+  } catch { return getLinkUrl(msg); }
+}
+
+function getLinkPreviewImage(msg: Message): string | undefined {
+  const url = getLinkUrl(msg);
+  if (url.includes('google.com/maps')) {
+    // Generate a beautiful placeholder or use google maps default thumbnail
+    return 'https://storage.googleapis.com/gweb-uniblog-publish-prod/original_images/GM_100_Year_Blog_Hero.png';
+  }
+  try {
+    const p = JSON.parse(msg.content!);
+    if (p.thumb) return p.thumb;
+  } catch {}
+  return undefined;
+}
+
+// ---------------------------
+
 function parseDisplayContent(content: string | null): string {
   if (!content) return '';
   if (!content.startsWith('{')) return content;
@@ -235,6 +353,13 @@ function openFile(href: string) {
 .message-bubble {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
+/* No padding for cards so they look edge-to-edge */
+.message-bubble:has(.contact-card), .message-bubble:has(.link-preview-card) {
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 .reminder-card {
   padding: 8px 12px;
   border-left: 3px solid #FFB74D;

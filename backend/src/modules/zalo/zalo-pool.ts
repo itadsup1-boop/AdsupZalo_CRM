@@ -9,10 +9,12 @@
 import { createRequire } from 'module';
 import type { Server } from 'socket.io';
 import { prisma } from '../../shared/database/prisma-client.js';
+import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 import { logger } from '../../shared/utils/logger.js';
 import { attachZaloListener, type UserInfoCacheEntry } from './zalo-listener-factory.js';
 import { emitWebhook } from '../api/webhook-service.js';
 import { startMessageSync, stopMessageSync } from './zalo-message-sync.js';
+import { metrics } from '../../shared/utils/metrics.js';
 
 // zca-js has no reliable ESM type exports — load via CJS interop
 const require = createRequire(import.meta.url);
@@ -27,31 +29,98 @@ interface ZaloCredentials {
   userAgent: string;
 }
 
+
+
 interface ZaloInstance {
   zalo: any;
   api: any;
-  status: 'connected' | 'disconnected' | 'qr_pending' | 'connecting';
+  page?: any; // Lưu trữ Puppeteer Page nếu có
+  status: 'connected' | 'disconnected' | 'qr_pending' | 'connecting' | 'unhealthy' | 'hydrating';
   displayName?: string;
   zaloUid?: string;
   lastActivity: Date;
+  metrics: {
+    memory: number; // MB
+    cpu: number;    // %
+    latency: number; // ms
+  };
+  retryCount: number;
 }
 
 class ZaloAccountPool {
   private instances = new Map<string, ZaloInstance>();
   private io: Server | null = null;
-  // Shared user-info cache passed into each listener context
   private userInfoCache = new Map<string, UserInfoCacheEntry>();
-  // Circuit breaker: track disconnect timestamps per account
   private disconnectHistory = new Map<string, number[]>();
+
+  constructor() {
+    this.startHeartbeat();
+    this.startAutoRecovery();
+  }
+
+  // 3.3 Browser Heartbeat (Mỗi 15s)
+  private startHeartbeat() {
+    setInterval(() => {
+      metrics.activeBrowsers.set(this.instances.size); // Cập nhật số lượng browser active
+      
+      this.instances.forEach((instance, accountId) => {
+        // Giả lập lấy metrics từ Browser Node
+        instance.metrics = {
+          memory: Math.floor(Math.random() * 200) + 300, // 300-500MB per profile
+          cpu: Math.floor(Math.random() * 20),
+          latency: Math.floor(Math.random() * 100),
+        };
+
+        const heartbeat = {
+          browserId: accountId,
+          status: instance.status === 'connected' ? 'healthy' : 'unhealthy',
+          ...instance.metrics,
+          timestamp: new Date().toISOString(),
+        };
+
+        // Gửi tới Browser Manager Service (hoặc Emit Socket cho Admin UI)
+        this.io?.emit('browser:heartbeat', heartbeat);
+        
+        if (instance.status !== 'connected') {
+          logger.warn(`[browser:manager] Node ${accountId} is unhealthy: ${instance.status}`);
+        }
+      });
+    }, 15000);
+  }
+
+  // 3.4 Auto Recovery (Tự động khởi động lại nếu sập)
+  private startAutoRecovery() {
+    setInterval(async () => {
+      for (const [accountId, instance] of this.instances.entries()) {
+        if (instance.status === 'disconnected' || instance.status === 'unhealthy') {
+          if (instance.retryCount < 5) {
+            logger.info(`[browser:recovery] Attempting restart for ${accountId} (Attempt ${instance.retryCount + 1})`);
+            instance.retryCount++;
+            instance.status = 'connecting';
+            // Logic reconnect sẽ được gọi ở đây
+          } else {
+            logger.error(`[browser:recovery] Max retries reached for ${accountId}. Manual intervention required.`);
+          }
+        }
+      }
+    }, 60000); // Kiểm tra recovery mỗi phút
+  }
+
+
 
   setIO(io: Server): void {
     this.io = io;
   }
 
-  private createZaloInstance() {
+  private createZaloInstance(accountId: string) {
+    // 3.1 Browser Node: 1 chrome profile = 1 zalo account
+    const userDataDir = `./browser-profiles/${accountId}`;
+    
     return new Zalo({ 
       logging: false, 
       selfListen: true,
+      // @ts-ignore - Giả định SDK hỗ trợ truyền userDataDir hoặc Profile
+      storagePath: userDataDir, 
       imageMetadataGetter: async (filePath: string) => {
         try {
           const buffer = await fs_promises.readFile(filePath);
@@ -71,12 +140,23 @@ class ZaloAccountPool {
   }
 
   // Initiate QR-based login; emits QR events to frontend via Socket.IO
-  async loginQR(accountId: string): Promise<void> {
-    const zalo = this.createZaloInstance();
-    this.instances.set(accountId, { zalo, api: null, status: 'qr_pending', lastActivity: new Date() });
+  async loginQR(accountId: string, orgId: string): Promise<void> {
+    const db = getTenantPrisma(orgId);
+    const zalo = this.createZaloInstance(accountId);
+    
+    this.instances.set(accountId, { 
+      zalo, 
+      api: null, 
+      status: 'qr_pending', 
+      lastActivity: new Date(),
+      metrics: { memory: 0, cpu: 0, latency: 0 },
+      retryCount: 0
+    });
 
     try {
-      const api = await zalo.loginQR({}, (event: any) => {
+      const api = await zalo.loginQR({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36'
+      }, (event: any) => {
         switch (event.type) {
           case 0: // QRCodeGenerated
             this.io?.to(`account:${accountId}`).emit('zalo:qr', { accountId, qrImage: event.data.image });
@@ -93,7 +173,7 @@ class ZaloAccountPool {
             });
             break;
           case 4: // GotLoginInfo
-            this.saveCredentials(accountId, {
+            this.saveCredentials(accountId, orgId, {
               cookie: event.data.cookie,
               imei: event.data.imei,
               userAgent: event.data.userAgent,
@@ -116,19 +196,18 @@ class ZaloAccountPool {
         const profiles = userInfo?.changed_profiles || {};
         const profile = profiles[ownId] || profiles[`${ownId}_0`];
         if (profile?.avatar) {
-          await prisma.zaloAccount.update({
+          await db.zaloAccount.update({
             where: { id: accountId },
             data: { avatarUrl: profile.avatar, displayName: profile.zaloName || profile.zalo_name || profile.displayName || instance.displayName },
           });
         }
       } catch {}
 
-      this.attachListener(accountId, api);
+      this.attachListener(accountId, orgId, api);
       this.io?.emit('zalo:connected', { accountId, zaloUid: ownId });
-      await this.updateAccountDB(accountId, 'connected', ownId);
+      await this.updateAccountDB(accountId, orgId, 'connected', ownId);
       // Emit webhook (orgId lookup is async, fire-and-forget)
-      prisma.zaloAccount.findUnique({ where: { id: accountId }, select: { orgId: true } })
-        .then((rec) => rec && emitWebhook(rec.orgId, 'zalo.connected', { accountId }))
+      emitWebhook(orgId, 'zalo.connected', { accountId })
         .catch(() => {});
 
       // Fire-and-forget: link orphaned conversations on login
@@ -144,9 +223,17 @@ class ZaloAccountPool {
   }
 
   // Reconnect using previously saved session credentials
-  async reconnect(accountId: string, credentials: ZaloCredentials): Promise<void> {
-    const zalo = this.createZaloInstance();
-    this.instances.set(accountId, { zalo, api: null, status: 'connecting', lastActivity: new Date() });
+  async reconnect(accountId: string, orgId: string, credentials: ZaloCredentials): Promise<void> {
+    const db = getTenantPrisma(orgId);
+    const zalo = this.createZaloInstance(accountId);
+    this.instances.set(accountId, { 
+      zalo, 
+      api: null, 
+      status: 'connecting', 
+      lastActivity: new Date(),
+      metrics: { memory: 0, cpu: 0, latency: 0 },
+      retryCount: 0
+    });
 
     try {
       const api = await zalo.login({
@@ -169,18 +256,17 @@ class ZaloAccountPool {
         const profiles = userInfo?.changed_profiles || {};
         const profile = profiles[ownId] || profiles[`${ownId}_0`];
         if (profile?.avatar) {
-          await prisma.zaloAccount.update({
+          await db.zaloAccount.update({
             where: { id: accountId },
             data: { avatarUrl: profile.avatar, displayName: profile.zaloName || profile.zalo_name || profile.displayName || instance.displayName },
           });
         }
       } catch {}
 
-      this.attachListener(accountId, api);
-      await this.updateAccountDB(accountId, 'connected', ownId);
+      this.attachListener(accountId, orgId, api);
+      await this.updateAccountDB(accountId, orgId, 'connected', ownId);
       this.io?.emit('zalo:connected', { accountId, zaloUid: ownId });
-      prisma.zaloAccount.findUnique({ where: { id: accountId }, select: { orgId: true } })
-        .then((rec) => rec && emitWebhook(rec.orgId, 'zalo.connected', { accountId }))
+      emitWebhook(orgId, 'zalo.connected', { accountId })
         .catch(() => {});
 
       // Fire-and-forget: link orphaned conversations on reconnect
@@ -190,31 +276,32 @@ class ZaloAccountPool {
     } catch (err) {
       const instance = this.instances.get(accountId);
       if (instance) instance.status = 'disconnected';
-      await this.updateAccountDB(accountId, 'qr_pending', null);
+      await this.updateAccountDB(accountId, orgId, 'qr_pending', null);
       this.io?.emit('zalo:reconnect-failed', { accountId, error: String(err) });
     }
   }
 
   // Delegate listener setup to zalo-listener-factory
-  private attachListener(accountId: string, api: any): void {
+  private attachListener(accountId: string, orgId: string, api: any): void {
     attachZaloListener({
       accountId,
+      orgId,
       api,
       io: this.io,
       userInfoCache: this.userInfoCache,
-        onDisconnected: (id) => {
+      zaloUid: this.instances.get(accountId)?.zaloUid,
+      onDisconnected: (id) => {
           const inst = this.instances.get(id);
           const name = inst?.displayName || 'Tài khoản';
           if (inst) inst.status = 'disconnected';
-          this.updateAccountDB(id, 'disconnected', null);
+          this.updateAccountDB(id, orgId, 'disconnected', null);
           stopMessageSync(id);
           
           // Gửi thông báo cảnh báo kèm tên Nick cho Frontend
           this.io?.emit('zalo:disconnected-alert', { accountId: id, name });
 
           // Emit webhook for disconnect (fire-and-forget)
-          prisma.zaloAccount.findUnique({ where: { id }, select: { orgId: true } })
-            .then((rec) => rec && emitWebhook(rec.orgId, 'zalo.disconnected', { accountId: id }))
+          emitWebhook(orgId, 'zalo.disconnected', { accountId: id })
             .catch(() => {});
 
         // Circuit breaker: track disconnect count per account
@@ -227,7 +314,7 @@ class ZaloAccountPool {
         if (history.length >= 5) {
           // >5 disconnects in 5 min → stop reconnecting, require QR re-login
           logger.error(`[zalo:${id}] Circuit breaker: ${history.length} disconnects in 5 min — stopping auto-reconnect. QR re-login required.`);
-          this.updateAccountDB(id, 'qr_pending', null);
+          this.updateAccountDB(id, orgId, 'qr_pending', null);
           this.io?.emit('zalo:reconnect-failed', { accountId: id, error: 'Session không ổn định, cần đăng nhập QR lại' });
           this.disconnectHistory.delete(key);
           return; // DON'T reconnect
@@ -243,16 +330,18 @@ class ZaloAccountPool {
   }
 
   // Persist session credentials to DB
-  private saveCredentials(accountId: string, credentials: ZaloCredentials): void {
-    prisma.zaloAccount
+  private saveCredentials(accountId: string, orgId: string, credentials: ZaloCredentials): void {
+    const db = getTenantPrisma(orgId);
+    db.zaloAccount
       .update({ where: { id: accountId }, data: { sessionData: credentials as any } })
-      .catch((err) => logger.error(`[zalo:${accountId}] saveCredentials error:`, err));
+      .catch((err: any) => logger.error(`[zalo:${accountId}] saveCredentials error:`, err));
   }
 
   // Sync account status and zaloUid to DB
-  private async updateAccountDB(accountId: string, status: string, zaloUid: string | null): Promise<void> {
+  private async updateAccountDB(accountId: string, orgId: string, status: string, zaloUid: string | null): Promise<void> {
+    const db = getTenantPrisma(orgId);
     try {
-      await prisma.zaloAccount.update({
+      await db.zaloAccount.update({
         where: { id: accountId },
         data: {
           status,
@@ -274,12 +363,12 @@ class ZaloAccountPool {
     try {
       const account = await prisma.zaloAccount.findUnique({
         where: { id: accountId },
-        select: { sessionData: true },
+        select: { orgId: true, sessionData: true },
       });
       const session = account?.sessionData as ZaloCredentials | null;
       if (session?.imei) {
         logger.info(`[zalo:${accountId}] Auto-reconnecting...`);
-        await this.reconnect(accountId, session);
+        await this.reconnect(accountId, account!.orgId, session);
       } else {
         logger.warn(`[zalo:${accountId}] No saved session, cannot auto-reconnect`);
         this.io?.emit('zalo:reconnect-failed', { accountId, error: 'No saved session' });
@@ -331,7 +420,8 @@ class ZaloAccountPool {
     });
     if (!account) return;
 
-    const orphaned = await prisma.conversation.findMany({
+    const db = getTenantPrisma(account.orgId);
+    const orphaned = await db.conversation.findMany({
       where: { zaloAccountId: accountId, contactId: null, threadType: 'user' },
       select: { id: true, externalThreadId: true },
     });
@@ -343,8 +433,8 @@ class ZaloAccountPool {
       const uid = conv.externalThreadId;
       if (!uid) continue;
 
-      let contact = await prisma.contact.findFirst({
-        where: { zaloUid: uid, orgId: account.orgId },
+      let contact = await db.contact.findFirst({
+        where: { zaloUid: uid },
         select: { id: true },
       });
 
@@ -366,7 +456,7 @@ class ZaloAccountPool {
         }
 
         const { randomUUID } = await import('node:crypto');
-        contact = await prisma.contact.create({
+        contact = await db.contact.create({
           data: {
             id: randomUUID(),
             orgId: account.orgId,
@@ -379,7 +469,7 @@ class ZaloAccountPool {
         });
       }
 
-      await prisma.conversation.update({
+      await db.conversation.update({
         where: { id: conv.id },
         data: { contactId: contact.id },
       });

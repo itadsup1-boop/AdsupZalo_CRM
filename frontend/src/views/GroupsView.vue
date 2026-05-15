@@ -5,7 +5,7 @@
       <h1 class="text-h5 mr-2">Nhóm Zalo</h1>
       <v-select
         v-model="selectedAccountId"
-        :items="accounts"
+        :items="accountOptions"
         item-title="displayName"
         item-value="id"
         label="Tài khoản"
@@ -19,8 +19,8 @@
         <template #item="{ props: itemProps, item }">
           <v-list-item v-bind="itemProps">
             <template #append>
-              <v-chip size="x-small" :color="(item as any).raw?.status === 'connected' ? 'success' : 'error'" variant="tonal">
-                {{ (item as any).raw?.status === 'connected' ? 'Online' : 'Offline' }}
+              <v-chip size="x-small" :color="(item as any).raw.statusColor" variant="tonal">
+                {{ (item as any).raw.statusText }}
               </v-chip>
             </template>
           </v-list-item>
@@ -129,7 +129,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { useSelectedAccount } from '@/composables/use-selected-account';
 import { useGroups } from '@/composables/use-groups';
 import { usePolls } from '@/composables/use-polls';
@@ -140,7 +140,7 @@ import GroupSettingsDialog from '@/components/groups/group-settings-dialog.vue';
 import PollCreateDialog from '@/components/groups/poll-create-dialog.vue';
 import InviteLinkManager from '@/components/groups/invite-link-manager.vue';
 
-const { accounts, selectedAccountId, selectAccount, loading: accountLoading } = useSelectedAccount();
+const { accounts, selectedAccountId, selectAccount, loading: accountLoading, statusColor, statusText, fetchAccounts } = useSelectedAccount();
 const {
   groups, selectedGroup, members, blocked, pending,
   loading,
@@ -161,6 +161,14 @@ const showPollDialog = ref(false);
 const showInviteLinkDialog = ref(false);
 
 const snack = reactive({ show: false, message: '', color: 'success' });
+
+const accountOptions = computed(() => {
+  return accounts.value.map(a => ({
+    ...a,
+    statusText: statusText(a.liveStatus || a.status),
+    statusColor: statusColor(a.liveStatus || a.status),
+  }));
+});
 
 function notify(message: string, color = 'success') {
   snack.message = message;
@@ -189,6 +197,7 @@ async function onSelectGroup(groupId: string) {
 
 async function refresh() {
   if (!selectedAccountId.value) return;
+  await fetchAccounts(); // Refresh account statuses
   await fetchGroups(selectedAccountId.value);
   if (selectedGroupId.value) await onSelectGroup(selectedGroupId.value);
 }

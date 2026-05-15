@@ -3,7 +3,7 @@
  * All routes require authentication; write operations require owner/admin role.
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { prisma } from '../../shared/database/prisma-client.js';
+import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 import { authMiddleware } from './auth-middleware.js';
 import { requireRole } from './role-middleware.js';
 import { randomUUID } from 'node:crypto';
@@ -15,8 +15,9 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/teams — list all teams in org
   app.get('/api/v1/teams', async (request: FastifyRequest) => {
     const user = request.user!;
-    const teams = await prisma.team.findMany({
-      where: { orgId: user.orgId },
+    const db = getTenantPrisma(user.orgId);
+    const teams = await db.team.findMany({
+      where: {},
       include: { users: { select: { id: true, fullName: true, email: true, role: true } } },
       orderBy: { createdAt: 'asc' },
     });
@@ -32,7 +33,8 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
       const { name } = request.body as { name: string };
       if (!name?.trim()) return reply.status(400).send({ error: 'Tên nhóm là bắt buộc' });
 
-      const team = await prisma.team.create({
+      const db = getTenantPrisma(user.orgId);
+      const team = await db.team.create({
         data: { id: randomUUID(), orgId: user.orgId, name: name.trim() },
       });
       logger.info(`Team created: ${team.name} by ${user.email}`);
@@ -51,8 +53,9 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
       if (!name?.trim()) return reply.status(400).send({ error: 'Tên nhóm là bắt buộc' });
 
       try {
-        const team = await prisma.team.update({
-          where: { id, orgId: user.orgId },
+        const db = getTenantPrisma(user.orgId);
+        const team = await db.team.update({
+          where: { id },
           data: { name: name.trim() },
         });
         return team;
@@ -70,12 +73,13 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
       const user = request.user!;
       const { id } = request.params as { id: string };
 
-      const team = await prisma.team.findFirst({ where: { id, orgId: user.orgId } });
+      const db = getTenantPrisma(user.orgId);
+      const team = await db.team.findFirst({ where: { id } });
       if (!team) return reply.status(404).send({ error: 'Team not found' });
 
       // Unassign all members before deleting
-      await prisma.user.updateMany({ where: { teamId: id }, data: { teamId: null } });
-      await prisma.team.delete({ where: { id } });
+      await db.user.updateMany({ where: { teamId: id }, data: { teamId: null } });
+      await db.team.delete({ where: { id } });
 
       logger.info(`Team deleted: ${team.name} by ${user.email}`);
       return reply.status(204).send();
@@ -87,8 +91,9 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
     const user = request.user!;
     const { id } = request.params as { id: string };
 
-    const team = await prisma.team.findFirst({
-      where: { id, orgId: user.orgId },
+    const db = getTenantPrisma(user.orgId);
+    const team = await db.team.findFirst({
+      where: { id },
       include: {
         users: {
           select: { id: true, fullName: true, email: true, role: true, isActive: true },
@@ -110,12 +115,13 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
       const { userId } = request.body as { userId: string };
       if (!userId) return reply.status(400).send({ error: 'userId là bắt buộc' });
 
-      const team = await prisma.team.findFirst({ where: { id, orgId: user.orgId } });
+      const db = getTenantPrisma(user.orgId);
+      const team = await db.team.findFirst({ where: { id } });
       if (!team) return reply.status(404).send({ error: 'Team not found' });
 
       try {
-        const updated = await prisma.user.update({
-          where: { id: userId, orgId: user.orgId },
+        const updated = await db.user.update({
+          where: { id: userId },
           data: { teamId: id },
           select: { id: true, fullName: true, email: true, role: true, teamId: true },
         });
@@ -134,12 +140,13 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
       const user = request.user!;
       const { id, userId } = request.params as { id: string; userId: string };
 
-      const team = await prisma.team.findFirst({ where: { id, orgId: user.orgId } });
+      const db = getTenantPrisma(user.orgId);
+      const team = await db.team.findFirst({ where: { id } });
       if (!team) return reply.status(404).send({ error: 'Team not found' });
 
       try {
-        await prisma.user.update({
-          where: { id: userId, orgId: user.orgId, teamId: id },
+        await db.user.update({
+          where: { id: userId, teamId: id },
           data: { teamId: null },
         });
         return { success: true };

@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zalo CRM Sync</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 320px;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    .header {
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header h1 { font-size: 16px; font-weight: 700; }
+    .header p { font-size: 11px; opacity: 0.8; }
+    .body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    
+    label { font-size: 12px; color: #94a3b8; margin-bottom: 4px; display: block; }
+    input, select {
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #e2e8f0;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+    input:focus, select:focus { outline: none; border-color: #0ea5e9; }
+    
+    .status-box {
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      border-left: 3px solid #334155;
+    }
+    .status-box.connected { border-left-color: #10b981; }
+    .status-box.disconnected { border-left-color: #ef4444; }
+    
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      color: white;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      background: #1e293b;
+      color: #94a3b8;
+      border: 1px solid #334155;
+    }
+    .btn-secondary:hover { border-color: #0ea5e9; color: #0ea5e9; }
+    
+    .progress {
+      display: none;
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+    }
+    .progress.active { display: block; }
+    .progress-bar-wrap { background: #334155; border-radius: 99px; height: 6px; margin: 8px 0; }
+    .progress-bar { background: linear-gradient(90deg, #0ea5e9, #6366f1); height: 6px; border-radius: 99px; transition: width 0.3s; }
+    
+    .stats { display: flex; gap: 8px; }
+    .stat { flex: 1; background: #1e293b; border-radius: 8px; padding: 8px; text-align: center; }
+    .stat-num { font-size: 18px; font-weight: 700; color: #0ea5e9; }
+    .stat-label { font-size: 10px; color: #64748b; margin-top: 2px; }
+    
+    .log { background: #0a0f1e; border-radius: 8px; padding: 8px; font-size: 10px; color: #64748b; max-height: 80px; overflow-y: auto; font-family: monospace; }
+    
+    .divider { height: 1px; background: #1e293b; }
+    .section-title { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    
+    .not-zalo {
+      padding: 20px;
+      text-align: center;
+      color: #64748b;
+      font-size: 13px;
+    }
+    .not-zalo .icon { font-size: 32px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>💬</div>
+    <div>
+      <h1>Zalo CRM Sync</h1>
+      <p>Đồng bộ tin nhắn tự động</p>
+    </div>
+  </div>
+
+  <div id="not-zalo" class="not-zalo" style="display:none">
+    <div class="icon">🌐</div>
+    <p>Vui lòng mở <strong>chat.zalo.me</strong> trước khi sử dụng extension này.</p>
+  </div>
+
+  <div id="main-ui">
+    <div class="body">
+      <!-- Status -->
+      <div id="status-box" class="status-box disconnected">
+        <span id="status-text">🔴 Đang kiểm tra kết nối CRM...</span>
+      </div>
+
+      <!-- Settings -->
+      <div>
+        <p class="section-title">Cấu hình</p>
+      </div>
+      <div>
+        <label>CRM Server URL</label>
+        <input type="text" id="crm-url" placeholder="https://crm.adsup.vn" />
+      </div>
+      <div>
+        <label>Token đăng nhập CRM</label>
+        <input type="password" id="crm-token" placeholder="Dán JWT token từ CRM vào đây" />
+      </div>
+      <button class="btn btn-secondary" id="btn-save">💾 Lưu cấu hình</button>
+
+      <div class="divider"></div>
+
+      <!-- Stats -->
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-num" id="stat-synced">0</div>
+          <div class="stat-label">Đã đồng bộ</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num" id="stat-conv">0</div>
+          <div class="stat-label">Hội thoại</div>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div class="progress" id="progress-box">
+        <div id="progress-text">Đang đồng bộ...</div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <button class="btn btn-primary" id="btn-sync" title="Đọc nhanh từ database (có thể bị mã hóa)">⚡ Đồng bộ nhanh (DB)</button>
+      <button class="btn btn-primary" id="btn-auto-scroll" style="background: linear-gradient(135deg, #10b981, #3b82f6); margin-top: 8px;">🚀 Quét & Đồng bộ tin nhắn thật</button>
+
+      <button class="btn btn-secondary" id="id-inspect" style="margin-top: 8px;">🔍 Kiểm tra IndexedDB</button>
+
+      <!-- Log -->
+      <div class="log" id="log">Chờ lệnh...</div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

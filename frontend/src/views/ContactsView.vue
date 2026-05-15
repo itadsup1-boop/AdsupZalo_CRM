@@ -90,6 +90,22 @@
         <span class="text-body-2">{{ item.assignedUser?.fullName ?? '—' }}</span>
       </template>
 
+      <!-- Tags (Phân loại) -->
+      <template #item.tags="{ item }">
+        <div class="d-flex flex-wrap gap-1">
+          <v-chip
+            v-for="tag in item.tags"
+            :key="tag"
+            size="x-small"
+            variant="tonal"
+            color="primary"
+          >
+            {{ tag }}
+          </v-chip>
+          <span v-if="!item.tags || item.tags.length === 0" class="text-grey">—</span>
+        </div>
+      </template>
+
       <!-- Lead score -->
       <template #item.leadScore="{ item }">
         <v-chip
@@ -153,6 +169,7 @@ const headers = [
   { title: 'Tái khám', key: 'nextAppointment', sortable: true },
   { title: 'Ngày tiếp nhận', key: 'firstContactDate', sortable: true },
   { title: 'Sale', key: 'assignedUser', sortable: false },
+  { title: 'Phân loại', key: 'tags', sortable: false },
   { title: 'Điểm', key: 'leadScore', sortable: true, width: '80px' },
   { title: 'Hoạt động', key: 'lastActivity', sortable: true },
 ];

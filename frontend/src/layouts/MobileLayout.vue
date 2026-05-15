@@ -6,9 +6,10 @@
     <v-app-bar 
       flat 
       color="surface"
-      style="padding-top: 54px; height: 120px !important; border-bottom: 1px solid rgba(255,255,255,0.05);"
+      height="56"
+      style="border-bottom: 1px solid rgba(255,255,255,0.05);"
     >
-      <div class="d-flex align-center w-100 px-4 mt-2">
+      <div class="d-flex align-center w-100 px-4">
         <!-- Logo & Title -->
         <div class="d-flex align-center" style="gap: 12px;">
           <div
@@ -22,7 +23,7 @@
               box-shadow: 0 4px 15px rgba(0, 242, 255, 0.2);
             "
           >
-            <img src="@/assets/logo-adsup.jpg" alt="Logo" style="width: 100%; height: 100%; object-fit: cover;" />
+            <img src="@/assets/logo-cropped.png" alt="Logo" style="width: 100%; height: 100%; object-fit: cover;" />
           </div>
           <div class="d-flex flex-column justify-center">
             <span class="font-weight-black" style="font-size: 1.2rem; line-height: 1; letter-spacing: -0.5px;">

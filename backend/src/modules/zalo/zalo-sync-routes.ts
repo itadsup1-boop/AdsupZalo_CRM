@@ -1,9 +1,9 @@
 /**
  * zalo-sync-routes.ts — Endpoints to sync Zalo friends/contacts to CRM contacts.
- * Requires owner or admin role.
+ * Requires owner or admin role, or member with explicit account access.
  */
 import type { FastifyInstance } from 'fastify';
-import { prisma } from '../../shared/database/prisma-client.js';
+import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 import { authMiddleware } from '../auth/auth-middleware.js';
 import { requireRole } from '../auth/role-middleware.js';
 import { zaloPool } from './zalo-pool.js';
@@ -14,10 +14,21 @@ export async function zaloSyncRoutes(app: FastifyInstance) {
   app.addHook('preHandler', authMiddleware);
 
   // Sync all friends from a Zalo account to contacts
-  app.post('/api/v1/zalo-accounts/:id/sync-contacts', { preHandler: requireRole('owner', 'admin') },
+  app.post('/api/v1/zalo-accounts/:id/sync-contacts',
     async (request, reply) => {
       const user = request.user!;
       const { id } = request.params as { id: string };
+      const db = getTenantPrisma(user.orgId);
+
+      // Check access if user is a member
+      if (user.role === 'member') {
+        const access = await db.zaloAccountAccess.findFirst({
+          where: { zaloAccountId: id, userId: user.id },
+        });
+        if (!access) {
+          return reply.status(403).send({ error: 'Không có quyền truy cập tài khoản Zalo này' });
+        }
+      }
 
       const instance = zaloPool.getInstance(id);
       if (!instance?.api) return reply.status(400).send({ error: 'Zalo account not connected' });
@@ -36,12 +47,13 @@ export async function zaloSyncRoutes(app: FastifyInstance) {
           const avatar = friend.avatar || '';
           const phone = friend.phoneNumber || '';
 
-          const existing = await prisma.contact.findFirst({
-            where: { zaloUid: uid, orgId: user.orgId },
+          const db = getTenantPrisma(user.orgId);
+          const existing = await db.contact.findFirst({
+            where: { zaloUid: uid },
           });
 
           if (existing) {
-            await prisma.contact.update({
+            await db.contact.update({
               where: { id: existing.id },
               data: {
                 fullName: zaloName || existing.fullName,
@@ -51,7 +63,7 @@ export async function zaloSyncRoutes(app: FastifyInstance) {
             });
             updated++;
           } else {
-            await prisma.contact.create({
+            await db.contact.create({
               data: {
                 id: randomUUID(),
                 orgId: user.orgId,
@@ -76,6 +88,34 @@ export async function zaloSyncRoutes(app: FastifyInstance) {
       }
     }
   );
+
+  // Deep sync everything: friends, groups, and group history
+  app.post('/api/v1/zalo-accounts/:id/sync-full', async (request, reply) => {
+    const user = request.user!;
+    const { id } = request.params as { id: string };
+    const db = getTenantPrisma(user.orgId);
+
+    if (user.role === 'member') {
+      const access = await db.zaloAccountAccess.findFirst({
+        where: { zaloAccountId: id, userId: user.id },
+      });
+      if (!access) return reply.status(403).send({ error: 'Không có quyền truy cập tài khoản Zalo này' });
+    }
+
+    const instance = zaloPool.getInstance(id);
+    if (!instance?.api) return reply.status(400).send({ error: 'Zalo account not connected' });
+
+    try {
+      const { syncAllForAccount } = await import('./zalo-sync-history.js');
+      const stats = await syncAllForAccount(id, user.orgId, instance.api);
+      return { success: true, stats };
+    } catch (err) {
+      logger.error('[sync] Full sync error:', err);
+      return reply.status(500).send({ error: 'Full sync failed: ' + String(err) });
+    }
+  });
+
+
 }
 
 /**
@@ -87,7 +127,8 @@ async function linkOrphanedConversations(
   orgId: string,
   api: any,
 ): Promise<number> {
-  const orphaned = await prisma.conversation.findMany({
+  const db = getTenantPrisma(orgId);
+  const orphaned = await db.conversation.findMany({
     where: { zaloAccountId: accountId, contactId: null, threadType: 'user' },
     select: { id: true, externalThreadId: true },
   });
@@ -100,8 +141,8 @@ async function linkOrphanedConversations(
     if (!uid) continue;
 
     // Check if contact already exists for this UID
-    let contact = await prisma.contact.findFirst({
-      where: { zaloUid: uid, orgId },
+    let contact = await db.contact.findFirst({
+      where: { zaloUid: uid },
       select: { id: true },
     });
 
@@ -123,10 +164,10 @@ async function linkOrphanedConversations(
         logger.warn(`[sync] getUserInfo failed for ${uid}:`, err);
       }
 
-      contact = await prisma.contact.create({
+      contact = await db.contact.create({
         data: {
           id: randomUUID(),
-          orgId,
+          orgId: orgId,
           zaloUid: uid,
           fullName: zaloName || 'Unknown',
           avatarUrl: avatar || null,
@@ -136,7 +177,7 @@ async function linkOrphanedConversations(
       });
     }
 
-    await prisma.conversation.update({
+    await db.conversation.update({
       where: { id: conv.id },
       data: { contactId: contact.id },
     });

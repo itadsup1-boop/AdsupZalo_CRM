@@ -4,7 +4,7 @@
  */
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { ZaloOpError } from '../../shared/zalo-operations.js';
-import { prisma } from '../../shared/database/prisma-client.js';
+import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 import { logger } from '../../shared/utils/logger.js';
 
 export type Permission = 'read' | 'chat' | 'admin';
@@ -12,7 +12,8 @@ const hierarchy: Record<Permission, number> = { read: 1, chat: 2, admin: 3 };
 
 /** Validate accountId belongs to user's org, throw 404 if not */
 export async function resolveAccount(accountId: string, orgId: string) {
-  const account = await prisma.zaloAccount.findFirst({ where: { id: accountId, orgId } });
+  const db = getTenantPrisma(orgId);
+  const account = await db.zaloAccount.findFirst({ where: { id: accountId } });
   if (!account) throw new ZaloOpError('Account not found', 'INVALID_PARAMS', 404);
   return account;
 }
@@ -23,7 +24,8 @@ export async function checkAccess(request: FastifyRequest, reply: FastifyReply, 
   if (['owner', 'admin'].includes(user.role)) return true;
 
   try {
-    const access = await prisma.zaloAccountAccess.findFirst({
+    const db = getTenantPrisma(user.orgId);
+    const access = await db.zaloAccountAccess.findFirst({
       where: { zaloAccountId: accountId, userId: user.id },
     });
     if (!access) {
