@@ -59,6 +59,20 @@
       </div>
     </v-form>
 
+    <div class="text-center mt-6 pt-4 border-t" style="border-top: 1px solid rgba(255, 255, 255, 0.08);">
+      <v-btn
+        href="/AdsupCRM.apk"
+        download="AdsupCRM.apk"
+        variant="text"
+        color="primary"
+        density="comfortable"
+        class="text-none font-weight-bold"
+        prepend-icon="mdi-android"
+      >
+        Tải ứng dụng cho Android (.APK)
+      </v-btn>
+    </div>
+
     <v-alert v-if="error" type="error" class="mt-4" density="compact" closable variant="tonal">
       {{ error }}
     </v-alert>

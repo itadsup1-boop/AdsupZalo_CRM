@@ -1,34 +1,75 @@
 <template>
   <div class="landing-page">
-    <!-- NAVBAR -->
-    <header class="navbar" :class="{ 'scrolled': isScrolled }">
-      <div class="container">
-        <img 
-          src="@/assets/logo-cropped.png" 
-          alt="Adsup CRM - Phần mềm quản lý Zalo chuyên nghiệp" 
-          class="logo"
-        />
+    <!-- HEADER -->
+    <header class="header" :class="{ 'scrolled': isScrolled }">
+      <div class="logo-wrapper">
+        <a href="/" class="logo-link">
+          <img 
+            src="/logo-v6-512.png" 
+            alt="Adsup CRM" 
+            class="header-logo"
+          />
+        </a>
+      </div>
+
+      <nav class="header-nav desktop-nav">
+        <router-link to="/" class="nav-link active">Trang chủ</router-link>
+        <router-link to="/features/overview" class="nav-link">Tính năng</router-link>
+        <router-link to="/pricing" class="nav-link">Bảng giá</router-link>
+        <router-link to="/solutions/overview" class="nav-link">Giải pháp</router-link>
+        <router-link to="/customers" class="nav-link">Khách hàng</router-link>
+        <router-link to="/contact" class="nav-link">Liên hệ</router-link>
+        <a href="/AdsupCRM.apk" download="AdsupCRM.apk" class="nav-link">Tải App Android</a>
+      </nav>
+
+      <div class="header-right">
+        <!-- Hamburger Icon (Mobile Only) -->
+        <button class="mobile-menu-btn d-lg-none" @click="isMobileMenuOpen = !isMobileMenuOpen">
+          <svg v-if="!isMobileMenuOpen" width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M3 12H21M3 6H21M3 18H21" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg v-else width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 6L6 18M6 6L18 18" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+
         <v-btn
           rounded="pill"
-          class="login-btn text-none px-6"
-          color="primary"
+          class="login-btn text-none font-weight-bold"
+          elevation="0"
           @click="goToLogin"
         >
           Đăng nhập
         </v-btn>
+      </div>
+
+      <!-- Mobile Nav Overlay -->
+      <div class="mobile-nav-overlay" :class="{ 'open': isMobileMenuOpen }">
+        <div class="mobile-nav-content">
+          <router-link to="/" class="mobile-nav-link active" @click="isMobileMenuOpen = false">Trang chủ</router-link>
+          <router-link to="/features/overview" class="mobile-nav-link" @click="isMobileMenuOpen = false">Tính năng</router-link>
+          <router-link to="/pricing" class="mobile-nav-link" @click="isMobileMenuOpen = false">Bảng giá</router-link>
+          <router-link to="/solutions/overview" class="mobile-nav-link" @click="isMobileMenuOpen = false">Giải pháp</router-link>
+          <router-link to="/customers" class="mobile-nav-link" @click="isMobileMenuOpen = false">Khách hàng</router-link>
+          <router-link to="/contact" class="mobile-nav-link" @click="isMobileMenuOpen = false">Liên hệ</router-link>
+          <a href="/AdsupCRM.apk" download="AdsupCRM.apk" class="mobile-nav-link" @click="isMobileMenuOpen = false" style="color: #00d5ff;">Tải App Android</a>
+          <v-btn rounded="pill" class="mobile-login-btn mt-6" elevation="0" @click="goToLogin">
+            Đăng nhập
+          </v-btn>
+        </div>
       </div>
     </header>
 
     <main>
       <!-- HERO -->
       <section class="hero">
-        <video autoPlay loop muted playsInline class="hero-video">
+        <video autoPlay loop muted playsInline class="hero-visual">
           <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260206_044704_dd33cb15-c23f-4cfc-aa09-a0465d4dcb54.mp4" />
         </video>
 
         <div class="hero-overlay" />
 
-        <div class="container hero-content">
+        <div class="hero-content">
           <h1 class="hero-title">
             PHẦN MỀM <span class="gradient-text">CRM ZALO</span><br />
             TỰ ĐỘNG HÓA BÁN HÀNG
@@ -136,6 +177,7 @@ import { useRouter } from 'vue-router';
 
 const router = useRouter();
 const isScrolled = ref(false);
+const isMobileMenuOpen = ref(false);
 
 function handleScroll() {
   isScrolled.value = window.scrollY > 20;
@@ -175,88 +217,324 @@ onUnmounted(() => {
   padding: 0 24px;
 }
 
-/* NAVBAR */
-.navbar {
+/* HEADER */
+.header {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
+  height: 100px;
+  padding: 0 72px;
   z-index: 100;
-  transition: all 0.3s ease;
-}
-
-.navbar.scrolled {
-  background: rgba(11, 30, 74, 0.95);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-}
-
-.navbar .container {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 16px;
-  padding-bottom: 16px;
+  transition: all 0.4s ease;
+  background: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.logo {
-  height: 80px;
-  width: auto;
+.header.scrolled {
+  background: rgba(8, 22, 50, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+}
+
+.logo-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.logo-wrapper {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  background: transparent !important;
+  border: none !important;
+  overflow: visible !important;
+}
+
+.header-logo {
+  width: 200px !important;
+  height: auto !important;
+  display: block;
   object-fit: contain;
-  transform: scale(1.8);
-  transform-origin: left center;
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 0 18px rgba(0, 213, 255, 0.35));
+}
+
+.login-btn {
+  width: 150px;
+  height: 52px !important;
+  background: linear-gradient(135deg, #00c2ff 0%, #0072ff 100%) !important;
+  color: white !important;
+  box-shadow: 0 4px 15px rgba(0, 194, 255, 0.3) !important;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  font-size: 16px;
+}
+
+.login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 194, 255, 0.5) !important;
+}
+
+/* HEADER NAV MENU */
+.header-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.header-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  flex: 1;
+}
+
+/* Hide desktop nav on mobile */
+.desktop-nav {
+  display: flex;
+}
+
+@media (max-width: 1024px) {
+  .desktop-nav {
+    display: none !important;
+  }
+  .mobile-menu-btn {
+    display: block !important;
+  }
+}
+
+.nav-link {
+  color: rgba(255, 255, 255, 0.72);
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 8px 0;
+  position: relative;
+  transition: color 0.3s ease;
+}
+
+.nav-link.active {
+  color: #00d5ff;
+}
+
+.nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #00d5ff, #087BFF);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+
+.nav-link:hover {
+  color: white;
+}
+
+.nav-link:hover::after, .nav-link.active::after {
+  transform: scaleX(1);
+}
+
+/* MOBILE NAV MENU */
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  margin-right: 8px;
+  z-index: 101;
+}
+
+.mobile-nav-overlay {
+  position: fixed;
+  top: 100px;
+  left: 0;
+  width: 100%;
+  height: calc(100vh - 100px);
+  background: rgba(8, 22, 50, 0.98);
+  backdrop-filter: blur(16px);
+  z-index: 99;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+}
+
+.mobile-nav-overlay.open {
+  transform: translateX(0);
+}
+
+.mobile-nav-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-nav-link {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  font-size: 18px;
+  font-weight: 600;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: color 0.3s ease;
+}
+
+.mobile-nav-link.active {
+  color: #00d5ff;
+}
+
+.mobile-login-btn {
+  width: 100%;
+  height: 52px !important;
+  background: linear-gradient(135deg, #00c2ff 0%, #0072ff 100%) !important;
+  color: white !important;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+@media (min-width: 769px) {
+  .mobile-nav-overlay {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0 20px;
+    height: 80px;
+  }
+  .header-logo {
+    width: 130px !important;
+  }
+  .header-nav {
+    display: none !important;
+  }
+  .mobile-menu-btn {
+    display: block;
+  }
+  .mobile-nav-overlay {
+    top: 80px;
+    height: calc(100vh - 80px);
+  }
+  .login-btn {
+    width: auto;
+    padding: 0 16px;
+    height: 40px !important;
+    font-size: 14px;
+  }
+  .hero-content {
+    margin-left: 20px !important;
+    padding-top: 15vh !important;
+    width: calc(100% - 40px);
+  }
+  .hero-title {
+    font-size: 40px !important;
+    line-height: 1.15 !important;
+    white-space: normal !important;
+    letter-spacing: -1px;
+  }
+  .hero-subtitle {
+    font-size: 16px !important;
+    margin-top: 24px;
+  }
+  .cta-button {
+    width: 100% !important;
+    max-width: 280px;
+    height: 60px !important;
+  }
+  .hero-visual {
+    opacity: 0.3 !important;
+    width: 100% !important;
+  }
 }
 
 /* HERO */
 .hero {
+  min-height: calc(100vh - 100px);
   position: relative;
-  min-height: 100vh;
   overflow: hidden;
-  background: #21346e;
-  display: flex;
-  align-items: center;
+  background: radial-gradient(circle at 10% 20%, rgba(0, 213, 255, 0.15) 0%, transparent 40%),
+              linear-gradient(135deg, #030b1e 0%, #081a42 100%);
 }
 
-.hero-video {
+.hero-visual {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  right: 0;
+  top: 100px;
+  width: 52vw;
+  height: calc(100vh - 100px);
   object-fit: cover;
-  opacity: 0.5;
+  z-index: 1;
+  opacity: 0.6;
+  mix-blend-mode: screen;
+  mask-image: linear-gradient(to right, transparent, black 30%);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 30%);
 }
 
 .hero-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgba(33, 52, 110, 0.8), rgba(26, 47, 102, 0.8), rgba(11, 30, 74, 0.95));
+  background: linear-gradient(to right, rgba(4, 11, 28, 0.95) 0%, rgba(4, 11, 28, 0.6) 45%, rgba(4, 11, 28, 0.1) 100%);
+  z-index: 1;
 }
 
 .hero-content {
   position: relative;
-  z-index: 1;
-  padding-top: 80px;
+  z-index: 2;
+  margin-left: 15vw;
+  padding-top: 24vh;
+  max-width: 1200px;
+  text-align: left;
 }
 
 .hero-title {
-  font-size: clamp(3rem, 10vw, 6rem);
+  font-size: clamp(64px, 5.4vw, 88px);
+  line-height: 1.05;
   font-weight: 900;
-  line-height: 1.35;
-  letter-spacing: -1px;
-  text-transform: uppercase;
+  letter-spacing: -3px;
+  max-width: 1200px;
+  color: white;
+  margin-bottom: 0;
+  white-space: nowrap;
 }
 
 .gradient-text {
-  background: linear-gradient(to right, #00c2ff, #0072ff);
+  background: linear-gradient(90deg, #00D5FF 0%, #087BFF 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+  display: inline-block;
+}
+
+.hero-subtitle {
+  max-width: 760px;
+  margin-top: 34px;
+  font-size: 20px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.78);
+  white-space: normal;
 }
 
 .cta-button {
-  margin-top: 40px;
-  width: 184px;
-  height: 65px;
+  margin-top: 44px;
+  width: 330px;
+  height: 72px;
   position: relative;
   border: none;
   background: transparent;
@@ -265,16 +543,22 @@ onUnmounted(() => {
 }
 
 .cta-button:hover {
-  transform: scale(1.05);
+  transform: translateY(-2px);
 }
 
 .cta-blur {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to right, #00c2ff, #0072ff);
-  border-radius: 12px;
-  filter: blur(8px);
-  opacity: 0.7;
+  background: #00D5FF;
+  border-radius: 16px;
+  filter: blur(16px);
+  opacity: 0.6;
+  transition: all 0.3s ease;
+}
+
+.cta-button:hover .cta-blur {
+  opacity: 1;
+  filter: blur(16px);
 }
 
 .cta-inner {
@@ -282,14 +566,17 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   background: white;
-  color: #161a20;
-  font-weight: 700;
+  color: #0b1e4a;
+  font-weight: 800;
   text-transform: uppercase;
-  font-size: 1.125rem;
-  border-radius: 12px;
+  font-size: 1rem;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
+  padding: 0 20px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 /* FEATURES */
@@ -306,10 +593,10 @@ onUnmounted(() => {
 }
 
 .hero-subtitle {
-  font-size: 1.25rem;
-  color: #d1d5db;
-  max-width: 800px;
-  margin: 24px 0 40px;
+  font-size: 19px; /* 18-20px */
+  color: #cbd5e1; /* Trắng xám nhẹ */
+  max-width: 740px; /* 720-760px */
+  margin: 32px 0 40px; /* Margin-top 28-36px */
   line-height: 1.6;
 }
 
