@@ -24,15 +24,25 @@
           <div class="font-weight-medium">{{ conversation.contact?.fullName || 'Unknown' }}</div>
           <div class="text-caption text-grey">{{ conversation.zaloAccount?.displayName || 'Zalo' }}</div>
         </div>
-        <v-btn size="small" variant="tonal" color="primary" class="mr-1" :loading="aiSuggestionLoading" @click="$emit('ask-ai')">
-          Ask AI
-        </v-btn>
+        <!-- Nút Xem thông tin khách hàng (mdi-account-details) - Đưa lên trước để luôn xuất hiện trên mọi màn hình mobile -->
+        <v-btn
+          :icon="showContactPanel ? 'mdi-account-details' : 'mdi-account-details-outline'"
+          size="small" variant="text"
+          :color="showContactPanel ? 'primary' : undefined"
+          class="mr-1"
+          @click="$emit('toggle-contact-panel')"
+        />
 
+        <v-btn size="small" variant="tonal" color="primary" class="mr-1" :loading="aiSuggestionLoading" @click="$emit('ask-ai')">
+          <v-icon size="small" class="d-inline d-sm-none">mdi-robot</v-icon>
+          <span class="d-none d-sm-inline">Ask AI</span>
+        </v-btn>
 
         <v-menu v-model="showTagMenu" :close-on-content-click="false" location="bottom end">
           <template v-slot:activator="{ props }">
             <v-btn size="small" variant="tonal" color="deep-purple-accent-1" class="mr-1" v-bind="props" :loading="loadingTags" @click="fetchTagsIfNeeded">
-              Phân loại <v-icon size="small" class="ml-1">mdi-chevron-down</v-icon>
+              <v-icon size="small" class="d-inline d-sm-none">mdi-tag-multiple</v-icon>
+              <span class="d-none d-sm-inline">Phân loại <v-icon size="small" class="ml-1">mdi-chevron-down</v-icon></span>
             </v-btn>
           </template>
           <v-card width="280">
@@ -71,14 +81,15 @@
         />
 
         <!-- On desktop: show all buttons inline -->
-        <template class="d-none d-sm-flex">
+        <div class="d-none d-sm-flex align-center">
+          <ZaloCallButton :phone="conversation?.contact?.phone" size="small" variant="tonal" color="primary" class="mr-1" />
           <v-btn size="small" variant="tonal" color="success" class="mr-1" @click="onVideoCallClick">
             <v-icon left size="small" class="mr-1">mdi-video</v-icon> Gọi Video
           </v-btn>
           <v-btn size="small" variant="tonal" color="info" class="mr-1" @click="onLinkClick">
             Link
           </v-btn>
-        </template>
+        </div>
 
         <!-- On mobile: collapse secondary actions into a menu -->
         <v-menu location="bottom end">
@@ -88,17 +99,14 @@
             </v-btn>
           </template>
           <v-list density="compact">
+            <v-list-item prepend-icon="mdi-phone" title="Gọi Zalo" @click="() => {}">
+              <!-- Using the same logic but wrapped in list-item style for mobile -->
+              <ZaloCallButton :phone="conversation?.contact?.phone" variant="text" size="small" class="px-0 w-100 justify-start" style="height: auto; letter-spacing: normal;" />
+            </v-list-item>
             <v-list-item prepend-icon="mdi-video" title="Gọi Video" @click="onVideoCallClick" />
             <v-list-item prepend-icon="mdi-link" title="Gửi Link" @click="onLinkClick" />
           </v-list>
         </v-menu>
-
-        <v-btn
-          :icon="showContactPanel ? 'mdi-account-details' : 'mdi-account-details-outline'"
-          size="small" variant="text"
-          :color="showContactPanel ? 'primary' : undefined"
-          @click="$emit('toggle-contact-panel')"
-        />
       </div>
 
       <!-- Messages -->
@@ -430,6 +438,7 @@ import ReplyPreviewBar from '@/components/chat/reply-preview-bar.vue';
 import ForwardDialog from '@/components/chat/forward-dialog.vue';
 import RichTextEditor from '@/components/chat/rich-text-editor.vue';
 import LabelManagerDialog from '@/components/chat/LabelManagerDialog.vue';
+import ZaloCallButton from '@/components/contacts/ZaloCallButton.vue';
 
 interface TemplateItem { id: string; name: string; content: string; category: string | null; isPersonal: boolean; }
 

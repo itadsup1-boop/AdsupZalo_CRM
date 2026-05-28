@@ -4,6 +4,7 @@
       <v-card-title class="d-flex align-center">
         <span>{{ isNew ? 'Thêm khách hàng' : 'Chi tiết khách hàng' }}</span>
         <v-spacer />
+        <ZaloCallButton v-if="!isNew" :phone="form.phone" class="mr-2" />
         <v-btn icon="mdi-close" variant="text" @click="close" />
       </v-card-title>
 
@@ -188,6 +189,7 @@ import { api } from '@/api/index';
 import type { Contact } from '@/composables/use-contacts';
 import { SOURCE_OPTIONS, STATUS_OPTIONS, useContacts } from '@/composables/use-contacts';
 import { useUsers } from '@/composables/use-users';
+import ZaloCallButton from './ZaloCallButton.vue';
 
 const props = defineProps<{
   modelValue: boolean;
