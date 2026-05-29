@@ -71,10 +71,23 @@ export function useChatContactPanel(
     }
   }
 
+  let currentContactId: string | null = null;
+
   watch(getContact, (c) => {
-    if (!c) return;
-    populateForm(c);
-    fetchContactExtras(c.id);
+    if (!c) {
+      currentContactId = null;
+      return;
+    }
+    
+    // Only populate form if we switched to a different contact
+    if (c.id !== currentContactId) {
+      currentContactId = c.id;
+      populateForm(c);
+      fetchContactExtras(c.id);
+    } else {
+      // If same contact, just refresh extras (like appointments) but do NOT overwrite form inputs
+      fetchContactExtras(c.id);
+    }
   }, { immediate: true, deep: true });
 
   async function saveContact() {

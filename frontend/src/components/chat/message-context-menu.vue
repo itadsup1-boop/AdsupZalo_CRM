@@ -49,11 +49,11 @@
           <v-list-item-title>Thu hồi</v-list-item-title>
         </v-list-item>
 
-        <v-divider v-if="isSelf" />
+        <v-divider v-if="isSelf || authStore.isAdmin" />
 
-        <!-- Delete (self only) -->
+        <!-- Delete (self only OR admin/owner) -->
         <v-list-item
-          v-if="isSelf"
+          v-if="isSelf || authStore.isAdmin"
           prepend-icon="mdi-delete"
           base-color="error"
           @click="emit('delete'); close()"
@@ -78,6 +78,9 @@
 
 <script setup lang="ts">
 import type { Message } from '@/composables/use-chat';
+import { useAuthStore } from '@/stores/auth';
+
+const authStore = useAuthStore();
 
 const props = defineProps<{
   message: Message | null;

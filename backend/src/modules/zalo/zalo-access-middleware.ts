@@ -29,7 +29,7 @@ export function requireZaloAccess(minPermission: Permission) {
           where: { id: params.id, orgId: user.orgId },
           select: { zaloAccountId: true },
         });
-        if (conv) zaloAccountId = conv.zaloAccountId;
+        if (conv && conv.zaloAccountId) zaloAccountId = conv.zaloAccountId;
       } catch {
         return reply.status(500).send({ error: 'Internal error checking access' });
       }

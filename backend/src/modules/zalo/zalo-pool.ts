@@ -97,7 +97,9 @@ class ZaloAccountPool {
             logger.info(`[browser:recovery] Attempting restart for ${accountId} (Attempt ${instance.retryCount + 1})`);
             instance.retryCount++;
             instance.status = 'connecting';
-            // Logic reconnect sẽ được gọi ở đây
+            this.autoReconnect(accountId).catch((err) => {
+              logger.error(`[browser:recovery] Auto reconnect failed for ${accountId}:`, err);
+            });
           } else {
             logger.error(`[browser:recovery] Max retries reached for ${accountId}. Manual intervention required.`);
           }
@@ -290,6 +292,16 @@ class ZaloAccountPool {
       io: this.io,
       userInfoCache: this.userInfoCache,
       zaloUid: this.instances.get(accountId)?.zaloUid,
+      onConnected: (id) => {
+        const inst = this.instances.get(id);
+        if (inst) {
+          inst.status = 'connected';
+          inst.lastActivity = new Date();
+          inst.retryCount = 0; // Reset recovery retry count
+        }
+        this.updateAccountDB(id, orgId, 'connected', inst?.zaloUid || null);
+        this.io?.emit('zalo:connected', { accountId: id, zaloUid: inst?.zaloUid || '' });
+      },
       onDisconnected: (id) => {
           const inst = this.instances.get(id);
           const name = inst?.displayName || 'Tài khoản';

@@ -82,10 +82,7 @@
 
         <!-- On desktop: show all buttons inline -->
         <div class="d-none d-sm-flex align-center">
-          <ZaloCallButton :phone="conversation?.contact?.phone" size="small" variant="tonal" color="primary" class="mr-1" />
-          <v-btn size="small" variant="tonal" color="success" class="mr-1" @click="onVideoCallClick">
-            <v-icon left size="small" class="mr-1">mdi-video</v-icon> Gọi Video
-          </v-btn>
+          <ZaloCallButton :customerId="conversation?.contact?.id" :phone="conversation?.contact?.phone" size="small" variant="tonal" color="primary" class="mr-1" />
           <v-btn size="small" variant="tonal" color="info" class="mr-1" @click="onLinkClick">
             Link
           </v-btn>
@@ -99,11 +96,9 @@
             </v-btn>
           </template>
           <v-list density="compact">
-            <v-list-item prepend-icon="mdi-phone" title="Gọi Zalo" @click="() => {}">
-              <!-- Using the same logic but wrapped in list-item style for mobile -->
-              <ZaloCallButton :phone="conversation?.contact?.phone" variant="text" size="small" class="px-0 w-100 justify-start" style="height: auto; letter-spacing: normal;" />
+            <v-list-item class="pa-0">
+              <ZaloCallButton :customerId="conversation?.contact?.id" :phone="conversation?.contact?.phone" variant="text" size="small" class="px-4 w-100 justify-start" style="height: 32px; letter-spacing: normal; text-transform: none; font-weight: normal; font-size: 0.875rem;" />
             </v-list-item>
-            <v-list-item prepend-icon="mdi-video" title="Gọi Video" @click="onVideoCallClick" />
             <v-list-item prepend-icon="mdi-link" title="Gửi Link" @click="onLinkClick" />
           </v-list>
         </v-menu>
@@ -884,18 +879,7 @@ async function onLinkClick() {
   }
 }
 
-function onVideoCallClick() {
-  if (!props.conversation) return;
-  const roomId = props.conversation.id; // Using conversation ID as room ID
-  const callUrl = `${window.location.origin}/call/${roomId}`;
-  
-  // Send automated message with the link
-  const messageContent = `Dạ mời anh/chị nhấn vào link sau để tham gia phòng gọi video trực tiếp ạ: ${callUrl}`;
-  emit('send', messageContent, undefined);
 
-  // Open the video call room in a new tab for the sale agent
-  window.open(callUrl, '_blank');
-}
 
 function onForward(targetIds: string[]) {
   if (contextMsg.value) emit('forward-message', contextMsg.value.id, targetIds);

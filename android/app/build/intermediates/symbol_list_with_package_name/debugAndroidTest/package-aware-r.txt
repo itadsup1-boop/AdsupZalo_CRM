@@ -1,0 +1,3 @@
+vn.adsup.crm.test
+style WhiteBackgroundDialogTheme
+style WhiteBackgroundTheme
