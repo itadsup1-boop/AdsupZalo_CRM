@@ -21,7 +21,7 @@ export async function resolveAccount(accountId: string, orgId: string) {
 /** Check user has sufficient permission on the Zalo account. Returns false and sends reply if denied. */
 export async function checkAccess(request: FastifyRequest, reply: FastifyReply, accountId: string, minPermission: Permission): Promise<boolean> {
   const user = request.user!;
-  if (['owner', 'admin'].includes(user.role)) return true;
+  if (['owner', 'admin', 'member'].includes(user.role)) return true;
 
   try {
     const db = getTenantPrisma(user.orgId);

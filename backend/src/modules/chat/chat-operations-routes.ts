@@ -18,6 +18,7 @@ interface ResolvedMessageRefs {
   cliMsgId: string;
   ownerId: string;
   repliedByUserId: string | null;
+  senderType: string;
 }
 
 async function resolveMessageRefs(conversationId: string, messageId: string, userOrgId: string): Promise<ResolvedMessageRefs | null> {
@@ -27,7 +28,7 @@ async function resolveMessageRefs(conversationId: string, messageId: string, use
       conversationId,
       conversation: { orgId: userOrgId },
     },
-    select: { id: true, zaloMsgId: true, senderUid: true, repliedByUserId: true },
+    select: { id: true, zaloMsgId: true, senderUid: true, repliedByUserId: true, senderType: true },
   });
 
   if (!message?.zaloMsgId) return null;
@@ -37,6 +38,7 @@ async function resolveMessageRefs(conversationId: string, messageId: string, use
     cliMsgId: message.zaloMsgId,
     ownerId: message.senderUid || '',
     repliedByUserId: message.repliedByUserId || null,
+    senderType: message.senderType || 'contact',
   };
 }
 
@@ -146,7 +148,15 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
 
     try {
       const threadType = conv.threadType === 'group' ? 1 : 0;
-      await zaloOps.deleteMessage(conv.zaloAccountId, refs.zaloMsgId, refs.cliMsgId, refs.ownerId, conv.externalThreadId || '', threadType, onlyMe);
+      
+      // Only invoke Zalo message delete if the message was sent by ourselves (staff/system)
+      if (refs.senderType === 'self') {
+        try {
+          await zaloOps.deleteMessage(conv.zaloAccountId, refs.zaloMsgId, refs.cliMsgId, refs.ownerId, conv.externalThreadId || '', threadType, onlyMe);
+        } catch (zaloErr) {
+          logger.warn('[chat-ops] Zalo delete failed, continuing with local DB delete:', zaloErr);
+        }
+      }
 
       if (!onlyMe) {
         await prisma.message.update({ where: { id: refs.messageId }, data: { isDeleted: true, deletedAt: new Date() } });
@@ -172,7 +182,10 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
     try {
       const threadType = conv.threadType === 'group' ? 1 : 0;
 
-      await zaloOps.undoMessage(conv.zaloAccountId, refs.zaloMsgId, refs.cliMsgId, refs.ownerId, conv.externalThreadId || '', threadType);
+      // Only invoke Zalo message recall if the message was sent by ourselves (staff/system)
+      if (refs.senderType === 'self') {
+        await zaloOps.undoMessage(conv.zaloAccountId, refs.zaloMsgId, refs.cliMsgId, refs.ownerId, conv.externalThreadId || '', threadType);
+      }
       await prisma.message.update({ where: { id: refs.messageId }, data: { isDeleted: true, deletedAt: new Date() } });
 
       const io = (app as any).io as Server;

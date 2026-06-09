@@ -71,7 +71,7 @@ export async function handleIncomingMessage(
     if (!account) {
       account = await prisma.zaloAccount.findUnique({
         where: { id: msg.accountId },
-        select: { orgId: true, ownerUserId: true },
+        select: { id: true, orgId: true, ownerUserId: true },
       }) as any;
     }
     
@@ -96,7 +96,7 @@ export async function handleIncomingMessage(
       }
     }
 
-    const conversation = await findOrCreateConversation(db, msg, account.orgId, contactId, account.id);
+    const conversation = await findOrCreateConversation(db, msg, account.orgId, contactId, msg.accountId);
 
     // Consistency Check 2: Ensure conversation belongs to the correct org
     const convCheck = await prisma.conversation.findUnique({ where: { id: conversation.id }, select: { orgId: true } });
@@ -108,7 +108,7 @@ export async function handleIncomingMessage(
     const fingerprint = generateMessageFingerprint(msg.senderUid, msg.content || '', msg.timestamp);
 
     // Dedup guard using Fingerprint
-    const existingFingerprint = await db.message.findUnique({
+    const existingFingerprint = await db.message.findFirst({
       where: { messageFingerprint: fingerprint },
       select: { id: true },
     });
@@ -226,20 +226,13 @@ export async function handleIncomingMessage(
         try {
           const { sendPushNotification } = await import('../notifications/push-service.js');
           
-          // 1. Find all users with access to this Zalo account
-          const access = await prisma.zaloAccountAccess.findMany({
-            where: { zaloAccountId: msg.accountId },
-            select: { userId: true }
+          // 1. Find all active users in this organization
+          const activeUsers = await prisma.user.findMany({
+            where: { orgId: account.orgId, isActive: true },
+            select: { id: true }
           });
           
-          // 2. Also include the owner
-          const accountDetails = await prisma.zaloAccount.findUnique({
-            where: { id: msg.accountId },
-            select: { ownerUserId: true }
-          });
-          
-          const userIds = new Set(access.map(a => a.userId));
-          if (accountDetails?.ownerUserId) userIds.add(accountDetails.ownerUserId);
+          const userIds = new Set(activeUsers.map(u => u.id));
           
           // 3. Send notification to each user
           for (const userId of userIds) {
@@ -326,9 +319,9 @@ export async function handleIncomingMessage(
           ? {
               id: conversationDetails.id,
               unreadCount: conversationDetails.unreadCount,
-              threadId: conversationDetails.externalThreadId,
-              threadType: conversationDetails.threadType,
-              zaloAccountId: conversationDetails.zaloAccountId,
+              threadId: conversationDetails.externalThreadId || undefined,
+              threadType: conversationDetails.threadType || undefined,
+              zaloAccountId: conversationDetails.zaloAccountId || undefined,
             }
           : null,
         message: { id: message.id, content: message.content, contentType: message.contentType, senderType: message.senderType },

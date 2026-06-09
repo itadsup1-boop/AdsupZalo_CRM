@@ -19,7 +19,7 @@ export default defineConfig({
         type: 'module',
       },
       injectManifest: {
-        injectionPoint: undefined
+        injectionPoint: 'self.__WB_MANIFEST'
       }
     }),
   ],

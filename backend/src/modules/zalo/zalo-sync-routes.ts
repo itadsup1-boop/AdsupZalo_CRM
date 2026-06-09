@@ -20,15 +20,7 @@ export async function zaloSyncRoutes(app: FastifyInstance) {
       const { id } = request.params as { id: string };
       const db = getTenantPrisma(user.orgId);
 
-      // Check access if user is a member
-      if (user.role === 'member') {
-        const access = await db.zaloAccountAccess.findFirst({
-          where: { zaloAccountId: id, userId: user.id },
-        });
-        if (!access) {
-          return reply.status(403).send({ error: 'Không có quyền truy cập tài khoản Zalo này' });
-        }
-      }
+      // No access check needed as all members have full access
 
       const instance = zaloPool.getInstance(id);
       if (!instance?.api) return reply.status(400).send({ error: 'Zalo account not connected' });
@@ -95,12 +87,7 @@ export async function zaloSyncRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const db = getTenantPrisma(user.orgId);
 
-    if (user.role === 'member') {
-      const access = await db.zaloAccountAccess.findFirst({
-        where: { zaloAccountId: id, userId: user.id },
-      });
-      if (!access) return reply.status(403).send({ error: 'Không có quyền truy cập tài khoản Zalo này' });
-    }
+    // No access check needed as all members have full access
 
     const instance = zaloPool.getInstance(id);
     if (!instance?.api) return reply.status(400).send({ error: 'Zalo account not connected' });

@@ -73,6 +73,7 @@ export interface ListenerContext {
   io: Server | null;
   userInfoCache: Map<string, UserInfoCacheEntry>;
   zaloUid?: string;
+  onConnected?: (accountId: string) => void;
   onDisconnected: (accountId: string) => void;
 }
 
@@ -81,12 +82,15 @@ export interface ListenerContext {
  * Calls listener.start() with retryOnClose at the end.
  */
 export function attachZaloListener(ctx: ListenerContext): void {
-  const { accountId, api, io, userInfoCache, zaloUid: ctxZaloUid, onDisconnected } = ctx;
+  const { accountId, api, io, userInfoCache, zaloUid: ctxZaloUid, onConnected, onDisconnected } = ctx;
   const currentZaloUid = ctxZaloUid || api.me?.uid;
   const listener = api.listener;
 
   listener.on('connected', () => {
     logger.info(`[zalo:${accountId}] Listener connected`);
+    if (onConnected) {
+      onConnected(accountId);
+    }
   });
 
   listener.on('message', async (message: any) => {

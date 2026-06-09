@@ -35,13 +35,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       // ── Build ownership-safe where clause ─────────────────────────────────
       const where: any = { mergedInto: null };
       
-      if (user.role === 'member') {
-        // Members see their assigned contacts OR unassigned ones (to take them)
-        where.OR = [
-          { assignedUserId: user.id },
-          { assignedUserId: null }
-        ];
-      } else if (assignedUserId) {
+      if (assignedUserId) {
         where.assignedUserId = assignedUserId;
       }
 
@@ -99,12 +93,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       const db = getTenantPrisma(orgId);
       const whereBase: any = { status: { not: null }, mergedInto: null };
       
-      if (user.role === 'member') {
-        whereBase.OR = [
-          { assignedUserId: user.id },
-          { assignedUserId: null }
-        ];
-      }
+      // No restricted assignment filter for members
 
       const pipeline = await db.contact.groupBy({
         by: ['status'],
@@ -119,12 +108,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       await Promise.all(
         statuses.map(async (st: string) => {
           const where: any = { status: st ?? null, mergedInto: null };
-          if (user.role === 'member') {
-            where.OR = [
-              { assignedUserId: user.id },
-              { assignedUserId: null }
-            ];
-          }
+          // No restricted assignment filter for members
           const contacts = await db.contact.findMany({
             where,
             select: {
@@ -175,12 +159,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
 
       if (!contact) return reply.status(404).send({ error: 'Contact not found' });
       
-      if (user.role === 'member') {
-        // Can only view if assigned to them or unassigned
-        if (contact.assignedUserId !== null && contact.assignedUserId !== user.id) {
-          return reply.status(403).send({ error: 'Forbidden: You do not have access to this contact' });
-        }
-      }
+      // No restricted assignment filter for members
       
       return contact;
     } catch (err) {
@@ -257,13 +236,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       });
       if (!existing) return reply.status(404).send({ error: 'Contact not found' });
       
-      if (user.role === 'member') {
-        // PERMISSION FIX: Member can update IF assigned to them OR IF unassigned (null)
-        const canUpdate = existing.assignedUserId === user.id || existing.assignedUserId === null;
-        if (!canUpdate) {
-          return reply.status(403).send({ error: 'Forbidden: You do not own this contact' });
-        }
-      }
+      // No restricted assignment filter for members
 
       const updateData: any = {
         fullName: body.fullName,
@@ -339,10 +312,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       const existing = await db.contact.findFirst({ where: { id }, select: { assignedUserId: true } });
       if (!existing) return reply.status(404).send({ error: 'Contact not found' });
 
-      if (user.role === 'member') {
-        const canUpdate = existing.assignedUserId === user.id || existing.assignedUserId === null;
-        if (!canUpdate) return reply.status(403).send({ error: 'Forbidden' });
-      }
+      // No restricted assignment filter for members
 
       await db.contact.update({ where: { id }, data: { tags } });
       return { success: true };
@@ -363,11 +333,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       const existing = await db.contact.findFirst({ where: { id }, select: { assignedUserId: true } });
       if (!existing) return reply.status(404).send({ error: 'Contact not found' });
 
-      if (user.role === 'member') {
-        if (existing.assignedUserId !== user.id) {
-          return reply.status(403).send({ error: 'Forbidden: Members can only delete their own assigned contacts' });
-        }
-      }
+      // No restricted assignment filter for members
 
       await db.contact.delete({ where: { id } });
       return { success: true };

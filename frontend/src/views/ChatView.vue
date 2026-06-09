@@ -73,6 +73,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import ConversationList from '@/components/chat/ConversationList.vue';
 import MessageThread from '@/components/chat/MessageThread.vue';
 import ChatContactPanel from '@/components/chat/ChatContactPanel.vue';
@@ -81,6 +82,7 @@ import { useChatOperations } from '@/composables/use-chat-operations';
 import MobileChatView from '@/views/MobileChatView.vue';
 import { useMobile } from '@/composables/use-mobile';
 
+const route = useRoute();
 const { isMobile } = useMobile();
 
 const {
@@ -231,17 +233,34 @@ function stopResize() {
   document.body.style.userSelect = '';
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (!isMobile.value) {
-    fetchConversations();
+    await fetchConversations();
     fetchAiConfig();
     initSocket();
     registerSocketListeners(getSocket());
     
     // Request notification permission if not yet decided
     requestNotificationPermission();
+
+    // Tự động chọn cuộc trò chuyện nếu có id từ URL
+    const convId = route.params.id || route.query.id;
+    if (convId) {
+      console.log('[deep-link] Auto-selecting conversation:', convId);
+      selectConversation(convId as string);
+    }
   }
 });
+
+watch(
+  () => route.params.id || route.query.id,
+  (newId) => {
+    if (newId && !isMobile.value) {
+      console.log('[deep-link] Route changed, selecting conversation:', newId);
+      selectConversation(newId as string);
+    }
+  }
+);
 onUnmounted(() => {
   if (!isMobile.value) { destroySocket(); }
 });

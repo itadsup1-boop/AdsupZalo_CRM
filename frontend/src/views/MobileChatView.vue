@@ -74,11 +74,14 @@
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, watch, computed, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import ConversationList from '@/components/chat/ConversationList.vue';
 import MessageThread from '@/components/chat/MessageThread.vue';
 import ChatContactPanel from '@/components/chat/ChatContactPanel.vue';
 import { useChat } from '@/composables/use-chat';
 import { useOfflineQueue } from '@/composables/use-offline-queue';
+
+const route = useRoute();
 
 const {
   conversations, selectedConvId, selectedConv, messages,
@@ -147,12 +150,29 @@ function onOnline() {
   flush(sendMessageTo);
 }
 
-onMounted(() => {
-  fetchConversations();
+onMounted(async () => {
+  await fetchConversations();
   initSocket();
   window.addEventListener('online', onOnline);
   requestNotificationPermission();
+
+  // Tự động chọn cuộc trò chuyện nếu có id từ URL
+  const convId = route.params.id || route.query.id;
+  if (convId) {
+    console.log('[deep-link-mobile] Auto-selecting conversation:', convId);
+    selectConversation(convId as string);
+  }
 });
+
+watch(
+  () => route.params.id || route.query.id,
+  (newId) => {
+    if (newId) {
+      console.log('[deep-link-mobile] Route changed, selecting conversation:', newId);
+      selectConversation(newId as string);
+    }
+  }
+);
 
 onUnmounted(() => {
   destroySocket();

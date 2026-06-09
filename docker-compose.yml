@@ -66,6 +66,20 @@ services:
     profiles:
       - redis
 
+  asterisk:
+    image: andrius/asterisk:18
+    container_name: zalo-crm-asterisk
+    restart: unless-stopped
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "5038:5038/tcp"
+      - "10000-10100:10000-10100/udp"
+    volumes:
+      - ./asterisk-config:/etc/asterisk
+    security_opt:
+      - no-new-privileges:true
+
   backup:
     image: prodrigestivill/postgres-backup-local
     container_name: zalo-crm-backup
