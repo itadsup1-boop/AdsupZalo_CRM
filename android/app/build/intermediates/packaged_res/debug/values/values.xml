@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Adsup CRM</string>
+    <string name="gcm_defaultSenderId" translatable="false">136596675885</string>
+    <string name="google_api_key" translatable="false">AIzaSyBstywVcCBSJufdzXJuIVGiRSt4l2jVRlE</string>
+    <string name="google_app_id" translatable="false">1:136596675885:android:ed63cd37d028974c1807a4</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyBstywVcCBSJufdzXJuIVGiRSt4l2jVRlE</string>
+    <string name="google_storage_bucket" translatable="false">adsup-crm-85edb.firebasestorage.app</string>
+    <string name="project_id" translatable="false">adsup-crm-85edb</string>
+    <style name="Theme.AdsupCrm" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        
+        <item name="colorPrimary">#1E88E5</item>
+        <item name="colorPrimaryVariant">#1565C0</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        
+        <item name="colorSecondary">#00D28A</item>
+        <item name="colorSecondaryVariant">#009A64</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+    </style>
+</resources>

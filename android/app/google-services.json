@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "136596675885",
+    "project_id": "adsup-crm-85edb",
+    "storage_bucket": "adsup-crm-85edb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:136596675885:android:ed63cd37d028974c1807a4",
+        "android_client_info": {
+          "package_name": "vn.adsup.crm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBstywVcCBSJufdzXJuIVGiRSt4l2jVRlE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

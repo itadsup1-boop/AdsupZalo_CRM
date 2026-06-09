@@ -17,7 +17,7 @@ export async function messageProcessor(job: any) {
       };
       
       // Normalize & Deduplicate are already inside handleIncomingMessage
-      await handleIncomingMessage(messageWithContext, accountWithOrg);
+      await handleIncomingMessage(msg, accountWithOrg);
     } catch (err) {
       logger.error(`[processor:message] Failed to process message ${msg.msgId}:`, err);
       throw err; // Trigger retry

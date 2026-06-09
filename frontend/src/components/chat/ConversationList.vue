@@ -1,5 +1,30 @@
 <template>
   <div class="conversation-list d-flex flex-column" style="width: 100%; border-right: 1px solid var(--border-glow, rgba(0,242,255,0.1)); height: 100%;">
+    <!-- Notification Banner (Hiển thị khi trình duyệt chưa được cấp quyền thông báo đẩy) -->
+    <v-alert
+      v-if="showNotificationBanner"
+      color="info"
+      icon="mdi-bell-ring-outline"
+      density="compact"
+      variant="tonal"
+      class="ma-2 text-caption border-cyan-lighten-2"
+      style="border: 1px solid rgba(0,242,255,0.2) !important; background: rgba(0, 242, 255, 0.05) !important;"
+    >
+      <div class="font-weight-medium mb-1 text-cyan-lighten-3" style="font-size: 0.8rem;">🔔 Bật thông báo chạy ngầm</div>
+      Nhấp để bật thông báo tức thì kể cả khi bạn đã đóng hoặc vuốt tắt ứng dụng.
+      <template v-slot:append>
+        <v-btn
+          color="cyan-accent-2"
+          size="x-small"
+          variant="elevated"
+          @click="enableNotifications"
+          class="ml-1 text-black font-weight-bold"
+        >
+          KÍCH HOẠT
+        </v-btn>
+      </template>
+    </v-alert>
+
     <!-- Account filter + Search -->
     <div class="pa-2">
       <v-select
@@ -288,9 +313,37 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import type { Conversation, AiSentiment } from '@/composables/use-chat';
+import { useChat } from '@/composables/use-chat';
 import { api } from '@/api/index';
 import AiSentimentBadge from '@/components/ai/ai-sentiment-badge.vue';
 import LabelManagerDialog from '@/components/chat/LabelManagerDialog.vue';
+
+const { requestNotificationPermission } = useChat();
+const showNotificationBanner = ref(false);
+
+async function enableNotifications() {
+  if ('Notification' in window) {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        await requestNotificationPermission();
+        showNotificationBanner.value = false;
+        snackbarText.value = 'Đã kích hoạt thông báo chạy ngầm thành công!';
+        snackbar.value = true;
+      } else {
+        snackbarText.value = 'Quyền thông báo bị từ chối hoặc bị chặn bởi hệ thống.';
+        snackbar.value = true;
+      }
+    } catch (e) {
+      console.error(e);
+      snackbarText.value = 'Lỗi kích hoạt thông báo: Trình duyệt không hỗ trợ.';
+      snackbar.value = true;
+    }
+  } else {
+    snackbarText.value = 'Thiết bị hoặc trình duyệt không hỗ trợ thông báo đẩy.';
+    snackbar.value = true;
+  }
+}
 
 const props = defineProps<{
   conversations: Conversation[];
@@ -610,6 +663,11 @@ watch(selectedAccountId, () => {
 
 // ── Lifecycle ───────────────────────────────────────────────────────────────
 onMounted(async () => {
+  if ('Notification' in window) {
+    // Chỉ hiện banner nếu quyền thông báo chưa được thiết lập (default)
+    showNotificationBanner.value = Notification.permission === 'default';
+  }
+
   try {
     const res = await api.get('/zalo-accounts');
     const accounts = Array.isArray(res.data) ? res.data : res.data.accounts || [];

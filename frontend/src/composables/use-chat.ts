@@ -394,7 +394,7 @@ export function useChat() {
       const registration = await navigator.serviceWorker.ready;
       
       // Get the server's public key (hardcoded or from config)
-      const publicKey = 'BIYO5VLdNqPx64e34KS-9LgLz-Bt2Syn5qRXvIuJ7r73R6YarsnUxiV-u3lcz1NHaxSWhbeOavN9KEX4d1iirKc';
+      const publicKey = 'BIoqjUVwIrPgvs_3tSHzeHgqkdczA-riw3xjfgAIpK_IxqAq9-aXu9vvQBxEpnaCXM-71NSBKk0gtKmhcrvbquI';
       
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -464,7 +464,47 @@ export function useChat() {
     }
   }
 
+  async function registerFcmToken(token: string) {
+    try {
+      await api.post('/notifications/fcm/register', {
+        token,
+        deviceInfo: `Android App (${navigator.userAgent})`
+      });
+      console.log('[fcm] Token registered successfully on backend');
+    } catch (err) {
+      console.error('[fcm] Failed to register token on backend:', err);
+    }
+  }
+
+  function initAndroidFcmListener() {
+    if (typeof window !== 'undefined') {
+      // 1. Khai báo callback toàn cục để Android Gọi xuống
+      (window as any).onFcmTokenReceived = function(token: string) {
+        console.log('[AndroidBridge] FCM Token Received:', token);
+        localStorage.setItem('fcm_token', token);
+        registerFcmToken(token);
+      };
+
+      // 2. Chủ động kiểm tra cầu nối Javascript Interface
+      try {
+        const bridge = (window as any).AndroidBridge;
+        if (bridge && typeof bridge.getFcmToken === 'function') {
+          const token = bridge.getFcmToken();
+          if (token) {
+            localStorage.setItem('fcm_token', token);
+            registerFcmToken(token);
+          }
+        }
+      } catch (e) {
+        // Bỏ qua nếu chạy trong trình duyệt desktop thông thường
+      }
+    }
+  }
+
   function initSocket() {
+    // Tự động kích hoạt lắng nghe Firebase trên Android WebView
+    initAndroidFcmListener();
+
     socket = io({ transports: ['websocket', 'polling'] });
 
     socket.on('chat:message', (data: { message: Message; conversationId: string }) => {
@@ -557,5 +597,6 @@ export function useChat() {
     destroySocket,
     getSocket: () => socket,
     requestNotificationPermission,
+    initAndroidFcmListener,
   };
 }

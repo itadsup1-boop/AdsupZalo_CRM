@@ -4,6 +4,16 @@
       <v-card-title class="d-flex align-center">
         <span>{{ isNew ? 'Thêm khách hàng' : 'Chi tiết khách hàng' }}</span>
         <v-spacer />
+        <ZaloCallButton
+          v-if="!isNew && contact"
+          :customerId="contact.id"
+          :phone="form.phone"
+          :contactName="form.crmName || form.fullName"
+          :contactAvatar="contact.avatarUrl"
+          class="mr-2"
+          @consent-updated="onConsentUpdated"
+          @call-initiated="onCallInitiated"
+        />
         <v-btn icon="mdi-close" variant="text" @click="close" />
       </v-card-title>
 
@@ -149,7 +159,6 @@
               :loading="usersLoading"
             />
           </v-col>
-
           <!-- Notes -->
           <v-col cols="12">
             <v-textarea
@@ -158,6 +167,20 @@
               rows="3"
               auto-grow
             />
+          </v-col>
+
+          <!-- Zalo ZCC calling section -->
+          <v-col cols="12" v-if="!isNew && contact" class="mt-2">
+            <v-divider class="mb-4"></v-divider>
+            <div class="d-flex align-center mb-2">
+              <span class="text-subtitle-2 font-weight-bold d-flex align-center">
+                <v-icon color="info" class="mr-1" size="20">mdi-phone-outline</v-icon>
+                Zalo Cloud Connect (ZCC)
+              </span>
+              <v-spacer />
+              <ZaloCallConsentStatus :status="consentStatus" />
+            </div>
+            <ZaloCallHistory ref="historyRef" :customerId="contact.id" />
           </v-col>
         </v-row>
       </v-card-text>
@@ -188,6 +211,9 @@ import { api } from '@/api/index';
 import type { Contact } from '@/composables/use-contacts';
 import { SOURCE_OPTIONS, STATUS_OPTIONS, useContacts } from '@/composables/use-contacts';
 import { useUsers } from '@/composables/use-users';
+import ZaloCallButton from './ZaloCallButton.vue';
+import ZaloCallConsentStatus from './ZaloCallConsentStatus.vue';
+import ZaloCallHistory from './ZaloCallHistory.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -202,6 +228,19 @@ const emit = defineEmits<{
 
 const { saving, deleting, createContact, updateContact, deleteContact } = useContacts();
 const { users, fetchUsers, loading: usersLoading } = useUsers();
+
+const consentStatus = ref('unknown');
+const historyRef = ref<any>(null);
+
+function onConsentUpdated(status: string) {
+  consentStatus.value = status;
+}
+
+function onCallInitiated() {
+  if (historyRef.value) {
+    historyRef.value.refresh();
+  }
+}
 
 const availableLabels = ref<any[]>([]);
 const loadingLabels = ref(false);

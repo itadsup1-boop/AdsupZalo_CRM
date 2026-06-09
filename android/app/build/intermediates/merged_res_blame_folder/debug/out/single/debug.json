@@ -1,0 +1,14 @@
+[
+    {
+        "merged": "vn.adsup.crm.app-merged_res-36:/drawable_ic_launcher.png.flat",
+        "source": "vn.adsup.crm.app-main-38:/drawable/ic_launcher.png"
+    },
+    {
+        "merged": "/home/hai-anh/.gradle/daemon/9.0-milestone-1/vn.adsup.crm.app-merged_res-36:/layout_activity_main.xml.flat",
+        "source": "/home/hai-anh/.gradle/daemon/9.0-milestone-1/vn.adsup.crm.app-main-38:/layout/activity_main.xml"
+    },
+    {
+        "merged": "/home/hai-anh/.gradle/daemon/9.0-milestone-1/vn.adsup.crm.app-merged_res-36:/drawable_ic_notification.xml.flat",
+        "source": "/home/hai-anh/.gradle/daemon/9.0-milestone-1/vn.adsup.crm.app-main-38:/drawable/ic_notification.xml"
+    }
+]

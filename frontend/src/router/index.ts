@@ -9,6 +9,48 @@ const routes = [
     meta: { layout: 'empty' },
   },
   {
+    path: '/features/:id',
+    name: 'FeaturePage',
+    component: () => import('@/views/FeaturesView.vue'),
+    meta: { layout: 'empty' },
+  },
+  {
+    path: '/solutions/:id',
+    name: 'SolutionPage',
+    component: () => import('@/views/SolutionsView.vue'),
+    meta: { layout: 'empty' },
+  },
+  {
+    path: '/resources/:id',
+    name: 'ResourcePage',
+    component: () => import('@/views/PublicPageView.vue'),
+    meta: { layout: 'empty' },
+  },
+  {
+    path: '/pricing',
+    name: 'PricingPage',
+    component: () => import('@/views/PricingView.vue'),
+    meta: { layout: 'empty' },
+  },
+  {
+    path: '/about',
+    name: 'AboutPage',
+    component: () => import('@/views/PublicPageView.vue'),
+    meta: { layout: 'empty' },
+  },
+  {
+    path: '/customers',
+    name: 'CustomersPage',
+    component: () => import('@/views/CustomersView.vue'),
+    meta: { layout: 'empty' },
+  },
+  {
+    path: '/contact',
+    name: 'ContactPage',
+    component: () => import('@/views/ContactView.vue'),
+    meta: { layout: 'empty' },
+  },
+  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/LoginView.vue'),
@@ -39,6 +81,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/chat/:id',
+    name: 'ChatWithId',
+    component: () => import('@/views/ChatView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/contacts',
     name: 'Contacts',
     component: () => import('@/views/ContactsView.vue'),
@@ -48,6 +96,12 @@ const routes = [
     path: '/zalo-accounts',
     name: 'ZaloAccounts',
     component: () => import('@/views/ZaloAccountsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/zalo-oa',
+    name: 'ZaloOA',
+    component: () => import('@/views/ZaloOAView.vue'),
     meta: { requiresAuth: true },
   },
   {

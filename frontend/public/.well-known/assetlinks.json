@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "vn.adsup.crm.twa",
+    "sha256_cert_fingerprints": ["15:94:79:67:AC:9B:DA:7A:2F:1E:D8:28:F0:FD:2A:AE:86:A9:BB:86:64:B8:21:B8:BE:E4:A0:BF:85:92:20:C8"]
+  }
+}]

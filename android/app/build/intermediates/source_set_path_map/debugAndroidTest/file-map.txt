@@ -1,0 +1,6 @@
+vn.adsup.crm.test.app-jetified-annotation-experimental-1.3.0-0 /home/hai-anh/.gradle/caches/9.0-milestone-1/transforms/2f2d95b4c6af9f0b0df384680a58d757/transformed/jetified-annotation-experimental-1.3.0/res
+vn.adsup.crm.test.app-jetified-core-1.5.0-1 /home/hai-anh/.gradle/caches/9.0-milestone-1/transforms/8731a9ff3f755d33598fa4b4afb69674/transformed/jetified-core-1.5.0/res
+vn.adsup.crm.test.app-androidTest-2 /home/hai-anh/Code /ZaloCRM-main/android/app/build/generated/res/resValues/androidTest/debug
+vn.adsup.crm.test.app-mergeDebugAndroidTestResources-3 /home/hai-anh/Code /ZaloCRM-main/android/app/build/intermediates/incremental/debugAndroidTest/mergeDebugAndroidTestResources/merged.dir
+vn.adsup.crm.test.app-mergeDebugAndroidTestResources-4 /home/hai-anh/Code /ZaloCRM-main/android/app/build/intermediates/incremental/debugAndroidTest/mergeDebugAndroidTestResources/stripped.dir
+vn.adsup.crm.test.app-merged_res-5 /home/hai-anh/Code /ZaloCRM-main/android/app/build/intermediates/merged_res/debugAndroidTest

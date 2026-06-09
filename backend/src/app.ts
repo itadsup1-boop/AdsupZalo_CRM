@@ -51,6 +51,8 @@ import { groupModerationRoutes } from './modules/zalo/group-moderation-routes.js
 import { friendRoutes } from './modules/zalo/friend-routes.js';
 import { profileRoutes } from './modules/zalo/profile-routes.js';
 import { credentialRoutes } from './modules/zalo/credential-routes.js';
+import { zaloOARoutes } from './modules/zalo-oa/zalo-oa-routes.js';
+import { zaloCallRoutes } from './modules/call/zalo-call-routes.js';
 import { ingestionRoutes } from './modules/ingestion/ingestion-routes.js';
 import { eventBuffer } from './shared/event-buffer.js';
 
@@ -179,6 +181,8 @@ async function bootstrap() {
   await app.register(friendRoutes);
   await app.register(profileRoutes);
   await app.register(credentialRoutes);
+  await app.register(zaloOARoutes);
+  await app.register(zaloCallRoutes);
   await app.register(ingestionRoutes);
 
   // 7.2 Error Tracking: Sentry

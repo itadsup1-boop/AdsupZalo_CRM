@@ -4,6 +4,8 @@
  */
 import type { FastifyInstance } from 'fastify';
 import { prisma } from '../../shared/database/prisma-client.js';
+import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
+import { logger } from '../../shared/utils/logger.js';
 import { authMiddleware } from '../auth/auth-middleware.js';
 import { zaloPool } from '../zalo/zalo-pool.js';
 
@@ -136,6 +138,35 @@ export async function notificationRoutes(app: FastifyInstance) {
     } catch (err) {
       logger.error('[push] Failed to save subscription:', err);
       return reply.status(500).send({ error: 'Failed to save subscription' });
+    }
+  });
+
+  // POST /api/v1/notifications/fcm/register — Save/update FCM token
+  app.post<{
+    Body: { token: string; deviceInfo?: string };
+  }>('/api/v1/notifications/fcm/register', async (request, reply) => {
+    const user = request.user!;
+    const { token, deviceInfo } = request.body;
+
+    if (!token) {
+      return reply.status(400).send({ error: 'FCM Token is required' });
+    }
+
+    const db = getTenantPrisma(user.orgId);
+    try {
+      await db.fcmToken.upsert({
+        where: { token },
+        update: { userId: user.id, deviceInfo: deviceInfo || null },
+        create: {
+          userId: user.id,
+          token,
+          deviceInfo: deviceInfo || null,
+        },
+      });
+      return { success: true };
+    } catch (err) {
+      logger.error('[fcm] Failed to save FCM Token:', err);
+      return reply.status(500).send({ error: 'Failed to save FCM token' });
     }
   });
 }

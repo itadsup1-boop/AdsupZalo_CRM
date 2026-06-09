@@ -18,9 +18,12 @@ export async function zaloRoutes(app: FastifyInstance): Promise<void> {
     const db = getTenantPrisma(user.orgId);
 
     const where: any = {};
-    if (user.role === 'member') {
-      // Members only see accounts they have explicit access to
-      where.access = { some: { userId: user.id } };
+    if (!['owner', 'admin'].includes(user.role)) {
+      where.access = {
+        some: {
+          userId: user.id
+        }
+      };
     }
 
     const accounts = await db.zaloAccount.findMany({

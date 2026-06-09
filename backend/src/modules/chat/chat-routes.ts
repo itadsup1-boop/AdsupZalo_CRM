@@ -68,19 +68,14 @@ export async function chatRoutes(app: FastifyInstance) {
     if (accountId) baseWhere.zaloAccountId = accountId;
     if (tab) baseWhere.tab = tab;
 
-    // SaaS RBAC: Permission Engine
-    if (user.role === 'staff' || user.role === 'viewer') {
-      const assignmentFilter = {
-        OR: [
-          { contact: { assignedUserId: user.id } },
-          { contact: { assignedUserId: null } },
-          { contactId: null },
-        ],
+    if (!['owner', 'admin'].includes(user.role)) {
+      baseWhere.zaloAccount = {
+        access: {
+          some: {
+            userId: user.id
+          }
+        }
       };
-      baseWhere.AND = [
-        ...(baseWhere.AND || []),
-        assignmentFilter
-      ];
     }
 
     const [unread, unreplied, total] = await Promise.all([
@@ -112,6 +107,16 @@ export async function chatRoutes(app: FastifyInstance) {
     const where: any = { orgId: user.orgId };
     if (tab) where.tab = tab;
     if (accountId) where.zaloAccountId = accountId;
+
+    if (!['owner', 'admin'].includes(user.role)) {
+      where.zaloAccount = {
+        access: {
+          some: {
+            userId: user.id
+          }
+        }
+      };
+    }
     if (search) {
       where.contact = {
         OR: [
@@ -149,34 +154,7 @@ export async function chatRoutes(app: FastifyInstance) {
       }
     }
 
-    // Members see their assigned contacts OR unassigned ones
-    if (user.role === 'member') {
-      const accessibleAccounts = await prisma.zaloAccountAccess.findMany({
-        where: { userId: user.id },
-        select: { zaloAccountId: true },
-      });
-      const accessibleIds = accessibleAccounts.map((a) => a.zaloAccountId);
-
-      const assignmentFilter = {
-        OR: [
-          { contact: { assignedUserId: user.id } },
-          { contact: { assignedUserId: null } },
-          { contactId: null },
-        ],
-      };
-
-      if (accountId && accessibleIds.includes(accountId)) {
-        where.AND = [
-          { zaloAccountId: accountId },
-          assignmentFilter,
-        ];
-      } else {
-        where.AND = [
-          { zaloAccountId: { in: accessibleIds } },
-          assignmentFilter,
-        ];
-      }
-    }
+    // All roles can see conversations for all Zalo accounts in their organization
 
     const [conversations, total] = await Promise.all([
       prisma.conversation.findMany({
@@ -184,6 +162,7 @@ export async function chatRoutes(app: FastifyInstance) {
         include: {
           contact: { select: { id: true, fullName: true, crmName: true, phone: true, avatarUrl: true, zaloUid: true } },
           zaloAccount: { select: { id: true, displayName: true, zaloUid: true } },
+          zaloOaAccount: { select: { id: true, name: true, avatarUrl: true } },
           pins: { select: { id: true } },
           messages: {
             take: 1,
@@ -207,7 +186,7 @@ export async function chatRoutes(app: FastifyInstance) {
   });
 
   // ── Get single conversation ──────────────────────────────────────────────
-  app.get('/api/v1/conversations/:id', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/api/v1/conversations/:id', { preHandler: requireZaloAccess('read') }, async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user!;
     const { id } = request.params as { id: string };
 
@@ -216,6 +195,7 @@ export async function chatRoutes(app: FastifyInstance) {
       include: {
         contact: true,
         zaloAccount: { select: { id: true, displayName: true, zaloUid: true, status: true } },
+        zaloOaAccount: { select: { id: true, name: true, avatarUrl: true, status: true } },
         pins: { select: { id: true } },
       },
     });
@@ -272,15 +252,63 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const conversation = await prisma.conversation.findFirst({
       where: { id, orgId: user.orgId },
-      include: { zaloAccount: true },
+      include: { zaloAccount: true, zaloOaAccount: true },
     });
     if (!conversation) return reply.status(404).send({ error: 'Conversation not found' });
 
-    const instance = zaloPool.getInstance(conversation.zaloAccountId);
+    // ── Zalo OA Sending Logic ───────────────────────────────────────────────
+    if (conversation.zaloOaAccountId) {
+      try {
+        const { zaloOAService } = await import('../zalo-oa/zalo-oa-service.js');
+        const sendResult = await zaloOAService.sendTextMessage(
+          conversation.zaloOaAccountId,
+          user.orgId,
+          conversation.externalThreadId || '',
+          content
+        );
+
+        const message = await prisma.message.create({
+          data: {
+            id: randomUUID(),
+            orgId: user.orgId,
+            conversationId: id,
+            zaloMsgId: String(sendResult?.data?.msg_id || ''),
+            senderType: 'self',
+            senderUid: conversation.zaloOaAccount?.oaId || '',
+            senderName: 'Staff',
+            content,
+            contentType: 'text',
+            sentAt: new Date(),
+            repliedByUserId: user.id,
+          },
+        });
+
+        await prisma.conversation.update({
+          where: { orgId: user.orgId, id },
+          data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0 },
+        });
+
+        const io = (app as any).io as Server;
+        io?.emit('chat:message', { 
+          accountId: conversation.zaloOaAccountId, 
+          isOA: true,
+          message, 
+          conversationId: id 
+        });
+
+        return message;
+      } catch (err: any) {
+        logger.error('[chat] Send OA message error:', err);
+        return reply.status(500).send({ error: err.message || 'Failed to send OA message' });
+      }
+    }
+
+    // ── Personal Zalo Sending Logic ─────────────────────────────────────────
+    const instance = zaloPool.getInstance(conversation.zaloAccountId!);
     if (!instance?.api) return reply.status(400).send({ error: 'Zalo account not connected' });
 
     // Rate limit check — prevent account blocking
-    const limits = await zaloRateLimiter.checkLimits(conversation.zaloAccountId);
+    const limits = await zaloRateLimiter.checkLimits(conversation.zaloAccountId!);
     if (!limits.allowed) {
       return reply.status(429).send({ error: limits.reason });
     }
@@ -296,18 +324,13 @@ export async function chatRoutes(app: FastifyInstance) {
           where: { id: replyMessageId, conversationId: id },
           select: { zaloMsgId: true, senderUid: true, content: true, contentType: true, sentAt: true },
         });
-        if (!replyMessage) {
-          return reply.status(404).send({ error: 'Reply message not found' });
-        }
-        quote = buildReplyQuote(replyMessage);
-        if (!quote) {
-          return reply.status(400).send({ error: 'Reply message is missing remote ids' });
+        if (replyMessage) {
+          quote = buildReplyQuote(replyMessage);
         }
       }
 
-      zaloRateLimiter.recordSend(conversation.zaloAccountId);
+      zaloRateLimiter.recordSend(conversation.zaloAccountId!);
       const sendResult = await instance.api.sendMessage(quote ? { msg: content, quote } : { msg: content }, threadId, threadType);
-      // Extract zaloMsgId from sendMessage response for dedup with selfListen
       const zaloMsgId = String(sendResult?.msgId || sendResult?.data?.msgId || '');
 
       const message = await prisma.message.create({
@@ -317,7 +340,7 @@ export async function chatRoutes(app: FastifyInstance) {
           conversationId: id,
           zaloMsgId: zaloMsgId || null,
           senderType: 'self',
-          senderUid: conversation.zaloAccount.zaloUid || '',
+          senderUid: conversation.zaloAccount?.zaloUid || '',
           senderName: 'Staff',
           content,
           contentType: 'text',
@@ -343,7 +366,7 @@ export async function chatRoutes(app: FastifyInstance) {
   });
 
   // ── Mark conversation as read ────────────────────────────────────────────
-  app.post('/api/v1/conversations/:id/mark-read', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/api/v1/conversations/:id/mark-read', { preHandler: requireZaloAccess('read') }, async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user!;
     const { id } = request.params as { id: string };
 
