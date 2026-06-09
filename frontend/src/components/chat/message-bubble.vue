@@ -125,7 +125,7 @@
           :class="isSelf ? 'text-end' : ''"
           style="font-size: 0.7rem; opacity: 0.7;"
         >
-          {{ formatTime(message.sentAt) }}
+          {{ formatMessageTimestamp(message.sentAt) }}
         </div>
       </div>
 
@@ -159,6 +159,8 @@ import type { Message } from '@/composables/use-chat';
 import SpecialMessageRenderer from '@/components/chat/special-message-renderer.vue';
 import ReactionDisplay from '@/components/chat/reaction-display.vue';
 import ReactionPicker from '@/components/chat/reaction-picker.vue';
+import { formatMessageTimestamp } from '@/utils/date-formatter';
+
 
 const props = defineProps<{
   message: Message;
@@ -335,9 +337,6 @@ function getReminderTime(msg: Message): string | null {
   return null;
 }
 
-function formatTime(d: string): string {
-  return new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-}
 
 function onPickerReact(key: string) {
   showPicker.value = false;

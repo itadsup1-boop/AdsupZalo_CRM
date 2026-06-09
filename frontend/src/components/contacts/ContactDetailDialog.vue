@@ -146,6 +146,77 @@
               </v-card>
             </v-menu>
           </v-col>
+
+          <!-- CRM Tags (Thẻ khách hàng) -->
+          <v-col cols="12" sm="6" v-if="!isNew">
+            <div class="text-caption text-grey mb-1 ml-1 d-flex align-center">
+              <v-icon size="14" class="mr-1">mdi-tag-multiple-outline</v-icon>
+              Thẻ khách hàng (CRM)
+            </div>
+            
+            <div 
+              class="d-flex flex-wrap gap-1 pa-2 rounded" 
+              style="border: 1px solid rgba(0,0,0,0.12); min-height: 40px; background: rgba(0,0,0,0.03);"
+            >
+              <v-chip
+                v-for="tag in crmTags"
+                :key="tag.id"
+                size="x-small"
+                :color="tag.color"
+                variant="elevated"
+                class="ma-0"
+                style="color: white; font-weight: 500;"
+                closable
+                @click:close="detachCrmTag(tag.id)"
+              >
+                {{ tag.name }}
+              </v-chip>
+              <div v-if="crmTags.length === 0" class="text-caption text-grey-lighten-1">Chưa gắn thẻ...</div>
+            </div>
+
+            <!-- Menu to attach tags -->
+            <v-menu v-model="showCrmTagMenu" :close-on-content-click="false" location="bottom start">
+              <template #activator="{ props: menuProps }">
+                <v-btn
+                  v-bind="menuProps"
+                  variant="text"
+                  color="primary"
+                  size="small"
+                  class="mt-1 px-1 text-none"
+                  prepend-icon="mdi-plus"
+                >
+                  Gắn thẻ
+                </v-btn>
+              </template>
+              <v-card width="280" class="pa-2">
+                <v-text-field
+                  v-model="crmTagSearch"
+                  label="Tìm kiếm thẻ..."
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  class="mb-2"
+                  clearable
+                ></v-text-field>
+                <v-list density="compact" max-height="200" style="overflow-y: auto;">
+                  <v-list-item
+                    v-for="tag in filteredAllCrmTags"
+                    :key="tag.id"
+                    @click="attachCrmTag(tag)"
+                    :disabled="crmTags.some(t => t.id === tag.id)"
+                  >
+                    <template #prepend>
+                      <v-icon :color="tag.color" class="mr-2">mdi-tag</v-icon>
+                    </template>
+                    <v-list-item-title class="text-body-2">{{ tag.name }}</v-list-item-title>
+                  </v-list-item>
+                  <v-list-item v-if="filteredAllCrmTags.length === 0">
+                    <v-list-item-title class="text-caption text-grey">Không tìm thấy thẻ</v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-card>
+            </v-menu>
+          </v-col>
           
           <!-- Assigned User -->
           <v-col cols="12" sm="6">
@@ -167,6 +238,11 @@
               rows="3"
               auto-grow
             />
+          </v-col>
+
+          <!-- Customer Products -->
+          <v-col cols="12" v-if="!isNew && contact">
+            <CustomerProducts :customerId="contact.id" />
           </v-col>
 
           <!-- Zalo ZCC calling section -->
@@ -214,6 +290,7 @@ import { useUsers } from '@/composables/use-users';
 import ZaloCallButton from './ZaloCallButton.vue';
 import ZaloCallConsentStatus from './ZaloCallConsentStatus.vue';
 import ZaloCallHistory from './ZaloCallHistory.vue';
+import CustomerProducts from './CustomerProducts.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -289,14 +366,72 @@ async function fetchLabels() {
   }
 }
 
+const crmTags = ref<any[]>([]);
+const allCrmTags = ref<any[]>([]);
+const showCrmTagMenu = ref(false);
+const crmTagSearch = ref('');
+
+const filteredAllCrmTags = computed(() => {
+  if (!crmTagSearch.value) return allCrmTags.value.filter(t => t.isActive);
+  return allCrmTags.value.filter(t => t.isActive && t.name.toLowerCase().includes(crmTagSearch.value.toLowerCase()));
+});
+
+const fetchContactCrmTags = async () => {
+  if (!props.contact?.id) {
+    crmTags.value = [];
+    return;
+  }
+  try {
+    const res = await api.get(`/contacts/${props.contact.id}/crm-tags`);
+    crmTags.value = res.data.tags || [];
+  } catch (error) {
+    console.error('Lỗi tải thẻ của khách hàng', error);
+  }
+};
+
+const fetchAllCrmTags = async () => {
+  try {
+    const res = await api.get('/tags');
+    allCrmTags.value = res.data.tags || [];
+  } catch (error) {
+    console.error('Lỗi tải danh sách thẻ', error);
+  }
+};
+
+const attachCrmTag = async (tag: any) => {
+  if (!props.contact?.id) return;
+  try {
+    await api.post(`/contacts/${props.contact.id}/crm-tags`, { tagId: tag.id });
+    showCrmTagMenu.value = false;
+    crmTagSearch.value = '';
+    fetchContactCrmTags();
+  } catch (error) {
+    console.error('Lỗi gắn thẻ', error);
+  }
+};
+
+const detachCrmTag = async (tagId: string) => {
+  if (!props.contact?.id) return;
+  try {
+    await api.delete(`/contacts/${props.contact.id}/crm-tags/${tagId}`);
+    fetchContactCrmTags();
+  } catch (error) {
+    console.error('Lỗi gỡ thẻ', error);
+  }
+};
+
 onMounted(() => {
   fetchUsers();
   fetchLabels();
+  fetchAllCrmTags();
+  fetchContactCrmTags();
 });
 
 watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
     fetchLabels();
+    fetchAllCrmTags();
+    fetchContactCrmTags();
   }
 });
 
@@ -386,8 +521,10 @@ watch(() => props.contact, (c) => {
       tags: c.tags ?? [],
       assignedUserId: c.assignedUserId ?? null,
     };
+    fetchContactCrmTags();
   } else {
     form.value = emptyForm();
+    crmTags.value = [];
   }
 }, { immediate: true, deep: true });
 

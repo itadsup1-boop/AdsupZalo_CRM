@@ -82,7 +82,14 @@ export async function syncAllForAccount(accountId: string, orgId: string, api: a
   // 2. Sync Groups list
   try {
     const groupResult = await api.getAllGroups();
-    const groups = Array.isArray(groupResult) ? groupResult : (groupResult?.data || []);
+    const gridVerMap = groupResult?.gridVerMap || {};
+    const groupIds = Object.keys(gridVerMap);
+    let groups: any[] = [];
+    if (groupIds.length > 0) {
+      const infoRes = await api.getGroupInfo(groupIds);
+      const infoMap = infoRes?.gridInfoMap || {};
+      groups = Object.values(infoMap);
+    }
     logger.info(`[sync-history:${accountId}] Found ${groups.length} groups`);
 
     for (const group of groups) {

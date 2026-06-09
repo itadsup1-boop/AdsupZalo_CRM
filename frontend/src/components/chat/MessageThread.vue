@@ -72,6 +72,41 @@
           </v-card>
         </v-menu>
 
+        <!-- Thẻ CRM Menu -->
+        <v-menu v-if="conversation?.contact?.id" v-model="showCrmTagMenuHeader" :close-on-content-click="false" location="bottom end">
+          <template v-slot:activator="{ props: menuProps }">
+            <v-btn size="small" variant="tonal" color="teal-accent-4" class="mr-1" v-bind="menuProps" :loading="loadingCrmTagsHeader" @click="fetchCrmTagsHeaderIfNeeded">
+              <v-icon size="small" class="d-inline d-sm-none">mdi-tag-outline</v-icon>
+              <span class="d-none d-sm-inline">Thẻ CRM <v-icon size="small" class="ml-1">mdi-chevron-down</v-icon></span>
+            </v-btn>
+          </template>
+          <v-card width="280">
+            <v-card-text class="pa-2">
+              <div class="text-caption text-grey mb-2 px-2">Theo thẻ khách hàng (CRM)</div>
+              <v-list density="compact" class="pa-0">
+                <v-list-item
+                  v-for="tag in allCrmTagsHeader"
+                  :key="tag.id"
+                  @click="toggleCrmTagHeader(tag)"
+                >
+                  <template v-slot:prepend>
+                    <v-checkbox-btn
+                      :model-value="contactHasCrmTag(tag)"
+                      color="primary"
+                      class="mr-2"
+                      style="pointer-events: none;"
+                    ></v-checkbox-btn>
+                    <v-icon :color="tag.color" class="mr-2">mdi-tag</v-icon>
+                  </template>
+                  <v-list-item-title class="text-body-2">{{ tag.name }}</v-list-item-title>
+                </v-list-item>
+              </v-list>
+              <div v-if="allCrmTagsHeader.length === 0" class="text-caption text-grey text-center pa-2">Chưa có thẻ CRM nào</div>
+            </v-card-text>
+          </v-card>
+        </v-menu>
+
+
         <!-- Label Manager Dialog -->
         <LabelManagerDialog
           v-if="conversation?.zaloAccountId"
@@ -107,7 +142,14 @@
       <!-- Messages -->
       <div ref="messagesContainer" class="flex-grow-1 overflow-y-auto pa-3 chat-messages-area">
         <v-progress-linear v-if="loading" indeterminate color="primary" class="mb-2" />
-        <template v-for="item in displayItems" :key="item.key">
+        <template v-for="(item, index) in displayItems" :key="item.key">
+          <!-- Date Separator -->
+          <div v-if="shouldShowSeparator(index)" class="d-flex justify-center my-3">
+            <span class="text-caption px-3 py-1 rounded-pill" style="background: rgba(var(--v-theme-on-surface), 0.05); color: rgba(var(--v-theme-on-surface), 0.6); font-size: 0.72rem; font-weight: 500;">
+              {{ formatSeparatorDate(getItemDateStr(item)) }}
+            </span>
+          </div>
+
           <!-- Album: multiple images sharing the same Zalo albumKey -->
           <div v-if="item.kind === 'album'" class="mb-2 d-flex" :class="item.senderType === 'self' ? 'justify-end' : 'justify-start'">
             <div style="max-width: 70%;">
@@ -129,7 +171,7 @@
                   {{ item.messages.length }}/{{ item.totalExpected }} ảnh đã nhận
                 </div>
                 <div class="text-caption px-2 pb-1 msg-time" :class="item.senderType === 'self' ? 'msg-time-self' : 'msg-time-contact'" style="font-size: 0.7rem;">
-                  {{ formatMessageTime(item.sentAt) }} · 🖼️ {{ item.messages.length }} ảnh
+                  {{ formatMessageTimestamp(item.sentAt) }} · 🖼️ {{ item.messages.length }} ảnh
                 </div>
               </div>
             </div>
@@ -147,6 +189,7 @@
             @toggle-reaction="onToggleReaction(item.msg, $event)"
           />
         </template>
+
         <div v-if="!loading && messages.length === 0" class="text-center pa-8 text-grey">Chưa có tin nhắn</div>
       </div>
 
@@ -434,6 +477,8 @@ import ForwardDialog from '@/components/chat/forward-dialog.vue';
 import RichTextEditor from '@/components/chat/rich-text-editor.vue';
 import LabelManagerDialog from '@/components/chat/LabelManagerDialog.vue';
 import ZaloCallButton from '@/components/contacts/ZaloCallButton.vue';
+import { formatMessageTimestamp, formatSeparatorDate, getVietnamTime } from '@/utils/date-formatter';
+
 
 interface TemplateItem { id: string; name: string; content: string; category: string | null; isPersonal: boolean; }
 
@@ -624,6 +669,49 @@ async function fetchTagsIfNeeded() {
 function conversationHasTag(tag: any) {
   if (!props.conversation || !props.conversation.externalThreadId) return false;
   return tag.conversations?.includes(props.conversation.externalThreadId);
+}
+
+// CRM Tags System (Header Menu)
+const showCrmTagMenuHeader = ref(false);
+const loadingCrmTagsHeader = ref(false);
+const allCrmTagsHeader = ref<any[]>([]);
+const contactCrmTagsHeader = ref<any[]>([]);
+
+async function fetchCrmTagsHeaderIfNeeded() {
+  if (!props.conversation?.contact?.id) return;
+  loadingCrmTagsHeader.value = true;
+  try {
+    const [allRes, contactRes] = await Promise.all([
+      api.get('/tags'),
+      api.get(`/contacts/${props.conversation.contact.id}/crm-tags`)
+    ]);
+    allCrmTagsHeader.value = allRes.data.tags || [];
+    contactCrmTagsHeader.value = contactRes.data.tags || [];
+  } catch (e) {
+    console.error('Failed to fetch CRM tags in header', e);
+  } finally {
+    loadingCrmTagsHeader.value = false;
+  }
+}
+
+function contactHasCrmTag(tag: any) {
+  return contactCrmTagsHeader.value.some(t => t.id === tag.id);
+}
+
+async function toggleCrmTagHeader(tag: any) {
+  if (!props.conversation?.contact?.id) return;
+  const attached = contactHasCrmTag(tag);
+  try {
+    if (attached) {
+      await api.delete(`/contacts/${props.conversation.contact.id}/crm-tags/${tag.id}`);
+      contactCrmTagsHeader.value = contactCrmTagsHeader.value.filter(t => t.id !== tag.id);
+    } else {
+      await api.post(`/contacts/${props.conversation.contact.id}/crm-tags`, { tagId: tag.id });
+      contactCrmTagsHeader.value = [...contactCrmTagsHeader.value, tag];
+    }
+  } catch (e) {
+    console.error('Failed to toggle CRM tag in header', e);
+  }
 }
 
 async function toggleTag(tag: any) {
@@ -837,7 +925,22 @@ function albumGridClass(count: number): string {
 
 function onContextMenu(event: MouseEvent, msg: Message) {
   contextMsg.value = msg;
-  contextPos.value = { x: event.clientX, y: event.clientY };
+  
+  // Estimate context menu size to prevent overflowing off-screen
+  const menuWidth = 180;
+  const menuHeight = 350; // max expected height for menu
+  
+  let x = event.clientX;
+  let y = event.clientY;
+  
+  if (x + menuWidth > window.innerWidth) {
+    x = window.innerWidth - menuWidth - 10;
+  }
+  if (y + menuHeight > window.innerHeight) {
+    y = window.innerHeight - menuHeight - 10;
+  }
+  
+  contextPos.value = { x, y };
   showContextMenu.value = true;
 }
 
@@ -944,9 +1047,35 @@ function applySuggestion() { if (!props.aiSuggestion) return; inputText.value = 
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-function formatMessageTime(d: string) {
-  return new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+function getItemDateStr(item: DisplayItem): string | null {
+  if (item.kind === 'single') {
+    return item.msg.sentAt;
+  } else if (item.kind === 'album') {
+    return item.sentAt;
+  }
+  return null;
 }
+
+function shouldShowSeparator(index: number): boolean {
+  if (index === 0) return true;
+  const prevItem = displayItems.value[index - 1];
+  const curItem = displayItems.value[index];
+  
+  const prevDateStr = getItemDateStr(prevItem);
+  const curDateStr = getItemDateStr(curItem);
+  
+  if (!prevDateStr || !curDateStr) return false;
+  
+  const prevDate = getVietnamTime(new Date(prevDateStr));
+  const curDate = getVietnamTime(new Date(curDateStr));
+  
+  return (
+    prevDate.day !== curDate.day ||
+    prevDate.month !== curDate.month ||
+    prevDate.year !== curDate.year
+  );
+}
+
 
 /** Extract image URL from JSON content */
 function getImageUrl(msg: Message): string | null {

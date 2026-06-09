@@ -163,7 +163,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useSelectedAccount } from '@/composables/use-selected-account';
 import { useFriends } from '@/composables/use-friends';
 import FriendList from '@/components/friends/friend-list.vue';
@@ -175,7 +175,7 @@ const {
   friends, onlineFriends, sentRequests, recommendations, searchResults, loading,
   fetchFriends, fetchOnlineFriends, fetchSentRequests, fetchRecommendations,
   searchFriends, sendRequest, acceptRequest, rejectRequest, cancelRequest,
-  removeFriend, blockUser, setAlias, removeAlias,
+  removeFriend, blockUser, setAlias, removeAlias, setupSocket, destroySocket,
 } = useFriends();
 
 const tab = ref('all');
@@ -184,8 +184,9 @@ const aliasInput = ref('');
 const aliasPendingUserId = ref('');
 
 async function loadAll(accountId: string) {
+  // fetchFriends MUST complete first so fetchOnlineFriends can map names/avatars
+  await fetchFriends(accountId);
   await Promise.all([
-    fetchFriends(accountId),
     fetchOnlineFriends(accountId),
     fetchSentRequests(accountId),
     fetchRecommendations(accountId),
@@ -194,7 +195,13 @@ async function loadAll(accountId: string) {
 
 onMounted(() => {
   if (selectedAccountId.value) loadAll(selectedAccountId.value);
+  setupSocket();
 });
+
+onUnmounted(() => {
+  destroySocket();
+});
+
 
 watch(selectedAccountId, (id) => {
   if (id) loadAll(id);

@@ -19,6 +19,7 @@ services:
         condition: service_healthy
     volumes:
       - file_storage:/var/lib/zalo-crm/files
+      - browser_profiles:/app/browser-profiles
     extra_hosts:
       - "host.docker.internal:host-gateway"
     tmpfs:
@@ -102,3 +103,4 @@ volumes:
   pg_data:
   file_storage:
   redis_data:
+  browser_profiles:

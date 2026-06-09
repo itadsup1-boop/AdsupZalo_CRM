@@ -2,6 +2,7 @@ import { ref, computed } from 'vue';
 import { api } from '@/api/index';
 import { io, Socket } from 'socket.io-client';
 import type { Contact } from '@/composables/use-contacts';
+import { useAuthStore } from '@/stores/auth';
 
 interface ZaloAccount {
   id: string;
@@ -507,6 +508,16 @@ export function useChat() {
 
     socket = io({ transports: ['websocket', 'polling'] });
 
+    // Join org-scoped room immediately on connect — CRITICAL for multi-tenant isolation
+    // Without this, the client receives socket events from ALL organizations
+    socket.on('connect', () => {
+      const auth = useAuthStore();
+      const orgId = auth.user?.orgId;
+      if (orgId) {
+        socket!.emit('org:join', { orgId });
+      }
+    });
+
     socket.on('chat:message', (data: { message: Message; conversationId: string }) => {
       // Play sound and show notification if message is not from self
       if (data.message.senderType !== 'self') {
@@ -522,9 +533,12 @@ export function useChat() {
       fetchConversations();
     });
 
-    socket.on('chat:deleted', (data: { messageId?: string; zaloMsgId?: string }) => {
+    socket.on('chat:deleted', (data: { messageId?: string; zaloMsgId?: string; content?: string }) => {
       const msg = messages.value.find(m => m.id === data.messageId || m.zaloMsgId === data.zaloMsgId);
-      if (msg) msg.isDeleted = true;
+      if (msg) {
+        msg.isDeleted = true;
+        if (data.content) msg.content = data.content;
+      }
     });
 
     socket.on('chat:message-edited', (data: { messageId?: string; zaloMsgId?: string; content: string }) => {

@@ -82,7 +82,7 @@ export interface ListenerContext {
  * Calls listener.start() with retryOnClose at the end.
  */
 export function attachZaloListener(ctx: ListenerContext): void {
-  const { accountId, api, io, userInfoCache, zaloUid: ctxZaloUid, onConnected, onDisconnected } = ctx;
+  const { accountId, orgId, api, io, userInfoCache, zaloUid: ctxZaloUid, onConnected, onDisconnected } = ctx;
   const currentZaloUid = ctxZaloUid || api.me?.uid;
   const listener = api.listener;
 
@@ -164,7 +164,8 @@ export function attachZaloListener(ctx: ListenerContext): void {
       });
 
       if (result) {
-        io?.emit('chat:message', {
+        // Scoped to org room — prevents cross-tenant message leakage
+        io?.to('org:' + orgId).emit('chat:message', {
           accountId,
           message: result.message,
           conversationId: result.conversationId,
@@ -179,7 +180,7 @@ export function attachZaloListener(ctx: ListenerContext): void {
     const msgId = data.data?.msgId || data.msgId;
     if (msgId) {
       await handleMessageUndo(accountId, String(msgId));
-      io?.emit('chat:deleted', { accountId, msgId: String(msgId) });
+      io?.to('org:' + orgId).emit('chat:deleted', { accountId, msgId: String(msgId) });
     }
   });
 
@@ -232,7 +233,7 @@ export function attachZaloListener(ctx: ListenerContext): void {
         });
 
         if (result) {
-          io?.emit('chat:message', {
+          io?.to('org:' + orgId).emit('chat:message', {
             accountId,
             message: result.message,
             conversationId: result.conversationId,

@@ -43,6 +43,7 @@ export interface ContactFilters {
   search: string;
   source: string;
   status: string;
+  tagId: string;
 }
 
 export const SOURCE_OPTIONS = [
@@ -71,6 +72,7 @@ export function useContacts() {
     search: '',
     source: '',
     status: '',
+    tagId: '',
   });
 
   const pagination = reactive({ page: 1, limit: 20 });
@@ -85,6 +87,7 @@ export function useContacts() {
           search: filters.search || undefined,
           source: filters.source || undefined,
           status: filters.status || undefined,
+          tagId: filters.tagId || undefined,
         },
       });
       contacts.value = res.data.contacts ?? res.data;
@@ -153,6 +156,7 @@ export function useContacts() {
     filters.search = '';
     filters.source = '';
     filters.status = '';
+    filters.tagId = '';
     pagination.page = 1;
     fetchContacts();
   }

@@ -251,46 +251,70 @@ export async function handleIncomingMessage(
       })();
     }
 
-    // --- AUTO-REPLY FOR CALLS ---
-    // User requested to stop the video call auto-reply feature.
-    /*
-    if (msg.contentType === 'call' && !msg.isSelf) {
+    // --- AUTONOMOUS AI AGENT ---
+    if (!msg.isSelf && !msg.isBackfill && msg.contentType === 'text') {
       void (async () => {
         try {
-          const { zaloPool } = await import('../zalo/zalo-pool.js');
-          const instance = zaloPool.getInstance(msg.accountId);
-          if (instance?.api) {
-            const threadType = msg.threadType === 'group' ? 1 : 0;
-            const autoReplyText = `Dạ hiện tại mình không tiện nghe máy trực tiếp trên này ạ. Phiền bạn nhấn vào link này để gọi video với mình qua Google Meet nha: https://meet.google.com/ads-up-crm \n\n(Hoặc bạn cứ để lại lời nhắn, mình sẽ phản hồi ngay nhé!)`;
+          const autoReplySetting = await db.appSetting.findFirst({
+            where: { settingKey: 'ai_auto_reply_enabled', valuePlain: 'true' }
+          });
+          
+          if (autoReplySetting) {
+            const { getAiConfig, generateAiOutput } = await import('../ai/ai-service.js');
+            const currentConfig = await getAiConfig(account.orgId);
             
-            await instance.api.sendMessage(autoReplyText, msg.threadId, threadType);
-            
-            // Persist auto-reply to DB
-            await prisma.message.create({
-              data: {
-                id: randomUUID(),
+            if (currentConfig.enabled) {
+              logger.info(`[AI-Agent] Auto-replying to conversation ${conversation.id}`);
+              
+              const suggestion = await generateAiOutput({
                 orgId: account.orgId,
                 conversationId: conversation.id,
-                senderType: 'self',
-                senderUid: '',
-                senderName: 'AI Auto-Reply',
-                content: autoReplyText,
-                contentType: 'text',
-                sentAt: new Date(),
+                type: 'reply_draft', 
+              });
+              
+              if (suggestion && suggestion.content) {
+                const { zaloPool } = await import('../zalo/zalo-pool.js');
+                const instance = zaloPool.getInstance(msg.accountId);
+                if (instance?.api) {
+                  const threadType = msg.threadType === 'group' ? 1 : 0;
+                  // Clean up potential hallucinated tags
+                  const cleanReply = suggestion.content.replace(/<[^>]*>?/gm, '').trim();
+                  
+                  await instance.api.sendMessage(cleanReply, msg.threadId, threadType);
+                  
+                  // Persist AI auto-reply to DB
+                  const { randomUUID } = await import('node:crypto');
+                  const messageId = randomUUID();
+                  await db.message.create({
+                    data: {
+                      id: messageId,
+                      orgId: account.orgId,
+                      conversationId: conversation.id,
+                      zaloMsgId: `ai-${messageId}`,
+                      senderType: 'self',
+                      senderUid: '',
+                      senderName: 'AI Agent',
+                      content: cleanReply,
+                      contentType: 'text',
+                      sentAt: new Date(),
+                    }
+                  });
+                  
+                  await db.conversation.update({
+                    where: { id: conversation.id },
+                    data: { isReplied: true, unreadCount: 0, lastMessageAt: new Date() }
+                  });
+                  
+                  logger.info(`[AI-Agent] Auto-reply sent successfully!`);
+                }
               }
-            });
-            
-            await prisma.conversation.update({
-              where: { id: conversation.id },
-              data: { isReplied: true, unreadCount: 0, lastMessageAt: new Date() }
-            });
+            }
           }
         } catch (err) {
-          logger.error('[message-handler] Auto-reply call error:', err);
+          logger.error('[AI-Agent] Error in auto-reply:', err);
         }
       })();
     }
-    */
     // ----------------------------
 
 

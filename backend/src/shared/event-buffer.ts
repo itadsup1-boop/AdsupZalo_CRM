@@ -12,6 +12,7 @@ interface TypingEntry {
   userId: string;
   userName: string;
   expiresAt: number;
+  orgId?: string;
 }
 
 const FLUSH_INTERVAL_MS = 1_000;
@@ -19,7 +20,7 @@ const TYPING_TTL_MS = 5_000;
 
 // In-memory fallback buffers
 const memTyping = new Map<string, Map<string, TypingEntry>>();
-const memReactions = new Map<string, { msgId: string; conversationId: string; reactions: Array<{ userId: string; userName: string; reaction: string; action: 'add' | 'remove' }> }>();
+const memReactions = new Map<string, { msgId: string; conversationId: string; orgId?: string; reactions: Array<{ userId: string; userName: string; reaction: string; action: 'add' | 'remove' }> }>();
 
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 let ioRef: Server | null = null;
@@ -61,8 +62,8 @@ function stop(): void {
   logger.info('[event-buffer] Stopped');
 }
 
-async function recordTyping(conversationId: string, userId: string, userName: string): Promise<void> {
-  const entry: TypingEntry = { userId, userName, expiresAt: Date.now() + TYPING_TTL_MS };
+async function recordTyping(conversationId: string, userId: string, userName: string, orgId?: string): Promise<void> {
+  const entry: TypingEntry = { userId, userName, expiresAt: Date.now() + TYPING_TTL_MS, orgId };
 
   if (redis) {
     try {
@@ -99,6 +100,7 @@ async function recordReaction(
   conversationId: string, msgId: string,
   userId: string, userName: string,
   reaction: string, action: 'add' | 'remove' = 'add',
+  orgId?: string,
 ): Promise<void> {
   const entry = JSON.stringify({ userId, userName, reaction: normalizeReaction(reaction), action });
 
@@ -106,6 +108,7 @@ async function recordReaction(
     try {
       const key = REACTION_KEY(conversationId);
       await redis.hset(key, 'msgId', msgId);
+      if (orgId) await redis.hset(key, 'orgId', orgId);
       await redis.rpush(`${key}:list`, entry);
       await redis.pexpire(key, FLUSH_INTERVAL_MS * 3);
       await redis.pexpire(`${key}:list`, FLUSH_INTERVAL_MS * 3);
@@ -115,7 +118,7 @@ async function recordReaction(
 
   let batch = memReactions.get(conversationId);
   if (!batch || batch.msgId !== msgId) {
-    batch = { msgId, conversationId, reactions: [] };
+    batch = { msgId, conversationId, orgId, reactions: [] };
     memReactions.set(conversationId, batch);
   }
   batch.reactions.push({ userId, userName, reaction, action });
@@ -137,23 +140,34 @@ function flushMemory(): void {
     for (const [uid, entry] of typers) {
       if (entry.expiresAt <= now) typers.delete(uid);
     }
-    ioRef!.emit('chat:typing', {
+    const orgId = Array.from(typers.values())[0]?.orgId;
+    const payload = {
       conversationId,
       typers: Array.from(typers.values()).map(t => ({ userId: t.userId, userName: t.userName })),
-    });
+    };
+    if (orgId) {
+      ioRef!.to('org:' + orgId).emit('chat:typing', payload);
+    } else {
+      ioRef!.emit('chat:typing', payload);
+    }
     if (typers.size === 0) memTyping.delete(conversationId);
   }
 
   for (const [, batch] of memReactions) {
     if (batch.reactions.length > 0) {
-      ioRef!.emit('chat:reactions', {
+      const payload = {
         conversationId: batch.conversationId,
         msgId: batch.msgId,
         reactions: batch.reactions.map(reaction => ({
           ...reaction,
           reaction: normalizeReaction(reaction.reaction),
         })),
-      });
+      };
+      if (batch.orgId) {
+        ioRef!.to('org:' + batch.orgId).emit('chat:reactions', payload);
+      } else {
+        ioRef!.emit('chat:reactions', payload);
+      }
     }
   }
   memReactions.clear();

@@ -28,6 +28,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         source = '',
         status = '',
         assignedUserId = '',
+        tagId = '',
       } = request.query as QueryParams;
 
       const db = getTenantPrisma(user.orgId);
@@ -41,6 +42,13 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
 
       if (source) where.source = source;
       if (status) where.status = status;
+      if (tagId) {
+        where.contactTags = {
+          some: {
+            tagId: tagId
+          }
+        };
+      }
       
       if (search) {
         const searchClause = {
@@ -153,6 +161,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         include: {
           assignedUser: { select: { id: true, fullName: true, email: true } },
           appointments: { orderBy: { appointmentDate: 'desc' }, take: 10 },
+          contactTags: { include: { tag: true } },
           _count: { select: { conversations: true } },
         },
       });

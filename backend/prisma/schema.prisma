@@ -7,35 +7,49 @@ datasource db {
 }
 
 model Organization {
-  id                  String               @id @default(uuid())
-  name                String               @unique
-  createdAt           DateTime             @default(now()) @map("created_at")
-  updatedAt           DateTime             @updatedAt @map("updated_at")
-  activityLogs        ActivityLog[]
-  aiConfig            AiConfig?
-  aiSuggestions       AiSuggestion[]
-  settings            AppSetting[]
-  appointments        Appointment[]
-  automationRules     AutomationRule[]
-  contacts            Contact[]
-  conversations       Conversation[]
-  dailyStats          DailyMessageStat[]
-  duplicateGroups     DuplicateGroup[]
-  groupPolls          GroupPoll[]
-  integrations        Integration[]
-  messageReactions    MessageReaction[]
-  messageTemplates    MessageTemplate[]
-  messages            Message[]
-  pinnedConversations PinnedConversation[]
-  savedReports        SavedReport[]
-  syncLogs            SyncLog[]
-  teams               Team[]
-  users               User[]
-  zaloAccountAccess   ZaloAccountAccess[]
-  zaloAccounts        ZaloAccount[]
-  zaloOAAccounts      ZaloOAAccount[]
-  zaloCallConsents    ZaloCallConsent[]
-  zaloCallLogs        ZaloCallLog[]
+  id                   String                @id @default(uuid())
+  name                 String                @unique
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  activityLogs         ActivityLog[]
+  aiConfig             AiConfig?
+  aiSuggestions        AiSuggestion[]
+  settings             AppSetting[]
+  appointments         Appointment[]
+  automationRules      AutomationRule[]
+  contacts             Contact[]
+  conversations        Conversation[]
+  dailyStats           DailyMessageStat[]
+  duplicateGroups      DuplicateGroup[]
+  groupPolls           GroupPoll[]
+  integrations         Integration[]
+  messageReactions     MessageReaction[]
+  messageTemplates     MessageTemplate[]
+  messages             Message[]
+  pinnedConversations  PinnedConversation[]
+  savedReports         SavedReport[]
+  syncLogs             SyncLog[]
+  teams                Team[]
+  users                User[]
+  zaloAccountAccess    ZaloAccountAccess[]
+  zaloAccounts         ZaloAccount[]
+  zaloOAAccounts       ZaloOAAccount[]
+  zaloCallConsents     ZaloCallConsent[]
+  zaloCallLogs         ZaloCallLog[]
+  tags                 Tag[]
+  contactTags          ContactTag[]
+  messageScenarios     MessageScenario[]
+  messageScenarioSteps MessageScenarioStep[]
+  campaigns            Campaign[]
+  scheduledMessages    ScheduledMessage[]
+  automationWorkflows  AutomationWorkflow[]
+  automationRuns       AutomationRun[]
+  automationLogs       AutomationLog[]
+
+  products          Product[]
+  productCategories ProductCategory[]
+  customerProducts  CustomerProduct[]
+  productWorkflows  ProductWorkflow[]
 
   @@map("organizations")
 }
@@ -53,29 +67,30 @@ model Team {
 }
 
 model User {
-  id               String              @id @default(uuid())
-  orgId            String              @map("org_id")
-  teamId           String?             @map("team_id")
-  email            String
-  passwordHash     String              @map("password_hash")
-  fullName         String              @map("full_name")
-  role             String              @default("member")
-  isActive         Boolean             @default(true) @map("is_active")
-  createdAt        DateTime            @default(now()) @map("created_at")
-  updatedAt        DateTime            @updatedAt @map("updated_at")
-  isPending        Boolean             @default(false) @map("is_pending")
-  activityLogs     ActivityLog[]
-  appointments     Appointment[]
-  assignedContacts Contact[]           @relation("AssignedContacts")
-  messageTemplates MessageTemplate[]
-  repliedMessages  Message[]           @relation("RepliedMessages")
-  org              Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  team             Team?               @relation(fields: [orgId, teamId], references: [orgId, id])
-  zaloAccess       ZaloAccountAccess[]
-  zaloAccounts     ZaloAccount[]
-  pushSubscriptions PushSubscription[]
-  fcmTokens         FcmToken[]
-  zaloCallLogs      ZaloCallLog[]
+  id                  String               @id @default(uuid())
+  orgId               String               @map("org_id")
+  teamId              String?              @map("team_id")
+  email               String
+  passwordHash        String               @map("password_hash")
+  fullName            String               @map("full_name")
+  role                String               @default("member")
+  isActive            Boolean              @default(true) @map("is_active")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  isPending           Boolean              @default(false) @map("is_pending")
+  activityLogs        ActivityLog[]
+  appointments        Appointment[]
+  assignedContacts    Contact[]            @relation("AssignedContacts")
+  messageTemplates    MessageTemplate[]
+  repliedMessages     Message[]            @relation("RepliedMessages")
+  org                 Organization         @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  team                Team?                @relation(fields: [orgId, teamId], references: [orgId, id])
+  zaloAccess          ZaloAccountAccess[]
+  zaloAccounts        ZaloAccount[]
+  pushSubscriptions   PushSubscription[]
+  fcmTokens           FcmToken[]
+  zaloCallLogs        ZaloCallLog[]
+  automationWorkflows AutomationWorkflow[]
 
   @@unique([orgId, email])
   @@unique([orgId, id])
@@ -86,7 +101,7 @@ model PushSubscription {
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
   endpoint  String   @unique
-  keys      Json     // p256dh, auth
+  keys      Json // p256dh, auth
   createdAt DateTime @default(now()) @map("created_at")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -105,22 +120,24 @@ model FcmToken {
 }
 
 model ZaloAccount {
-  id              String              @id @default(uuid())
-  orgId           String              @map("org_id")
-  ownerUserId     String              @map("owner_user_id")
-  zaloUid         String?             @map("zalo_uid")
-  displayName     String?             @map("display_name")
-  avatarUrl       String?             @map("avatar_url")
-  phone           String?
-  status          String              @default("disconnected")
-  sessionData     Json?               @map("session_data")
-  lastConnectedAt DateTime?           @map("last_connected_at")
-  createdAt       DateTime            @default(now()) @map("created_at")
-  conversations   Conversation[]
-  dailyStats      DailyMessageStat[]
-  access          ZaloAccountAccess[]
-  org             Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  owner           User                @relation(fields: [orgId, ownerUserId], references: [orgId, id])
+  id                String              @id @default(uuid())
+  orgId             String              @map("org_id")
+  ownerUserId       String              @map("owner_user_id")
+  zaloUid           String?             @map("zalo_uid")
+  displayName       String?             @map("display_name")
+  avatarUrl         String?             @map("avatar_url")
+  phone             String?
+  status            String              @default("disconnected")
+  sessionData       Json?               @map("session_data")
+  lastConnectedAt   DateTime?           @map("last_connected_at")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  conversations     Conversation[]
+  dailyStats        DailyMessageStat[]
+  access            ZaloAccountAccess[]
+  campaigns         Campaign[]
+  scheduledMessages ScheduledMessage[]
+  org               Organization        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  owner             User                @relation(fields: [orgId, ownerUserId], references: [orgId, id])
 
   @@unique([orgId, zaloUid])
   @@unique([orgId, id])
@@ -143,36 +160,40 @@ model ZaloAccountAccess {
 }
 
 model Contact {
-  id                String         @id @default(uuid())
-  orgId             String         @map("org_id")
-  zaloUid           String?        @map("zalo_uid")
+  id                String             @id @default(uuid())
+  orgId             String             @map("org_id")
+  zaloUid           String?            @map("zalo_uid")
   phone             String?
-  email             String?        @map("email")
-  fullName          String?        @map("full_name")
-  crmName           String?        @map("crm_name")
-  avatarUrl         String?        @map("avatar_url")
+  email             String?            @map("email")
+  fullName          String?            @map("full_name")
+  crmName           String?            @map("crm_name")
+  avatarUrl         String?            @map("avatar_url")
   source            String?
-  sourceDate        DateTime?      @map("source_date")
-  firstContactDate  DateTime?      @map("first_contact_date")
-  status            String?        @default("new")
-  nextAppointment   DateTime?      @map("next_appointment")
-  assignedUserId    String?        @map("assigned_user_id")
+  sourceDate        DateTime?          @map("source_date")
+  firstContactDate  DateTime?          @map("first_contact_date")
+  status            String?            @default("new")
+  nextAppointment   DateTime?          @map("next_appointment")
+  assignedUserId    String?            @map("assigned_user_id")
   notes             String?
-  tags              Json           @default("[]")
-  metadata          Json           @default("{}")
-  leadScore         Int            @default(0) @map("lead_score")
-  lastActivity      DateTime?      @map("last_activity")
-  mergedInto        String?        @map("merged_into")
-  createdAt         DateTime       @default(now()) @map("created_at")
-  updatedAt         DateTime       @updatedAt @map("updated_at")
+  tags              Json               @default("[]")
+  metadata          Json               @default("{}")
+  leadScore         Int                @default(0) @map("lead_score")
+  lastActivity      DateTime?          @map("last_activity")
+  mergedInto        String?            @map("merged_into")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
   appointments      Appointment[]
-  assignedUser      User?          @relation("AssignedContacts", fields: [orgId, assignedUserId], references: [orgId, id])
-  organizations     Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  mergedIntoContact Contact?       @relation("ContactMerge", fields: [orgId, mergedInto], references: [orgId, id])
-  mergedFrom        Contact[]      @relation("ContactMerge")
+  assignedUser      User?              @relation("AssignedContacts", fields: [orgId, assignedUserId], references: [orgId, id])
+  organizations     Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  mergedIntoContact Contact?           @relation("ContactMerge", fields: [orgId, mergedInto], references: [orgId, id])
+  mergedFrom        Contact[]          @relation("ContactMerge")
   conversations     Conversation[]
   zaloCallConsent   ZaloCallConsent?
   zaloCallLogs      ZaloCallLog[]
+  contactTags       ContactTag[]
+  scheduledMessages ScheduledMessage[]
+  automationRuns    AutomationRun[]
+  customerProducts  CustomerProduct[]
 
   @@unique([orgId, id])
   @@index([orgId, phone])
@@ -211,30 +232,30 @@ model Conversation {
 }
 
 model Message {
-  id              String            @id @default(uuid())
-  conversationId  String            @map("conversation_id")
-  zaloMsgId       String?           @map("zalo_msg_id")
-  senderType      String            @map("sender_type")
-  senderUid       String?           @map("sender_uid")
-  senderName      String?           @map("sender_name")
-  content         String?
-  contentType     String            @default("text") @map("content_type")
-  attachments     Json              @default("[]")
-  quote           Json?             @map("quote")
-  albumKey        String?           @map("album_key")
-  albumIndex      Int?              @map("album_index")
-  albumTotal      Int?              @map("album_total")
-  isDeleted       Boolean           @default(false) @map("is_deleted")
-  deletedAt       DateTime?         @map("deleted_at")
-  sentAt          DateTime          @map("sent_at")
-  repliedByUserId String?           @map("replied_by_user_id")
-  createdAt           DateTime          @default(now()) @map("created_at")
-  orgId               String            @map("org_id")
-  messageFingerprint  String?           @map("message_fingerprint")
-  reactions       MessageReaction[]
-  conversation    Conversation      @relation(fields: [orgId, conversationId], references: [orgId, id], onDelete: Cascade)
-  org             Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  repliedBy       User?             @relation("RepliedMessages", fields: [orgId, repliedByUserId], references: [orgId, id])
+  id                 String            @id @default(uuid())
+  conversationId     String            @map("conversation_id")
+  zaloMsgId          String?           @map("zalo_msg_id")
+  senderType         String            @map("sender_type")
+  senderUid          String?           @map("sender_uid")
+  senderName         String?           @map("sender_name")
+  content            String?
+  contentType        String            @default("text") @map("content_type")
+  attachments        Json              @default("[]")
+  quote              Json?             @map("quote")
+  albumKey           String?           @map("album_key")
+  albumIndex         Int?              @map("album_index")
+  albumTotal         Int?              @map("album_total")
+  isDeleted          Boolean           @default(false) @map("is_deleted")
+  deletedAt          DateTime?         @map("deleted_at")
+  sentAt             DateTime          @map("sent_at")
+  repliedByUserId    String?           @map("replied_by_user_id")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  orgId              String            @map("org_id")
+  messageFingerprint String?           @map("message_fingerprint")
+  reactions          MessageReaction[]
+  conversation       Conversation      @relation(fields: [orgId, conversationId], references: [orgId, id], onDelete: Cascade)
+  org                Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  repliedBy          User?             @relation("RepliedMessages", fields: [orgId, repliedByUserId], references: [orgId, id])
 
   @@unique([conversationId, zaloMsgId])
   @@unique([orgId, id])
@@ -487,22 +508,22 @@ model GroupPoll {
 }
 
 model ZaloOAAccount {
-  id              String        @id @default(uuid())
-  orgId           String        @map("org_id")
-  oaId            String?       @map("oa_id")
-  name            String?
-  avatarUrl       String?       @map("avatar_url")
-  appId           String        @map("app_id")
-  appSecret       String        @map("app_secret")
-  accessToken     String?       @map("access_token")
-  refreshToken    String?       @map("refresh_token")
-  tokenExpiresAt  DateTime?     @map("token_expires_at")
-  status          String        @default("disconnected")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
-  
-  org             Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  conversations   Conversation[]
+  id             String    @id @default(uuid())
+  orgId          String    @map("org_id")
+  oaId           String?   @map("oa_id")
+  name           String?
+  avatarUrl      String?   @map("avatar_url")
+  appId          String    @map("app_id")
+  appSecret      String    @map("app_secret")
+  accessToken    String?   @map("access_token")
+  refreshToken   String?   @map("refresh_token")
+  tokenExpiresAt DateTime? @map("token_expires_at")
+  status         String    @default("disconnected")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  org           Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
 
   @@unique([orgId, id])
   @@unique([orgId, oaId])
@@ -549,3 +570,266 @@ model ZaloCallLog {
   @@map("zalo_call_logs")
 }
 
+model Tag {
+  id          String   @id @default(uuid())
+  orgId       String   @map("org_id")
+  name        String
+  color       String?  @default("#3B82F6")
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  org                 Organization         @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  contacts            ContactTag[]
+  scenarios           MessageScenario[]
+  automationWorkflows AutomationWorkflow[]
+
+  @@unique([orgId, id])
+  @@unique([orgId, name])
+  @@map("tags")
+}
+
+model ContactTag {
+  id        String   @id @default(uuid())
+  orgId     String   @map("org_id")
+  contactId String   @map("contact_id")
+  tagId     String   @map("tag_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  contact Contact      @relation(fields: [orgId, contactId], references: [orgId, id], onDelete: Cascade)
+  tag     Tag          @relation(fields: [orgId, tagId], references: [orgId, id], onDelete: Cascade)
+
+  @@unique([orgId, id])
+  @@unique([contactId, tagId])
+  @@map("contact_tags")
+}
+
+model MessageScenario {
+  id           String   @id @default(uuid())
+  orgId        String   @map("org_id")
+  name         String
+  description  String?
+  triggerTagId String?  @map("trigger_tag_id")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  org               Organization          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  triggerTag        Tag?                  @relation(fields: [triggerTagId], references: [id], onDelete: SetNull)
+  steps             MessageScenarioStep[]
+  campaigns         Campaign[]
+  scheduledMessages ScheduledMessage[]
+
+  @@unique([orgId, id])
+  @@map("message_scenarios")
+}
+
+model MessageScenarioStep {
+  id           String   @id @default(uuid())
+  orgId        String   @map("org_id")
+  scenarioId   String   @map("scenario_id")
+  content      String
+  delayType    String   @default("relative") @map("delay_type")
+  delayMinutes Int      @default(0) @map("delay_minutes")
+  absoluteTime DateTime? @map("absolute_time")
+  orderIndex   Int      @default(0) @map("order_index")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  org               Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  scenario          MessageScenario    @relation(fields: [orgId, scenarioId], references: [orgId, id], onDelete: Cascade)
+  scheduledMessages ScheduledMessage[]
+
+  @@unique([orgId, id])
+  @@map("message_scenario_steps")
+}
+
+model Campaign {
+  id            String   @id @default(uuid())
+  orgId         String   @map("org_id")
+  name          String
+  scenarioId    String   @map("scenario_id")
+  zaloAccountId String   @map("zalo_account_id")
+  status        String   @default("draft")
+  targetTags    Json     @default("[]")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  org               Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  scenario          MessageScenario    @relation(fields: [orgId, scenarioId], references: [orgId, id], onDelete: Cascade)
+  zaloAccount       ZaloAccount        @relation(fields: [orgId, zaloAccountId], references: [orgId, id], onDelete: Cascade)
+  scheduledMessages ScheduledMessage[]
+
+  @@unique([orgId, id])
+  @@map("campaigns")
+}
+
+model ScheduledMessage {
+  id            String  @id @default(uuid())
+  orgId         String  @map("org_id")
+  contactId     String  @map("contact_id")
+  scenarioId    String? @map("scenario_id")
+  stepId        String? @map("step_id")
+  campaignId    String? @map("campaign_id")
+  zaloAccountId String? @map("zalo_account_id")
+
+  content     String
+  scheduledAt DateTime  @map("scheduled_at")
+  status      String    @default("pending")
+  errorReason String?   @map("error_reason")
+  sentAt      DateTime? @map("sent_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org         Organization         @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  contact     Contact              @relation(fields: [orgId, contactId], references: [orgId, id], onDelete: Cascade)
+  scenario    MessageScenario?     @relation(fields: [scenarioId], references: [id], onDelete: SetNull)
+  step        MessageScenarioStep? @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  campaign    Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  zaloAccount ZaloAccount?         @relation(fields: [zaloAccountId], references: [id], onDelete: SetNull)
+
+  @@unique([orgId, id])
+  @@index([orgId, status, scheduledAt])
+  @@index([contactId, scenarioId])
+  @@map("scheduled_messages")
+}
+
+model AutomationWorkflow {
+  id           String   @id @default(uuid())
+  orgId        String   @map("org_id")
+  name         String
+  description  String?
+  triggerTagId String?  @map("trigger_tag_id")
+  status       String   @default("draft") // draft, active, paused
+  nodes        Json     @default("[]")
+  edges        Json     @default("[]")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdBy    String?  @map("created_by")
+
+  org              Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  triggerTag       Tag?              @relation(fields: [triggerTagId], references: [id], onDelete: SetNull)
+  creator          User?             @relation(fields: [orgId, createdBy], references: [orgId, id])
+  runs             AutomationRun[]
+  productWorkflows ProductWorkflow[]
+
+  @@index([orgId, status])
+  @@index([orgId, triggerTagId])
+  @@map("automation_workflows")
+}
+
+model AutomationRun {
+  id            String    @id @default(uuid())
+  orgId         String    @map("org_id")
+  workflowId    String    @map("workflow_id")
+  contactId     String    @map("contact_id")
+  status        String    @default("running") // running, completed, cancelled, failed
+  currentNodeId String?   @map("current_node_id")
+  scheduledAt   DateTime? @map("scheduled_at")
+  state         Json      @default("{}")
+  startedAt     DateTime  @default(now()) @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+
+  org      Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  workflow AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  contact  Contact            @relation(fields: [orgId, contactId], references: [orgId, id], onDelete: Cascade)
+  logs     AutomationLog[]
+
+  @@unique([workflowId, contactId])
+  @@index([orgId, status, scheduledAt])
+  @@map("automation_runs")
+}
+
+model AutomationLog {
+  id        String   @id @default(uuid())
+  orgId     String   @map("org_id")
+  runId     String   @map("run_id")
+  nodeId    String   @map("node_id")
+  nodeType  String   @map("node_type")
+  status    String // success, failed, waiting
+  details   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  org Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  run AutomationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@map("automation_logs")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  orgId       String   @map("org_id")
+  name        String
+  code        String?
+  categoryId  String?  @map("category_id")
+  description String?
+  price       Float?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  org              Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  category         ProductCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  customerProducts CustomerProduct[]
+  productWorkflows ProductWorkflow[]
+
+  @@unique([orgId, id])
+  @@map("products")
+}
+
+model ProductCategory {
+  id        String   @id @default(uuid())
+  orgId     String   @map("org_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  org      Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([orgId, id])
+  @@map("product_categories")
+}
+
+model CustomerProduct {
+  id            String   @id @default(uuid())
+  orgId         String   @map("org_id")
+  customerId    String   @map("customer_id")
+  productId     String   @map("product_id")
+  interestLevel String?  @map("interest_level") // low, medium, high, hot
+  budget        Float?
+  status        String? // new, consulted, considering, won, lost, retry
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  contact Contact      @relation(fields: [orgId, customerId], references: [orgId, id], onDelete: Cascade)
+  product Product      @relation(fields: [orgId, productId], references: [orgId, id], onDelete: Cascade)
+
+  @@unique([orgId, id])
+  @@unique([customerId, productId])
+  @@map("customer_products")
+}
+
+model ProductWorkflow {
+  id          String   @id @default(uuid())
+  orgId       String   @map("org_id")
+  productId   String   @map("product_id")
+  workflowId  String   @map("workflow_id")
+  triggerType String   @map("trigger_type") // on_interest, on_purchased, etc.
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  org      Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  product  Product            @relation(fields: [orgId, productId], references: [orgId, id], onDelete: Cascade)
+  workflow AutomationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, id])
+  @@map("product_workflows")
+}

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { pinia } from '@/plugins/pinia';
 
 const routes = [
   {
@@ -165,6 +166,42 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/admin/tags',
+    name: 'AdminTags',
+    component: () => import('@/views/TagsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/admin/tag-automations',
+    name: 'AdminTagAutomations',
+    component: () => import('@/views/TagAutomationsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/admin/tag-automations/:id/builder',
+    name: 'AdminTagAutomationBuilder',
+    component: () => import('@/views/WorkflowBuilderView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/admin/message-scenarios',
+    name: 'AdminScenarios',
+    component: () => import('@/views/ScenariosView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/admin/message-campaigns',
+    name: 'AdminCampaigns',
+    component: () => import('@/views/CampaignsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/admin/products',
+    name: 'AdminProducts',
+    component: () => import('@/views/ProductsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/call/:roomId',
     name: 'VideoCall',
     component: () => import('@/views/VideoCallView.vue'),
@@ -185,7 +222,7 @@ export const router = createRouter({
 // Auth guard
 router.beforeEach(async (to, _from, next) => {
   console.log('Navigating to:', to.name, 'Path:', to.path);
-  const authStore = useAuthStore();
+  const authStore = useAuthStore(pinia);
 
   // Skip guard for public pages
   if (['Setup', 'Login', 'Landing', 'VideoCall', 'Join'].includes(to.name as string)) {

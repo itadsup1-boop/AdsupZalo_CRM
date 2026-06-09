@@ -25,6 +25,9 @@ export async function generateWithOpenaiCompat(
           { role: 'user', content: prompt },
         ],
         max_tokens: 600,
+        temperature: 0.5,
+        frequency_penalty: 0.5,
+        presence_penalty: 0.5,
       }),
       signal: controller.signal,
     });

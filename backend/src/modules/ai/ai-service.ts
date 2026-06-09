@@ -55,11 +55,26 @@ export async function getAiConfig(orgId: string) {
   const availableProviders = getAvailableProviders();
   const hasKey = async (p: string) => !!(await getProviderApiKey(orgId, p));
   const [hasAnthropicKey, hasGeminiKey] = await Promise.all([hasKey('anthropic'), hasKey('gemini')]);
-  return { ...aiConfig, hasAnthropicKey, hasGeminiKey, availableProviders };
+  
+  const autoReplySetting = await prisma.appSetting.findFirst({
+    where: { orgId, settingKey: 'ai_auto_reply_enabled' }
+  });
+  const systemPromptSetting = await prisma.appSetting.findFirst({
+    where: { orgId, settingKey: 'ai_system_prompt' }
+  });
+
+  return { 
+    ...aiConfig, 
+    hasAnthropicKey, 
+    hasGeminiKey, 
+    availableProviders,
+    autoReplyEnabled: autoReplySetting?.valuePlain === 'true',
+    systemPrompt: systemPromptSetting?.valuePlain || ''
+  };
 }
 
-export async function updateAiConfig(orgId: string, input: { provider?: string; model?: string; maxDaily?: number; enabled?: boolean }) {
-  return prisma.aiConfig.upsert({
+export async function updateAiConfig(orgId: string, input: { provider?: string; model?: string; maxDaily?: number; enabled?: boolean; autoReplyEnabled?: boolean; systemPrompt?: string }) {
+  const result = await prisma.aiConfig.upsert({
     where: { orgId },
     create: {
       orgId,
@@ -75,6 +90,24 @@ export async function updateAiConfig(orgId: string, input: { provider?: string; 
       enabled: input.enabled,
     },
   });
+
+  if (input.autoReplyEnabled !== undefined) {
+    await prisma.appSetting.upsert({
+      where: { orgId_settingKey: { orgId, settingKey: 'ai_auto_reply_enabled' } },
+      update: { valuePlain: input.autoReplyEnabled ? 'true' : 'false' },
+      create: { orgId, settingKey: 'ai_auto_reply_enabled', valuePlain: input.autoReplyEnabled ? 'true' : 'false' }
+    });
+  }
+
+  if (input.systemPrompt !== undefined) {
+    await prisma.appSetting.upsert({
+      where: { orgId_settingKey: { orgId, settingKey: 'ai_system_prompt' } },
+      update: { valuePlain: input.systemPrompt },
+      create: { orgId, settingKey: 'ai_system_prompt', valuePlain: input.systemPrompt }
+    });
+  }
+
+  return { ...result, autoReplyEnabled: input.autoReplyEnabled, systemPrompt: input.systemPrompt };
 }
 
 export async function getAiUsage(orgId: string) {
@@ -170,8 +203,9 @@ export async function generateAiOutput(input: { orgId: string; conversationId: s
     `</conversation_context>`,
   ].join('\n');
 
+  const baseReplyPrompt = buildReplyDraftPrompt(language);
   const system = input.type === 'reply_draft'
-    ? buildReplyDraftPrompt(language)
+    ? (currentConfig as any).systemPrompt ? `${baseReplyPrompt}\n\nKỊCH BẢN TƯ VẤN (BẠN PHẢI TUYỆT ĐỐI TUÂN THỦ KỊCH BẢN NÀY ĐỂ TRẢ LỜI KHÁCH HÀNG):\n${(currentConfig as any).systemPrompt}` : baseReplyPrompt
     : input.type === 'summary'
       ? buildSummaryPrompt(language)
       : buildSentimentPrompt(language);

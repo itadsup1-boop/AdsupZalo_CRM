@@ -289,7 +289,7 @@ export async function chatRoutes(app: FastifyInstance) {
         });
 
         const io = (app as any).io as Server;
-        io?.emit('chat:message', { 
+        io?.to('org:' + user.orgId).emit('chat:message', { 
           accountId: conversation.zaloOaAccountId, 
           isOA: true,
           message, 
@@ -356,7 +356,7 @@ export async function chatRoutes(app: FastifyInstance) {
       });
 
       const io = (app as any).io as Server;
-      io?.emit('chat:message', { accountId: conversation.zaloAccountId, message, conversationId: id });
+      io?.to('org:' + user.orgId).emit('chat:message', { accountId: conversation.zaloAccountId, message, conversationId: id });
 
       return message;
     } catch (err) {
@@ -489,7 +489,7 @@ export async function chatRoutes(app: FastifyInstance) {
       });
 
       const io = (app as any).io as Server;
-      io?.emit('chat:message', { accountId: conversation.zaloAccountId, message, conversationId: id });
+      io?.to('org:' + user.orgId).emit('chat:message', { accountId: conversation.zaloAccountId, message, conversationId: id });
 
       return message;
     } catch (err: any) {
@@ -586,7 +586,7 @@ export async function chatRoutes(app: FastifyInstance) {
         data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0 },
       });
 
-      io?.emit('chat:message', { accountId: conversation.zaloAccountId, message, conversationId: id });
+      io?.to('org:' + user.orgId).emit('chat:message', { accountId: conversation.zaloAccountId, message, conversationId: id });
 
       return message;
     } catch (err: any) {

@@ -43,7 +43,11 @@ import { analyticsRoutes } from './modules/analytics/analytics-routes.js';
 import { savedReportRoutes } from './modules/analytics/saved-report-routes.js';
 import { integrationRoutes } from './modules/integrations/integration-routes.js';
 import { automationRoutes } from './modules/automation/automation-routes.js';
+import { tagsRoutes } from './modules/automation/tags-routes.js';
+import { scenariosRoutes } from './modules/automation/scenarios-routes.js';
+import { campaignsRoutes } from './modules/automation/campaigns-routes.js';
 import { templateRoutes } from './modules/automation/template-routes.js';
+import { workflowRoutes } from './modules/automation/workflow-routes.js';
 import { aiRoutes } from './modules/ai/ai-routes.js';
 import { chatOperationsRoutes, registerChatSocketHandlers } from './modules/chat/chat-operations-routes.js';
 import { groupRoutes } from './modules/zalo/group-routes.js';
@@ -54,6 +58,7 @@ import { credentialRoutes } from './modules/zalo/credential-routes.js';
 import { zaloOARoutes } from './modules/zalo-oa/zalo-oa-routes.js';
 import { zaloCallRoutes } from './modules/call/zalo-call-routes.js';
 import { ingestionRoutes } from './modules/ingestion/ingestion-routes.js';
+import { productRoutes } from './modules/products/products-routes.js';
 import { eventBuffer } from './shared/event-buffer.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -172,7 +177,11 @@ async function bootstrap() {
   await app.register(savedReportRoutes);
   await app.register(integrationRoutes);
   await app.register(automationRoutes);
+  await app.register(tagsRoutes);
+  await app.register(scenariosRoutes);
+  await app.register(campaignsRoutes);
   await app.register(templateRoutes);
+  await app.register(workflowRoutes);
   await app.register(aiRoutes);
   await app.register(ingestionRoutes, { prefix: '/api/v1/ingestion' });
   await app.register(chatOperationsRoutes);
@@ -184,6 +193,7 @@ async function bootstrap() {
   await app.register(zaloOARoutes);
   await app.register(zaloCallRoutes);
   await app.register(ingestionRoutes);
+  await app.register(productRoutes);
 
   // 7.2 Error Tracking: Sentry
   if (config.sentryDsn) {
@@ -242,6 +252,14 @@ async function bootstrap() {
     startZaloHealthCheck();
     startContactIntelligence();
     await eventBuffer.start(io);
+
+    // Khởi động trình lập lịch gửi tin nhắn tự động (Automation)
+    const { startMessageScheduler } = await import('./modules/automation/message-scheduler.js');
+    startMessageScheduler();
+
+    // Khởi động trình lập lịch Tag Automation Workflow
+    const { startWorkflowScheduler } = await import('./modules/automation/workflow-scheduler.js');
+    startWorkflowScheduler();
 
     // Kích hoạt bộ xử lý tin nhắn từ Robot (Giai đoạn 4)
     const { queueService } = await import('./shared/queue/queue-service.js');

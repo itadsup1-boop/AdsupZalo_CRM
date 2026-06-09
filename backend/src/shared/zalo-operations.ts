@@ -243,7 +243,7 @@ async function forwardMessage(accountId: string, msgId: string, threadId: string
 // ─── Chat Actions ───────────────────────────────────────────────────────────
 async function addReaction(accountId: string, reaction: any, msgData: { msgId: string; cliMsgId?: string; threadId: string; threadType: 0 | 1 }) {
   return exec({ accountId, category: 'reaction', operation: 'addReaction' },
-    (api) => api.addReaction(reaction, msgData));
+    (api) => api.addReaction(reaction, { data: { msgId: msgData.msgId, cliMsgId: msgData.cliMsgId || msgData.msgId }, threadId: msgData.threadId, type: msgData.threadType }));
 }
 
 async function sendTypingEvent(accountId: string, threadId: string, threadType: 0 | 1) {
@@ -253,12 +253,12 @@ async function sendTypingEvent(accountId: string, threadId: string, threadType: 
 
 async function deleteMessage(accountId: string, msgId: string, cliMsgId: string, ownerId: string, threadId: string, threadType: 0 | 1, onlyMe: boolean) {
   return exec({ accountId, category: 'chat_action', operation: 'deleteMessage' },
-    (api) => api.deleteMessage(msgId, cliMsgId, ownerId, threadId, threadType, onlyMe));
+    (api) => api.deleteMessage({ data: { msgId, cliMsgId: cliMsgId || msgId, uidFrom: ownerId }, threadId, type: threadType }, onlyMe));
 }
 
 async function undoMessage(accountId: string, msgId: string, cliMsgId: string, ownerId: string, threadId: string, threadType: 0 | 1) {
   return exec({ accountId, category: 'chat_action', operation: 'undo' },
-    (api) => api.undo(msgId, cliMsgId, ownerId, threadId, threadType));
+    (api) => api.undo({ msgId, cliMsgId: cliMsgId || msgId }, threadId, threadType));
 }
 
 // ─── Labels / Tags ───────────────────────────────────────────────────────────
@@ -361,7 +361,28 @@ async function getGroupInfo(accountId: string, groupId: string) {
 
 async function getAllGroups(accountId: string) {
   return exec({ accountId, category: 'group_read', operation: 'getAllGroups' },
-    (api) => api.getAllGroups());
+    async (api) => {
+      const res = await api.getAllGroups();
+      const gridVerMap = res?.gridVerMap || {};
+      const groupIds = Object.keys(gridVerMap);
+      if (groupIds.length === 0) return [];
+      const infoRes = await api.getGroupInfo(groupIds);
+      const infoMap = infoRes?.gridInfoMap || {};
+      return Object.values(infoMap).map((g: any) => ({
+        id: g.groupId,
+        groupId: g.groupId,
+        name: g.name,
+        groupName: g.name,
+        desc: g.desc,
+        creatorId: g.creatorId,
+        version: g.version,
+        avatar: g.avt || g.fullAvt || '',
+        totalMember: g.totalMember,
+        maxMember: g.maxMember,
+        createdTime: g.createdTime,
+        setting: g.setting,
+      }));
+    });
 }
 
 async function getGroupMembersInfo(accountId: string, groupId: string) {

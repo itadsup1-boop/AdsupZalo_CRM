@@ -100,6 +100,64 @@
         </div>
       </div>
 
+      <!-- CRM Tags (Thẻ khách hàng) -->
+      <div class="mb-3" v-if="props.contactId">
+        <div class="text-caption text-grey mb-1 ml-1 d-flex align-center">
+          <v-icon size="14" class="mr-1">mdi-tag-multiple-outline</v-icon>
+          Thẻ khách hàng (CRM)
+        </div>
+        <div class="d-flex flex-wrap gap-1 pa-1 rounded" style="border: 1px solid rgba(0,0,0,0.12); min-height: 40px; background: rgba(0,0,0,0.03);">
+          <v-chip
+            v-for="tag in crmTags"
+            :key="tag.id"
+            size="x-small"
+            :color="tag.color"
+            variant="elevated"
+            class="ma-1"
+            style="color: white; font-weight: 500;"
+            closable
+            @click:close="detachCrmTag(tag.id)"
+          >
+            {{ tag.name }}
+          </v-chip>
+          <v-menu v-model="showCrmTagMenu" :close-on-content-click="false" location="bottom end">
+            <template #activator="{ props: menuProps }">
+              <v-btn v-bind="menuProps" icon size="x-small" variant="text" class="ma-1">
+                <v-icon>mdi-plus-circle-outline</v-icon>
+              </v-btn>
+            </template>
+            <v-card width="240" class="pa-2">
+              <v-text-field
+                v-model="crmTagSearch"
+                label="Tìm kiếm thẻ..."
+                density="compact"
+                variant="outlined"
+                hide-details
+                class="mb-2"
+                clearable
+              />
+              <v-list density="compact" max-height="200" style="overflow-y: auto;">
+                <v-list-item
+                  v-for="tag in filteredAllCrmTags"
+                  :key="tag.id"
+                  @click="attachCrmTag(tag)"
+                  :disabled="crmTags.some(t => t.id === tag.id)"
+                >
+                  <template #prepend>
+                    <v-icon :color="tag.color" class="mr-2">mdi-tag</v-icon>
+                  </template>
+                  <v-list-item-title class="text-body-2">{{ tag.name }}</v-list-item-title>
+                </v-list-item>
+                <v-list-item v-if="filteredAllCrmTags.length === 0">
+                  <v-list-item-title class="text-caption text-grey">Không tìm thấy thẻ</v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </v-card>
+          </v-menu>
+          <div v-if="crmTags.length === 0" class="text-caption text-grey-lighten-1 pa-2">Chưa gắn thẻ CRM...</div>
+        </div>
+      </div>
+
       <v-textarea v-model="form.notes" label="Ghi chú" rows="2" auto-grow
         density="compact" variant="outlined" class="mb-3" hide-details />
 
@@ -231,8 +289,70 @@ function getZaloColor(c: string | number) {
   return map[String(c)] || '#9E9E9E';
 }
 
-onMounted(fetchLabels);
+onMounted(() => {
+  fetchLabels();
+  fetchAllCrmTags();
+  fetchContactCrmTags();
+});
 watch(() => props.conversation?.zaloAccountId, fetchLabels);
+watch(() => props.contactId, () => {
+  fetchContactCrmTags();
+});
+
+// CRM Tags Logic
+const crmTags = ref<any[]>([]);
+const allCrmTags = ref<any[]>([]);
+const showCrmTagMenu = ref(false);
+const crmTagSearch = ref('');
+
+const filteredAllCrmTags = computed(() => {
+  if (!crmTagSearch.value) return allCrmTags.value.filter(t => t.isActive);
+  return allCrmTags.value.filter(t => t.isActive && t.name.toLowerCase().includes(crmTagSearch.value.toLowerCase()));
+});
+
+const fetchContactCrmTags = async () => {
+  if (!props.contactId) {
+    crmTags.value = [];
+    return;
+  }
+  try {
+    const res = await api.get(`/contacts/${props.contactId}/crm-tags`);
+    crmTags.value = res.data.tags || [];
+  } catch (e) {
+    console.error('Failed to fetch contact CRM tags', e);
+  }
+};
+
+const fetchAllCrmTags = async () => {
+  try {
+    const res = await api.get('/tags');
+    allCrmTags.value = res.data.tags || [];
+  } catch (e) {
+    console.error('Failed to fetch all CRM tags', e);
+  }
+};
+
+const attachCrmTag = async (tag: any) => {
+  if (!props.contactId) return;
+  try {
+    await api.post(`/contacts/${props.contactId}/crm-tags`, { tagId: tag.id });
+    showCrmTagMenu.value = false;
+    crmTagSearch.value = '';
+    fetchContactCrmTags();
+  } catch (e) {
+    console.error('Failed to attach CRM tag', e);
+  }
+};
+
+const detachCrmTag = async (tagId: string) => {
+  if (!props.contactId) return;
+  try {
+    await api.delete(`/contacts/${props.contactId}/crm-tags/${tagId}`);
+    fetchContactCrmTags();
+  } catch (e) {
+    console.error('Failed to detach CRM tag', e);
+  }
+};
 
 function scoreColor(score: number) {
   if (score >= 70) return 'success';

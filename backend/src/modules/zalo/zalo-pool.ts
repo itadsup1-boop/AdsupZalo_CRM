@@ -226,6 +226,11 @@ class ZaloAccountPool {
 
   // Reconnect using previously saved session credentials
   async reconnect(accountId: string, orgId: string, credentials: ZaloCredentials): Promise<void> {
+    const existing = this.instances.get(accountId);
+    if (existing?.status === 'connecting' || existing?.status === 'connected') {
+      logger.info(`[zalo:${accountId}] Reconnect skipped: already ${existing.status}`);
+      return;
+    }
     const db = getTenantPrisma(orgId);
     const zalo = this.createZaloInstance(accountId);
     this.instances.set(accountId, { 
@@ -278,8 +283,22 @@ class ZaloAccountPool {
     } catch (err) {
       const instance = this.instances.get(accountId);
       if (instance) instance.status = 'disconnected';
-      await this.updateAccountDB(accountId, orgId, 'qr_pending', null);
-      this.io?.emit('zalo:reconnect-failed', { accountId, error: String(err) });
+      
+      const errStr = String(err).toLowerCase();
+      const isNetworkError = errStr.includes('network') || 
+                             errStr.includes('timeout') || 
+                             errStr.includes('fetch') || 
+                             errStr.includes('eai_again') || 
+                             errStr.includes('enotfound') || 
+                             errStr.includes('econnrefused') || 
+                             errStr.includes('econnreset') ||
+                             errStr.includes('socket') ||
+                             errStr.includes('dns');
+      
+      const targetStatus = isNetworkError ? 'disconnected' : 'qr_pending';
+      logger.warn(`[zalo:${accountId}] Reconnect failed due to ${isNetworkError ? 'network' : 'session/auth'} issue: ${err}. Setting DB status to ${targetStatus}`);
+      await this.updateAccountDB(accountId, orgId, targetStatus, null);
+      this.io?.emit('zalo:reconnect-failed', { accountId, error: String(err), isNetworkError });
     }
   }
 
@@ -324,12 +343,19 @@ class ZaloAccountPool {
         this.disconnectHistory.set(key, history);
 
         if (history.length >= 5) {
-          // >5 disconnects in 5 min → stop reconnecting, require QR re-login
-          logger.error(`[zalo:${id}] Circuit breaker: ${history.length} disconnects in 5 min — stopping auto-reconnect. QR re-login required.`);
-          this.updateAccountDB(id, orgId, 'qr_pending', null);
-          this.io?.emit('zalo:reconnect-failed', { accountId: id, error: 'Session không ổn định, cần đăng nhập QR lại' });
-          this.disconnectHistory.delete(key);
-          return; // DON'T reconnect
+          // >5 disconnects in 5 min → enter a 5-minute cooling off period before retrying to prevent API hammering, keeping DB status as disconnected.
+          logger.warn(`[zalo:${id}] Circuit breaker: ${history.length} disconnects in 5 min. Entering a 5-minute cooling-off period before retrying. DB status remains disconnected.`);
+          this.io?.emit('zalo:reconnect-failed', { 
+            accountId: id, 
+            error: 'Mất kết nối nhiều lần. Đang tạm dừng thử lại trong 5 phút để tránh spam.',
+            isNetworkError: true 
+          });
+          
+          setTimeout(() => {
+            this.disconnectHistory.delete(key); // Clear history after cooling off
+            this.autoReconnect(id);
+          }, 5 * 60_000);
+          return; // Skip normal 30s reconnect
         }
 
         // Normal auto-reconnect after 30 seconds

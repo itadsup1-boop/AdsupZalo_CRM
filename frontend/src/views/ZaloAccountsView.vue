@@ -136,7 +136,7 @@ const headers = [
 async function syncContacts(accountId: string) {
   syncing.value = accountId;
   try {
-    const res = await api.post(`/zalo-accounts/${accountId}/sync-contacts`);
+    const res = await api.post(`/zalo-accounts/${accountId}/sync-contacts`, {});
     alert(`Đồng bộ danh bạ thành công: ${res.data.created} mới, ${res.data.updated} cập nhật`);
   } catch (err: any) {
     alert('Đồng bộ thất bại: ' + (err.response?.data?.error || err.message));
@@ -148,7 +148,7 @@ async function syncContacts(accountId: string) {
 async function syncFull(accountId: string) {
   syncingFull.value = accountId;
   try {
-    const res = await api.post(`/zalo-accounts/${accountId}/sync-full`);
+    const res = await api.post(`/zalo-accounts/${accountId}/sync-full`, {});
     const s = res.data.stats;
     alert(`Đồng bộ lịch sử thành công!\n+${s.contactsCreated} liên hệ\n+${s.groupsCreated} nhóm\n+${s.messagesSynced} tin nhắn`);
   } catch (err: any) {

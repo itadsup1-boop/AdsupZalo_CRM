@@ -163,6 +163,11 @@ const menuItems = [
   { title: 'API & Webhook', icon: 'mdi-api', path: '/api-settings' },
   { title: 'Tích hợp', icon: 'mdi-connection', path: '/integrations' },
   { title: 'Automation', icon: 'mdi-robot-outline', path: '/automation' },
+  { title: 'Quản lý thẻ', icon: 'mdi-tag-multiple-outline', path: '/admin/tags' },
+  { title: 'Automation theo thẻ', icon: 'mdi-sitemap', path: '/admin/tag-automations' },
+  { title: 'Kịch bản tự động', icon: 'mdi-script-text-outline', path: '/admin/message-scenarios' },
+  { title: 'Chiến dịch', icon: 'mdi-bullhorn-outline', path: '/admin/message-campaigns' },
+  { title: 'Dịch vụ / Sản phẩm', icon: 'mdi-package-variant-closed', path: '/admin/products' },
 ];
 
 function toggleTheme() {

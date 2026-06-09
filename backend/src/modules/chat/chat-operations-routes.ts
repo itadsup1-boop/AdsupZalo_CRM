@@ -95,7 +95,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
         mapReaction(reaction),
         { msgId: refs.zaloMsgId, cliMsgId: refs.cliMsgId, threadId: conv.externalThreadId || '', threadType },
       );
-      eventBuffer.recordReaction(id, refs.messageId, user.id, user.email, reaction, 'add');
+      eventBuffer.recordReaction(id, refs.messageId, user.id, user.email, reaction, 'add', user.orgId);
       await prisma.messageReaction.upsert({
         where: { messageId_reactorId: { messageId: refs.messageId, reactorId: user.id } },
         update: { emoji: mapReaction(reaction) },
@@ -108,7 +108,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
         },
       });
       const io = (app as any).io as Server;
-      io?.emit('chat:reactions', {
+      io?.to('org:' + user.orgId).emit('chat:reactions', {
         conversationId: id,
         messageId: refs.messageId,
         msgId: refs.messageId,
@@ -129,7 +129,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
     try {
       const threadType = conv.threadType === 'group' ? 1 : 0;
       await zaloOps.sendTypingEvent(conv.zaloAccountId, conv.externalThreadId || '', threadType);
-      eventBuffer.recordTyping(id, user.id, user.email);
+      eventBuffer.recordTyping(id, user.id, user.email, user.orgId);
       return { success: true };
     } catch (err) { return handleError(err, reply); }
   });
@@ -152,9 +152,14 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
       // Only invoke Zalo message delete if the message was sent by ourselves (staff/system)
       if (refs.senderType === 'self') {
         try {
-          await zaloOps.deleteMessage(conv.zaloAccountId, refs.zaloMsgId, refs.cliMsgId, refs.ownerId, conv.externalThreadId || '', threadType, onlyMe);
+          const res = await zaloOps.deleteMessage(conv.zaloAccountId, refs.zaloMsgId, refs.cliMsgId, refs.ownerId, conv.externalThreadId || '', threadType, onlyMe) as any;
+          if (res && res.error_code && res.error_code !== 0) {
+            logger.warn(`[chat-ops] Zalo refused deleteMessage:`, res);
+            return reply.status(400).send({ error: `Zalo API Error (${res.error_code}): ${res.error_message || 'Could not delete message'}` });
+          }
         } catch (zaloErr) {
           logger.warn('[chat-ops] Zalo delete failed, continuing with local DB delete:', zaloErr);
+          // If Zalo strictly rejects, we should probably return error, but keeping the catch for now if it's network error
         }
       }
 
@@ -163,7 +168,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
       }
 
       const io = (app as any).io as Server;
-      io?.emit('chat:deleted', { conversationId: id, messageId: refs.messageId, zaloMsgId: refs.zaloMsgId });
+      io?.to('org:' + user.orgId).emit('chat:deleted', { conversationId: id, messageId: refs.messageId, zaloMsgId: refs.zaloMsgId });
       return { success: true };
     } catch (err) { return handleError(err, reply); }
   });
@@ -181,16 +186,57 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
 
     try {
       const threadType = conv.threadType === 'group' ? 1 : 0;
+      let zaloSuccess = false;
 
       // Only invoke Zalo message recall if the message was sent by ourselves (staff/system)
-      if (refs.senderType === 'self') {
-        await zaloOps.undoMessage(conv.zaloAccountId, refs.zaloMsgId, refs.cliMsgId, refs.ownerId, conv.externalThreadId || '', threadType);
+      if (refs.senderType === 'self' && refs.zaloMsgId) {
+        try {
+          const res = await zaloOps.undoMessage(conv.zaloAccountId, refs.zaloMsgId, refs.cliMsgId, refs.ownerId, conv.externalThreadId || '', threadType) as any;
+          if (res && res.error_code && res.error_code !== 0) {
+            logger.warn(`[chat-ops] Zalo refused undoMessage:`, res);
+            // Fallback to internal CRM recall handled below
+          } else {
+            zaloSuccess = true;
+          }
+        } catch (error: any) {
+          console.error("UNDO ERROR FULL:", {
+            message: error?.message,
+            status: error?.response?.status,
+            data: error?.response?.data,
+            code: error?.code,
+            stack: error?.stack
+          });
+          // Fallback to internal CRM recall handled below
+        }
       }
-      await prisma.message.update({ where: { id: refs.messageId }, data: { isDeleted: true, deletedAt: new Date() } });
+
+      // Update internal CRM state (either Zalo succeeded or we fallback to internal)
+      const updatedMessage = await prisma.message.update({ 
+        where: { id: refs.messageId }, 
+        data: { 
+          isDeleted: true, 
+          deletedAt: new Date(),
+          content: "Tin nhắn đã được thu hồi"
+        } 
+      });
 
       const io = (app as any).io as Server;
-      io?.emit('chat:deleted', { conversationId: id, messageId: refs.messageId, zaloMsgId: refs.zaloMsgId });
-      return { success: true };
+      // Emit chat:deleted with updated content
+      io?.to('org:' + user.orgId).emit('chat:deleted', { 
+        conversationId: id, 
+        messageId: refs.messageId, 
+        zaloMsgId: refs.zaloMsgId,
+        content: updatedMessage.content
+      });
+
+      return reply.send({
+        success: true,
+        message: {
+          id: refs.messageId,
+          isDeleted: true,
+          content: updatedMessage.content
+        }
+      });
     } catch (err) { return handleError(err, reply); }
   });
 
@@ -216,7 +262,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
       await prisma.message.update({ where: { id: refs.messageId }, data: { content, updatedAt: new Date() } });
 
       const io = (app as any).io as Server;
-      io?.emit('chat:message-edited', { conversationId: id, messageId: refs.messageId, zaloMsgId: refs.zaloMsgId, content });
+      io?.to('org:' + user.orgId).emit('chat:message-edited', { conversationId: id, messageId: refs.messageId, zaloMsgId: refs.zaloMsgId, content });
       return { success: true };
     } catch (err) { return handleError(err, reply); }
   });
@@ -270,7 +316,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
         create: { id: randomUUID(), orgId: user.orgId, zaloAccountId: conv.zaloAccountId, conversationId: id },
       });
       const io = (app as any).io as Server;
-      io?.emit('chat:pinned', { conversationId: id, isPinned: true });
+      io?.to('org:' + user.orgId).emit('chat:pinned', { conversationId: id, isPinned: true });
       return { success: true, result };
     } catch (err) { return handleError(err, reply); }
   });
@@ -290,7 +336,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
         where: { zaloAccountId: conv.zaloAccountId, conversationId: id },
       });
       const io = (app as any).io as Server;
-      io?.emit('chat:unpinned', { conversationId: id, isPinned: false });
+      io?.to('org:' + user.orgId).emit('chat:unpinned', { conversationId: id, isPinned: false });
       return { success: true, result };
     } catch (err) { return handleError(err, reply); }
   });
@@ -486,9 +532,9 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
       // 3. Update back to Zalo — must include version!
       const result = await zaloOps.updateLabels(conv.zaloAccountId, updatedLabels, version);
       
-      // Emit socket event to update frontend instantly
+      // Emit socket event to update frontend instantly — scoped to org
       const io = (app as any).io as Server;
-      io?.emit('chat:labels-updated', { conversationId: id, labelIds });
+      io?.to('org:' + user.orgId).emit('chat:labels-updated', { conversationId: id, labelIds });
 
       return { success: true, result };
     } catch (err) { return handleError(err, reply); }

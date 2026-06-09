@@ -165,9 +165,9 @@ export async function handleOAWebhook(body: any, io?: Server) {
       }
     });
 
-    // Emit Socket event
+    // Emit Socket event — scoped to org room to prevent cross-tenant data leakage
     if (io) {
-      io.emit('chat:message', {
+      io.to('org:' + orgId).emit('chat:message', {
         accountId: account.id,
         isOA: true,
         message: newMessage,
