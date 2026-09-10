@@ -25,10 +25,10 @@
             <span v-if="!item.targetTags || !item.targetTags.length" class="text-grey">Tất cả khách hàng</span>
           </template>
           <template v-slot:item.actions="{ item }">
-            <v-btn v-if="item.status === 'draft' || item.status === 'paused'" icon="mdi-play" size="small" variant="text" color="success" @click="startCampaign(item.id)"></v-btn>
-            <v-btn v-if="item.status === 'running'" icon="mdi-pause" size="small" variant="text" color="warning" @click="pauseCampaign(item.id)"></v-btn>
-            <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openEditDialog(item)"></v-btn>
-            <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="deleteCampaign(item.id)"></v-btn>
+            <v-btn v-if="item.status === 'draft' || item.status === 'paused'" icon="mdi-play" size="small" variant="text" color="success" @click="startCampaign((item.raw || item).id)"></v-btn>
+            <v-btn v-if="item.status === 'running'" icon="mdi-pause" size="small" variant="text" color="warning" @click="pauseCampaign((item.raw || item).id)"></v-btn>
+            <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openEditDialog(item.raw || item)"></v-btn>
+            <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="deleteCampaign((item.raw || item).id)"></v-btn>
           </template>
         </v-data-table>
       </v-col>
@@ -203,7 +203,7 @@ const saveCampaign = async () => {
 
 const startCampaign = async (id: string) => {
   try {
-    await api.post(`/campaigns/${id}/start`);
+    await api.post(`/campaigns/${id}/start`, {});
     fetchCampaigns();
   } catch (error) {
     console.error('Lỗi bắt đầu chiến dịch', error);
@@ -212,7 +212,7 @@ const startCampaign = async (id: string) => {
 
 const pauseCampaign = async (id: string) => {
   try {
-    await api.post(`/campaigns/${id}/pause`);
+    await api.post(`/campaigns/${id}/pause`, {});
     fetchCampaigns();
   } catch (error) {
     console.error('Lỗi tạm dừng chiến dịch', error);

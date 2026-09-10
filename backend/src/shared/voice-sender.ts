@@ -19,8 +19,8 @@ export interface VoiceSendParams {
   threadType: 0 | 1;
   /** Absolute path to audio file on server filesystem */
   audioPath: string;
-  /** Duration in milliseconds (optional, passed to Zalo metadata) */
-  durationMs?: number;
+  /** Public HTTPS URL that Zalo can fetch with HEAD and GET requests. */
+  voiceUrl: string;
 }
 
 export interface VoiceSendResult {
@@ -33,7 +33,7 @@ export interface VoiceSendResult {
  * Throws ZaloOpError for validation failures so callers get typed HTTP codes.
  */
 export async function sendVoiceFile(params: VoiceSendParams): Promise<VoiceSendResult> {
-  const { api, threadId, threadType, audioPath, durationMs } = params;
+  const { api, threadId, threadType, audioPath, voiceUrl } = params;
 
   // 1. Extension check
   const ext = path.extname(audioPath).toLowerCase();
@@ -65,10 +65,13 @@ export async function sendVoiceFile(params: VoiceSendParams): Promise<VoiceSendR
     throw new ZaloOpError('Audio file is empty', 'INVALID_PARAMS', 400);
   }
 
-  // 3. Send via zca-js — duration converted from ms to seconds if provided
-  const durationSeconds = durationMs ? Math.round(durationMs / 1000) : undefined;
+  if (!/^https:\/\//i.test(voiceUrl)) {
+    throw new ZaloOpError('Voice URL must be publicly accessible over HTTPS', 'INVALID_PARAMS', 500);
+  }
+
+  // zca-js v2 sends voice messages by asking Zalo to fetch this public URL.
   try {
-    const result = await api.sendVoice(audioPath, threadId, threadType, durationSeconds);
+    const result = await api.sendVoice({ voiceUrl }, threadId, threadType);
     logger.info(`[voice-sender] Voice sent to thread ${threadId} (${(stat.size / 1024).toFixed(1)}KB)`);
     return { success: true, data: result };
   } catch (err: any) {

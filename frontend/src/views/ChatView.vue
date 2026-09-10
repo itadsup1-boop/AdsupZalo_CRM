@@ -35,6 +35,9 @@
       @send-voice="sendVoiceMessage"
       @send-file="sendFileMessage"
       @ask-ai="generateAiSuggestion"
+      @pause-ai="selectedConvId && pauseConversationAi(selectedConvId)"
+      @resume-ai="selectedConvId && resumeConversationAi(selectedConvId)"
+      @handover-staff="selectedConvId && handoverConversationToStaff(selectedConvId)"
       @toggle-contact-panel="showContactPanel = !showContactPanel"
       :show-contact-panel="showContactPanel"
       @add-reaction="onAddReaction"
@@ -92,6 +95,7 @@ const {
   aiSummary, aiSummaryLoading, aiSentiment, aiSentimentLoading,
   fetchConversations, fetchAiConfig, fetchMessages, selectConversation, sendMessage, sendVoiceMessage, sendFileMessage,
   generateAiSuggestion, generateAiSummary, generateAiSentiment,
+  pauseConversationAi, resumeConversationAi, handoverConversationToStaff,
   initSocket, destroySocket, getSocket, requestNotificationPermission,
 } = useChat();
 

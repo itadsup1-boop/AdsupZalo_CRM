@@ -4,9 +4,13 @@
  * Extracted from ZaloAccountPool to keep zalo-pool.ts under 200 lines.
  */
 import type { Server } from 'socket.io';
+import { prisma } from '../../shared/database/prisma-client.js';
+import { emitToConversationRooms } from '../../shared/utils/permission-scope.js';
 import { logger } from '../../shared/utils/logger.js';
+import { cacheIncomingVoice } from '../../shared/incoming-voice-cache.js';
+import { cacheIncomingVideo } from '../../shared/incoming-video-cache.js';
 import { handleIncomingMessage, handleMessageUndo } from '../chat/message-handler.js';
-import { detectContentType, extractAlbumInfo, updateContactAvatar } from './zalo-message-helpers.js';
+import { detectContentType, extractAlbumInfo, extractMessageMedia, updateContactAvatar } from './zalo-message-helpers.js';
 
 // Cached user info entry with 5-minute TTL
 export interface UserInfoCacheEntry {
@@ -143,6 +147,29 @@ export function attachZaloListener(ctx: ListenerContext): void {
       }
 
       const album = extractAlbumInfo(contentType, rawContent);
+      const media = extractMessageMedia(contentType, rawContent);
+      if (contentType === 'voice' && media.fileUrl) {
+        try {
+          const cached = await cacheIncomingVoice(media.fileUrl);
+          media.fileUrl = cached.fileUrl;
+          media.mimeType = cached.mimeType;
+          media.size = cached.size;
+          media.attachments = [{ type: 'audio', url: cached.fileUrl, payload: { url: cached.fileUrl, duration: media.duration } }];
+        } catch (error) {
+          logger.warn(`[zalo:${accountId}] Could not cache incoming voice, using Zalo URL:`, error);
+        }
+      } else if (contentType === 'video' && media.fileUrl) {
+        try {
+          const cached = await cacheIncomingVideo(media.fileUrl);
+          media.fileUrl = cached.fileUrl;
+          media.mimeType = cached.mimeType;
+          media.size = cached.size;
+          media.duration = cached.duration ?? media.duration;
+          media.attachments = [{ type: 'video', url: cached.fileUrl, payload: { url: cached.fileUrl, duration: media.duration } }];
+        } catch (error) {
+          logger.warn(`[zalo:${accountId}] Could not cache incoming video, using Zalo URL:`, error);
+        }
+      }
 
       const result = await handleIncomingMessage({
         accountId,
@@ -156,7 +183,12 @@ export function attachZaloListener(ctx: ListenerContext): void {
         threadId: message.threadId || '',
         threadType: isGroup ? 'group' : 'user',
         groupName,
-        attachments: [],
+        attachments: media.attachments,
+        fileUrl: media.fileUrl,
+        fileName: media.fileName,
+        mimeType: media.mimeType,
+        duration: media.duration,
+        size: media.size,
         quote: message.data?.quote,
         albumKey: album.albumKey,
         albumIndex: album.albumIndex,
@@ -164,8 +196,8 @@ export function attachZaloListener(ctx: ListenerContext): void {
       });
 
       if (result) {
-        // Scoped to org room — prevents cross-tenant message leakage
-        io?.to('org:' + orgId).emit('chat:message', {
+        // Scoped to target rooms — prevents cross-tenant message leakage
+        await emitToConversationRooms(io, result.conversationId, orgId, 'chat:message', {
           accountId,
           message: result.message,
           conversationId: result.conversationId,
@@ -179,8 +211,14 @@ export function attachZaloListener(ctx: ListenerContext): void {
   listener.on('undo', async (data: any) => {
     const msgId = data.data?.msgId || data.msgId;
     if (msgId) {
+      const msg = await prisma.message.findFirst({
+        where: { zaloMsgId: String(msgId), orgId },
+        select: { conversationId: true }
+      });
       await handleMessageUndo(accountId, String(msgId));
-      io?.to('org:' + orgId).emit('chat:deleted', { accountId, msgId: String(msgId) });
+      if (msg?.conversationId) {
+        await emitToConversationRooms(io, msg.conversationId, orgId, 'chat:deleted', { accountId, msgId: String(msgId) });
+      }
     }
   });
 
@@ -211,6 +249,29 @@ export function attachZaloListener(ctx: ListenerContext): void {
           typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent || '');
         const contentType = detectContentType(message.data?.msgType, rawContent);
         const album = extractAlbumInfo(contentType, rawContent);
+        const media = extractMessageMedia(contentType, rawContent);
+        if (contentType === 'voice' && media.fileUrl) {
+          try {
+            const cached = await cacheIncomingVoice(media.fileUrl);
+            media.fileUrl = cached.fileUrl;
+            media.mimeType = cached.mimeType;
+            media.size = cached.size;
+            media.attachments = [{ type: 'audio', url: cached.fileUrl, payload: { url: cached.fileUrl, duration: media.duration } }];
+          } catch (error) {
+            logger.warn(`[zalo:${accountId}] Could not cache old voice, using Zalo URL:`, error);
+          }
+        } else if (contentType === 'video' && media.fileUrl) {
+          try {
+            const cached = await cacheIncomingVideo(media.fileUrl);
+            media.fileUrl = cached.fileUrl;
+            media.mimeType = cached.mimeType;
+            media.size = cached.size;
+            media.duration = cached.duration ?? media.duration;
+            media.attachments = [{ type: 'video', url: cached.fileUrl, payload: { url: cached.fileUrl, duration: media.duration } }];
+          } catch (error) {
+            logger.warn(`[zalo:${accountId}] Could not cache old video, using Zalo URL:`, error);
+          }
+        }
 
         const result = await handleIncomingMessage({
           accountId,
@@ -224,7 +285,12 @@ export function attachZaloListener(ctx: ListenerContext): void {
           threadId: message.threadId || '',
           threadType,
           groupName,
-          attachments: [],
+          attachments: media.attachments,
+          fileUrl: media.fileUrl,
+          fileName: media.fileName,
+          mimeType: media.mimeType,
+          duration: media.duration,
+          size: media.size,
           quote: message.data?.quote,
           albumKey: album.albumKey,
           albumIndex: album.albumIndex,
@@ -233,7 +299,7 @@ export function attachZaloListener(ctx: ListenerContext): void {
         });
 
         if (result) {
-          io?.to('org:' + orgId).emit('chat:message', {
+          await emitToConversationRooms(io, result.conversationId, orgId, 'chat:message', {
             accountId,
             message: result.message,
             conversationId: result.conversationId,
@@ -267,7 +333,6 @@ export function attachZaloListener(ctx: ListenerContext): void {
   listener.on('closed', (code: number, reason: string) => {
     logger.warn(`[zalo:${accountId}] Listener closed: ${code} ${reason}`);
     onDisconnected(accountId);
-    io?.emit('zalo:disconnected', { accountId, code, reason });
   });
 
   listener.on('error', (err: any) => {

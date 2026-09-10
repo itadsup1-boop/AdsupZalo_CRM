@@ -13,6 +13,8 @@ export const config = {
   appUrl: process.env.APP_URL || 'http://localhost:3000',
   aiDefaultProvider: process.env.AI_DEFAULT_PROVIDER || 'anthropic',
   aiDefaultModel: process.env.AI_DEFAULT_MODEL || 'claude-sonnet-4-6',
+  aiAgentEnabled: process.env.AI_AGENT_ENABLED === 'true',
+  aiAgentWebhookUrl: process.env.AI_AGENT_WEBHOOK_URL || process.env.PYTHON_AI_API_URL || 'http://10.42.0.125:8000/api/zalo/webhook/message',
 
   /* Legacy keys (kept for backward compat) */
   anthropicApiKey: process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN || '',
@@ -48,6 +50,10 @@ export const config = {
   vapidPublicKey: process.env.VAPID_PUBLIC_KEY || '',
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
   vapidSubject: process.env.VAPID_SUBJECT || 'mailto:admin@adsup.vn',
+
+  agentSocketEnabled: process.env.AGENT_SOCKET_ENABLED === 'true',
+  agentSocketHost: process.env.AGENT_SOCKET_HOST || '192.168.88.185',
+  agentSocketPort: parseInt(process.env.AGENT_SOCKET_PORT || '12345'),
 
   isProduction: process.env.NODE_ENV === 'production',
 };

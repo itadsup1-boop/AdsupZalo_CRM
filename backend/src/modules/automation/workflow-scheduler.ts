@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { prisma } from '../../shared/database/prisma-client.js';
 import { logger } from '../../shared/utils/logger.js';
+import { executeCurrentNode } from './workflow-executor.js';
 
 let schedulerTask: cron.ScheduledTask | null = null;
 
@@ -42,11 +43,15 @@ async function processPendingRuns() {
   logger.info(`[workflow-scheduler] Found ${pendingRuns.length} pending runs to process`);
 
   for (const run of pendingRuns) {
-    // TODO: Phase 3
-    // 1. Get the current node from workflow.nodes using run.currentNodeId
-    // 2. Execute node action (send message, delay, create task)
-    // 3. Update run.currentNodeId or run.status
-    // 4. Create AutomationLog
     logger.info(`[workflow-scheduler] Processing run ${run.id} for contact ${run.contactId}`);
+    try {
+      await executeCurrentNode({
+        ...run,
+        state: run.state as Record<string, unknown>,
+        workflow: { nodes: run.workflow.nodes, edges: run.workflow.edges },
+      });
+    } catch (error) {
+      logger.error(`[workflow-scheduler] Failed to execute run ${run.id}:`, error);
+    }
   }
 }

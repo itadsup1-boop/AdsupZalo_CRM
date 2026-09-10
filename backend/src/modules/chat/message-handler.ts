@@ -29,6 +29,11 @@ export interface IncomingMessage {
   threadType: 'user' | 'group'; // user or group conversation
   groupName?: string;       // group name if group message
   attachments?: any[];
+  fileUrl?: string | null;
+  fileName?: string | null;
+  mimeType?: string | null;
+  duration?: number | null;
+  size?: number | null;
   quote?: unknown;
   albumKey?: string | null;
   albumIndex?: number | null;
@@ -63,22 +68,31 @@ export interface HandleMessageResult {
 
 export async function handleIncomingMessage(
   msg: IncomingMessage,
-  providedAccount?: { orgId: string; ownerUserId: string | null }
+  providedAccount?: { orgId: string; ownerUserId: string | null; teamId?: string | null }
 ): Promise<HandleMessageResult | null> {
+  console.log("[AI_AGENT] handler entered", {
+    messageId: msg.msgId,
+    threadId: msg.threadId,
+    senderUid: msg.senderUid,
+    content: msg.content,
+    isSelf: msg.isSelf,
+    senderType: msg.senderType,
+  });
+
   try {
     let account = providedAccount;
 
-    if (!account) {
+    if (!account || !('teamId' in account)) {
       account = await prisma.zaloAccount.findUnique({
         where: { id: msg.accountId },
-        select: { id: true, orgId: true, ownerUserId: true },
+        select: { id: true, orgId: true, ownerUserId: true, teamId: true },
       }) as any;
     }
     
     if (!account) return null;
 
     const db = getTenantPrisma(account.orgId);
-    const contactId = await upsertContact(db, msg, account.orgId);
+    const contactId = await upsertContact(db, msg, account.orgId, msg.accountId, account.teamId);
 
     // Update lastActivity for lead scoring freshness
     if (contactId) {
@@ -96,7 +110,14 @@ export async function handleIncomingMessage(
       }
     }
 
-    const conversation = await findOrCreateConversation(db, msg, account.orgId, contactId, msg.accountId);
+    const conversation = await findOrCreateConversation(
+      db,
+      msg,
+      account.orgId,
+      contactId,
+      msg.accountId,
+      account.teamId
+    );
 
     // Consistency Check 2: Ensure conversation belongs to the correct org
     const convCheck = await prisma.conversation.findUnique({ where: { id: conversation.id }, select: { orgId: true } });
@@ -109,7 +130,7 @@ export async function handleIncomingMessage(
 
     // Dedup guard using Fingerprint
     const existingFingerprint = await db.message.findFirst({
-      where: { messageFingerprint: fingerprint },
+      where: { conversationId: conversation.id, messageFingerprint: fingerprint },
       select: { id: true },
     });
     if (existingFingerprint) {
@@ -145,15 +166,18 @@ export async function handleIncomingMessage(
     let existing = null;
     if (msg.msgId) {
       existing = await db.message.findFirst({
-        where: { zaloMsgId: msg.msgId },
+        where: { conversationId: conversation.id, zaloMsgId: msg.msgId },
       });
     }
 
     if (existing) {
+      await updateConversationSyncState(db, account.orgId, msg.accountId, conversation.id, sentAt, msg.msgId);
       return { message: existing as any, conversationId: conversation.id, orgId: account.orgId, contactId };
     }
 
     const finalFingerprint = generateMessageFingerprint(msg.senderUid, msg.content || '', msg.timestamp);
+
+    const isHumanSelf = msg.isSelf && (!msg.msgId || !msg.msgId.startsWith('ai-'));
 
     // Create new message
     let message;
@@ -170,6 +194,11 @@ export async function handleIncomingMessage(
           senderName: msg.senderName || null,
           content: msg.content || '',
           contentType: msg.contentType || 'text',
+          fileUrl: msg.fileUrl ?? null,
+          fileName: msg.fileName ?? null,
+          mimeType: msg.mimeType ?? null,
+          duration: msg.duration ?? null,
+          size: msg.size ?? null,
           attachments: msg.attachments ?? [],
           quote: msg.quote ?? undefined,
           albumKey: msg.albumKey ?? null,
@@ -184,13 +213,49 @@ export async function handleIncomingMessage(
       if (err?.code === 'P2002') {
         logger.debug(`[message-handler] Skipping duplicate zaloMsgId=${msg.msgId}`);
         // Even if message is duplicate, ensure conversation timestamp is updated
-        await updateConversationAfterMessage(db, conversation.id, sentAt, msg.isSelf);
+        await updateConversationAfterMessage(db, conversation.id, sentAt, msg.isSelf, isHumanSelf);
+        await updateConversationSyncState(db, account.orgId, msg.accountId, conversation.id, sentAt, msg.msgId);
         return null;
       }
       throw err;
     }
 
-    await updateConversationAfterMessage(db, conversation.id, sentAt, msg.isSelf);
+    await updateConversationAfterMessage(db, conversation.id, sentAt, msg.isSelf, isHumanSelf);
+    await updateConversationSyncState(db, account.orgId, msg.accountId, conversation.id, sentAt, msg.msgId || message.zaloMsgId);
+
+    if (!msg.isSelf && msg.contentType === 'text' && msg.content) {
+      const { detectNegativeAiFeedback, logAiActivity } = await import('../ai/ai-audit-service.js');
+      if (detectNegativeAiFeedback(msg.content)) {
+        await logAiActivity({
+          orgId: account.orgId,
+          teamId: account.teamId || null,
+          contactId,
+          conversationId: conversation.id,
+          messageId: message.id,
+          actorType: 'system',
+          actionType: 'ai.negative_feedback_detected',
+          inputMessage: msg.content,
+          confidence: 0.9,
+          review: {
+            issueType: 'negative_feedback',
+            severity: 'high',
+            reason: 'Khách phản hồi tiêu cực hoặc yêu cầu gặp nhân viên',
+            customerMessage: msg.content,
+            suggestedFix: 'Nhân viên kiểm tra hội thoại, tạm dừng AI nếu cần.',
+          },
+        });
+      }
+    }
+
+    if (isHumanSelf) {
+      conversation.aiPaused = true;
+      // Broadcast update to frontend via WebSockets
+      const { zaloPool } = await import('../zalo/zalo-pool.js');
+      if (zaloPool.io) {
+        const { emitToConversationRooms } = await import('../../shared/utils/permission-scope.js');
+        emitToConversationRooms(zaloPool.io, conversation.id, account.orgId, 'chat:ai-status', { conversationId: conversation.id, aiPaused: true });
+      }
+    }
 
     // Track first outbound contact date — set once when agent sends first message
     if (msg.isSelf && contactId) {
@@ -225,14 +290,37 @@ export async function handleIncomingMessage(
       void (async () => {
         try {
           const { sendPushNotification } = await import('../notifications/push-service.js');
+          const { getZaloAccountAuthorizedUserIds } = await import('../../shared/utils/permission-scope.js');
           
-          // 1. Find all active users in this organization
+          // 1. Find all authorized users for this Zalo Account
+          const authorizedUserIds = await getZaloAccountAuthorizedUserIds(msg.accountId);
+          
+          // 2. Filter to active users in this organization
           const activeUsers = await prisma.user.findMany({
-            where: { orgId: account.orgId, isActive: true },
+            where: {
+              id: { in: authorizedUserIds },
+              orgId: account.orgId,
+              isActive: true
+            },
             select: { id: true }
           });
           
           const userIds = new Set(activeUsers.map(u => u.id));
+
+          // Also include the Zalo Account owner directly if they are active in the organization
+          if (account.ownerUserId) {
+            const ownerUser = await prisma.user.findFirst({
+              where: {
+                id: account.ownerUserId,
+                orgId: account.orgId,
+                isActive: true
+              },
+              select: { id: true }
+            });
+            if (ownerUser) {
+              userIds.add(ownerUser.id);
+            }
+          }
           
           // 3. Send notification to each user
           for (const userId of userIds) {
@@ -251,71 +339,165 @@ export async function handleIncomingMessage(
       })();
     }
 
-    // --- AUTONOMOUS AI AGENT ---
-    if (!msg.isSelf && !msg.isBackfill && msg.contentType === 'text') {
+    // --- PYTHON AI API FORWARDING ---
+    console.log("[AI_AGENT] skip check", {
+      enabled: process.env.AI_AGENT_ENABLED,
+      url: process.env.AI_AGENT_WEBHOOK_URL,
+      shouldForward: process.env.AI_AGENT_ENABLED === "true" && !msg.isSelf && !msg.isBackfill,
+    });
+
+    if (!msg.isBackfill && !msg.isSelf) {
       void (async () => {
         try {
-          const autoReplySetting = await db.appSetting.findFirst({
-            where: { settingKey: 'ai_auto_reply_enabled', valuePlain: 'true' }
-          });
+          const { config } = await import('../../config/index.js');
+          const axios = (await import('axios')).default;
           
-          if (autoReplySetting) {
-            const { getAiConfig, generateAiOutput } = await import('../ai/ai-service.js');
-            const currentConfig = await getAiConfig(account.orgId);
+          if (config.aiAgentEnabled && config.aiAgentWebhookUrl) {
+            const payload = {
+              event: "zalo_message",
+              org_id: account.orgId,
+              account_id: msg.accountId,
+              conversation_id: conversation.id,
+              contact_id: contactId,
+              message_id: message?.id,
+              zalo_msg_id: msg.msgId || message?.zaloMsgId,
+              sender_uid: msg.senderUid,
+              sender_name: msg.senderName,
+              content: msg.content || '',
+              content_type: msg.contentType,
+              timestamp: msg.timestamp,
+              is_self: false
+            };
             
-            if (currentConfig.enabled) {
-              logger.info(`[AI-Agent] Auto-replying to conversation ${conversation.id}`);
-              
-              const suggestion = await generateAiOutput({
-                orgId: account.orgId,
-                conversationId: conversation.id,
-                type: 'reply_draft', 
-              });
-              
-              if (suggestion && suggestion.content) {
-                const { zaloPool } = await import('../zalo/zalo-pool.js');
-                const instance = zaloPool.getInstance(msg.accountId);
-                if (instance?.api) {
-                  const threadType = msg.threadType === 'group' ? 1 : 0;
-                  // Clean up potential hallucinated tags
-                  const cleanReply = suggestion.content.replace(/<[^>]*>?/gm, '').trim();
-                  
-                  await instance.api.sendMessage(cleanReply, msg.threadId, threadType);
-                  
-                  // Persist AI auto-reply to DB
-                  const { randomUUID } = await import('node:crypto');
-                  const messageId = randomUUID();
-                  await db.message.create({
+            console.log("[AI_AGENT] forwarding message to Python", {
+              url: config.aiAgentWebhookUrl,
+              conversation_id: conversation.id,
+              contact_id: contactId,
+              message_id: message?.id,
+              content: msg.content,
+              is_self: false,
+            });
+
+            await axios.post(config.aiAgentWebhookUrl, payload, {
+              headers: { 'Content-Type': 'application/json' },
+              timeout: 60000
+            });
+            logger.info(`[message-handler] Forwarded message ${message?.id} to Python AI API`);
+          } else {
+            console.log("[AI_AGENT] skipped forwarding because aiAgentEnabled=false or url is missing", {
+              aiAgentEnabled: config.aiAgentEnabled,
+              aiAgentWebhookUrl: config.aiAgentWebhookUrl
+            });
+          }
+        } catch (err: any) {
+          console.error("[AI_AGENT] forward failed", err.message);
+          logger.error('[message-handler] Failed to forward to Python AI API:', err.message);
+        }
+      })();
+    }
+    // ----------------------------
+
+    // --- AI INTENT CLASSIFICATION ---
+    if (!msg.isSelf && !msg.isBackfill && msg.contentType === 'text' && contactId) {
+      void (async () => {
+        try {
+          const classificationEnabled = await db.appSetting.findFirst({
+            where: { orgId: account!.orgId, settingKey: 'ai_intent_classification_enabled', valuePlain: 'true' }
+          });
+
+          if (classificationEnabled) {
+            logger.info(`[AI-Intent] Running intent classification for message in conversation ${conversation.id}`);
+            const { classifyCustomerIntent } = await import('../ai/ai-service.js');
+            const classification = await classifyCustomerIntent(account!.orgId, msg.content || '', conversation.id);
+            
+            if (classification && classification.intent !== 'none') {
+              const intentMapping: Record<string, { name: string; color: string }> = {
+                ask_price: { name: 'Hỏi giá', color: '#FF9800' },
+                ask_service: { name: 'Hỏi dịch vụ', color: '#2196F3' },
+                book_appointment: { name: 'Đặt lịch', color: '#4CAF50' },
+                ask_address: { name: 'Hỏi địa chỉ', color: '#009688' },
+                complain: { name: 'Phàn nàn', color: '#F44336' },
+                callback_request: { name: 'Yêu cầu gọi lại', color: '#E91E63' },
+                difficult_question: { name: 'Câu hỏi khó', color: '#9C27B0' },
+              };
+
+              const mapped = intentMapping[classification.intent];
+              if (mapped) {
+                // Find or create Tag
+                let tag = await db.tag.findFirst({
+                  where: { orgId: account!.orgId, name: mapped.name, isActive: true }
+                });
+                if (!tag) {
+                  tag = await db.tag.create({
                     data: {
-                      id: messageId,
-                      orgId: account.orgId,
-                      conversationId: conversation.id,
-                      zaloMsgId: `ai-${messageId}`,
-                      senderType: 'self',
-                      senderUid: '',
-                      senderName: 'AI Agent',
-                      content: cleanReply,
-                      contentType: 'text',
-                      sentAt: new Date(),
+                      orgId: account!.orgId,
+                      name: mapped.name,
+                      color: mapped.color,
+                      description: 'Tự động phân loại bằng AI'
                     }
                   });
-                  
-                  await db.conversation.update({
-                    where: { id: conversation.id },
-                    data: { isReplied: true, unreadCount: 0, lastMessageAt: new Date() }
+                }
+
+                // Attach Tag to Contact Tag mapping if not already attached
+                const existingMapping = await db.contactTag.findFirst({
+                  where: { contactId, tagId: tag.id }
+                });
+                if (!existingMapping) {
+                  await db.contactTag.create({
+                    data: { orgId: account!.orgId, contactId, tagId: tag.id }
                   });
-                  
-                  logger.info(`[AI-Agent] Auto-reply sent successfully!`);
+
+                  // Update Contact's JSON tags array
+                  const contact = await db.contact.findUnique({
+                    where: { id: contactId },
+                    select: { tags: true }
+                  });
+                  let currentTags: string[] = [];
+                  if (contact?.tags && Array.isArray(contact.tags)) {
+                    currentTags = contact.tags as string[];
+                  }
+                  if (!currentTags.includes(mapped.name)) {
+                    currentTags.push(mapped.name);
+                    await db.contact.update({
+                      where: { id: contactId },
+                      data: { tags: currentTags }
+                    });
+                  }
+
+                  // Broadcast update to frontend via WebSockets
+                  const { zaloPool } = await import('../zalo/zalo-pool.js');
+                  if (zaloPool.io) {
+                    const { emitToContactRooms } = await import('../../shared/utils/permission-scope.js');
+                    const updatedContact = await db.contact.findUnique({
+                      where: { id: contactId },
+                      include: {
+                        assignedUser: { select: { id: true, fullName: true, email: true } },
+                        appointments: { orderBy: { appointmentDate: 'desc' }, take: 10 },
+                        contactTags: { include: { tag: true } },
+                        _count: { select: { conversations: true } },
+                      }
+                    });
+                    if (updatedContact) {
+                      emitToContactRooms(zaloPool.io, contactId, account!.orgId, 'contact:update', updatedContact);
+                    }
+                  }
+
+                  // Trigger tag-based automation
+                  try {
+                    const { triggerTagAutomation } = await import('../contacts/contact-sub-resource-routes.js');
+                    await triggerTagAutomation(account!.orgId, contactId, tag.id);
+                  } catch (autoErr) {
+                    logger.error('[AI-Intent] Failed to trigger automation for intent tag:', autoErr);
+                  }
                 }
               }
             }
           }
         } catch (err) {
-          logger.error('[AI-Agent] Error in auto-reply:', err);
+          logger.error('[AI-Intent] Error in background intent classification:', err);
         }
       })();
     }
-    // ----------------------------
 
 
     if (!msg.isSelf) {
@@ -365,13 +547,24 @@ export async function handleIncomingMessage(
 }
 
 // Upsert contact — handles both user and group conversations
-async function upsertContact(db: any, msg: IncomingMessage, orgId: string): Promise<string | null> {
+async function upsertContact(db: any, msg: IncomingMessage, orgId: string, accountId: string, teamId?: string | null): Promise<string | null> {
   // Group messages: create/update a "contact" record representing the group
   if (msg.threadType === 'group') {
     const groupUid = msg.threadId;
+    const existingConversation = await db.conversation.findFirst({
+      where: { orgId, zaloAccountId: accountId, externalThreadId: groupUid },
+      select: { contactId: true },
+    });
+
     let groupContact = await db.contact.findFirst({
-      where: { zaloUid: groupUid },
-      select: { id: true, fullName: true },
+      where: existingConversation?.contactId
+        ? { id: existingConversation.contactId, orgId }
+        : {
+            orgId,
+            zaloUid: groupUid,
+            conversations: { some: { zaloAccountId: accountId, externalThreadId: groupUid } },
+          },
+      select: { id: true, fullName: true, teamId: true },
     });
 
     if (!groupContact) {
@@ -381,16 +574,38 @@ async function upsertContact(db: any, msg: IncomingMessage, orgId: string): Prom
           zaloUid: groupUid,
           fullName: msg.groupName || 'Nhóm',
           metadata: { isGroup: true },
+          teamId: teamId || null,
         },
-        select: { id: true, fullName: true },
+        select: { id: true, fullName: true, teamId: true },
       });
       // Emit webhook for new contact created
       emitWebhook(orgId, 'contact.created', { contactId: groupContact.id, fullName: groupContact.fullName });
-    } else if (msg.groupName && groupContact.fullName !== msg.groupName) {
-      await db.contact.update({
-        where: { id: groupContact.id },
-        data: { fullName: msg.groupName },
-      });
+      const { assignContactToSale } = await import('../assignment/assignment-service.js');
+      assignContactToSale(groupContact.id, orgId, { type: 'system' }).catch((err) => logger.error('[assignment] Auto assign group contact failed:', err));
+    } else {
+      const updateData: any = {};
+      let needsUpdate = false;
+
+      if (msg.groupName && groupContact.fullName !== msg.groupName) {
+        updateData.fullName = msg.groupName;
+        needsUpdate = true;
+      }
+
+      if (teamId) {
+        if (!groupContact.teamId) {
+          updateData.teamId = teamId;
+          needsUpdate = true;
+        } else if (groupContact.teamId !== teamId) {
+          logger.warn(`[message-handler:upsertContact] Contact ${groupContact.id} has teamId ${groupContact.teamId}, but incoming message teamId is ${teamId}. Keeping existing contact teamId.`);
+        }
+      }
+
+      if (needsUpdate) {
+        await db.contact.update({
+          where: { id: groupContact.id },
+          data: updateData,
+        });
+      }
     }
     return groupContact.id;
   }
@@ -399,9 +614,20 @@ async function upsertContact(db: any, msg: IncomingMessage, orgId: string): Prom
   const contactUid = msg.isSelf ? msg.threadId : msg.senderUid;
   const contactName = msg.isSelf ? '' : msg.senderName; // self msgs don't carry recipient name
 
+  const existingConversation = await db.conversation.findFirst({
+    where: { orgId, zaloAccountId: accountId, externalThreadId: msg.threadId },
+    select: { contactId: true },
+  });
+
   let contact = await db.contact.findFirst({
-    where: { zaloUid: contactUid },
-    select: { id: true, fullName: true },
+    where: existingConversation?.contactId
+      ? { id: existingConversation.contactId, orgId }
+      : {
+          orgId,
+          zaloUid: contactUid,
+          conversations: { some: { zaloAccountId: accountId, externalThreadId: msg.threadId } },
+        },
+    select: { id: true, fullName: true, teamId: true },
   });
 
   if (!contact) {
@@ -410,17 +636,38 @@ async function upsertContact(db: any, msg: IncomingMessage, orgId: string): Prom
         id: randomUUID(),
         zaloUid: contactUid,
         fullName: contactName || 'Unknown',
+        teamId: teamId || null,
       },
-      select: { id: true, fullName: true },
+      select: { id: true, fullName: true, teamId: true },
     });
     // Emit webhook for new contact created
     emitWebhook(orgId, 'contact.created', { contactId: contact.id, fullName: contact.fullName });
-  } else if (contactName && contact.fullName !== contactName && contact.fullName === 'Unknown') {
-    // Update name only if currently "Unknown" — don't overwrite user-edited names
-    await db.contact.update({
-      where: { id: contact.id },
-      data: { fullName: contactName },
-    });
+    const { assignContactToSale } = await import('../assignment/assignment-service.js');
+    assignContactToSale(contact.id, orgId, { type: 'system' }).catch((err) => logger.error('[assignment] Auto assign contact failed:', err));
+  } else {
+    const updateData: any = {};
+    let needsUpdate = false;
+
+    if (contactName && contact.fullName !== contactName && contact.fullName === 'Unknown') {
+      updateData.fullName = contactName;
+      needsUpdate = true;
+    }
+
+    if (teamId) {
+      if (!contact.teamId) {
+        updateData.teamId = teamId;
+        needsUpdate = true;
+      } else if (contact.teamId !== teamId) {
+        logger.warn(`[message-handler:upsertContact] Contact ${contact.id} has teamId ${contact.teamId}, but incoming message teamId is ${teamId}. Keeping existing contact teamId.`);
+      }
+    }
+
+    if (needsUpdate) {
+      await db.contact.update({
+        where: { id: contact.id },
+        data: updateData,
+      });
+    }
   }
 
   return contact.id;
@@ -432,22 +679,37 @@ async function findOrCreateConversation(
   msg: IncomingMessage,
   orgId: string,
   contactId: string | null,
-  accountId: string, // NHẬN THÊM ACCOUNT ID TỪ BÊN NGOÀI
+  accountId: string,
+  teamId?: string | null
 ) {
   const externalThreadId = msg.threadId;
 
   const existing = await db.conversation.findFirst({
-    where: { orgId, zaloAccountId: accountId, externalThreadId }, // THÊM orgId VÀ DÙNG accountId CHUẨN
-    select: { id: true },
+    where: { orgId, zaloAccountId: accountId, externalThreadId },
+    select: { id: true, aiPaused: true },
   });
 
-  if (existing) return existing;
+  if (existing) {
+    // Optionally check if we need to backfill teamId on existing conversation
+    const existingDetails = await db.conversation.findUnique({
+      where: { id: existing.id },
+      select: { teamId: true }
+    });
+    if (existingDetails && !existingDetails.teamId && teamId) {
+      await db.conversation.update({
+        where: { id: existing.id },
+        data: { teamId }
+      });
+    }
+    return existing;
+  }
 
   return db.conversation.create({
     data: {
       id: randomUUID(),
-      orgId, // THÊM orgId VÀO ĐÂY
-      zaloAccountId: accountId, // DÙNG accountId CHUẨN
+      orgId,
+      teamId: teamId || null,
+      zaloAccountId: accountId,
       contactId: contactId,
       threadType: msg.threadType || 'personal',
       externalThreadId,
@@ -455,7 +717,7 @@ async function findOrCreateConversation(
       unreadCount: msg.isSelf ? 0 : 1,
       isReplied: msg.isSelf,
     },
-    select: { id: true },
+    select: { id: true, aiPaused: true },
   });
 }
 
@@ -465,16 +727,70 @@ async function updateConversationAfterMessage(
   conversationId: string,
   sentAt: Date,
   isSelf: boolean,
+  isHumanSelf?: boolean,
 ): Promise<void> {
   const updateData: any = { lastMessageAt: sentAt };
   if (isSelf) {
     updateData.isReplied = true;
     updateData.unreadCount = 0;
+    updateData.lastStaffMessageAt = sentAt;
+    if (isHumanSelf) {
+      updateData.aiPaused = true;
+    }
   } else {
     updateData.unreadCount = { increment: 1 };
     updateData.isReplied = false;
+    updateData.lastCustomerMessageAt = sentAt;
+    updateData.followupCount = 0;
+    updateData.lastFollowupAt = null;
   }
   await db.conversation.update({ where: { id: conversationId }, data: updateData });
+}
+
+async function updateConversationSyncState(
+  db: any,
+  orgId: string,
+  accountId: string,
+  conversationId: string,
+  sentAt: Date,
+  msgId?: string | null,
+): Promise<void> {
+  try {
+    const now = new Date();
+    const existing = await db.zaloConversationSyncState.findFirst({
+      where: { orgId, zaloAccountId: accountId, conversationId },
+      select: { id: true, lastSyncedAt: true },
+    });
+
+    const shouldAdvance = !existing?.lastSyncedAt || existing.lastSyncedAt < sentAt;
+    if (existing) {
+      await db.zaloConversationSyncState.update({
+        where: { id: existing.id },
+        data: {
+          syncStatus: 'idle',
+          lastError: null,
+          updatedAt: now,
+          ...(shouldAdvance ? { lastSyncedAt: sentAt, lastMessageId: msgId || null } : {}),
+        },
+      });
+      return;
+    }
+
+    await db.zaloConversationSyncState.create({
+      data: {
+        id: randomUUID(),
+        orgId,
+        zaloAccountId: accountId,
+        conversationId,
+        lastSyncedAt: sentAt,
+        lastMessageId: msgId || null,
+        syncStatus: 'idle',
+        updatedAt: now,
+      },
+    });
+  } catch (err) {
+    logger.warn(`[message-handler] Failed to update sync state for conversation ${conversationId}:`, err);
+  }
 }
 
 // Soft-delete a message by its Zalo message ID
@@ -489,7 +805,10 @@ export async function handleMessageUndo(accountId: string, zaloMsgId: string): P
     const db = getTenantPrisma(account.orgId);
     
     await db.message.updateMany({
-      where: { zaloMsgId: String(zaloMsgId) },
+      where: {
+        zaloMsgId: String(zaloMsgId),
+        conversation: { orgId: account.orgId, zaloAccountId: accountId },
+      },
       data: { isDeleted: true, deletedAt: new Date() },
     });
     logger.info(`[message-handler] Undo message ${zaloMsgId} for account ${accountId}`);

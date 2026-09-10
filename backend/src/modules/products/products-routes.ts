@@ -1,6 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../../shared/database/prisma-client.js';
 import { authMiddleware } from '../auth/auth-middleware.js';
+import { triggerWorkflowsByProduct } from '../automation/workflow-executor.js';
+import { logger } from '../../shared/utils/logger.js';
 
 export async function productRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', authMiddleware);
@@ -132,8 +134,6 @@ export async function productRoutes(fastify: FastifyInstance) {
     const { id: customerId } = request.params as any;
     const { productId, interestLevel, budget, status, notes } = request.body as any;
 
-    // Optional: Trigger Automation logic will be added here in phase 3
-
     const cp = await prisma.customerProduct.create({
       data: {
         orgId: request.user.orgId,
@@ -145,6 +145,11 @@ export async function productRoutes(fastify: FastifyInstance) {
         notes
       }
     });
+
+    triggerWorkflowsByProduct(request.user.orgId, customerId, productId).catch((err) => {
+      logger.error('[products] Failed to trigger automation for product:', err);
+    });
+
     return { data: cp };
   });
 

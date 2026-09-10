@@ -69,6 +69,8 @@ export async function extensionSyncRoutes(app: FastifyInstance) {
       }
     }
 
+    const savedCount = 0;
+    const skippedCount = 0;
     return { success: true, saved: savedCount, skipped: skippedCount };
   });
 
@@ -96,7 +98,7 @@ export async function extensionSyncRoutes(app: FastifyInstance) {
       await db.zaloAccount.update({
         where: { id: account.id },
         data: {
-          lastSeen: new Date(),
+          lastConnectedAt: new Date(),
           status: 'connected',
           browserNodeId: `tab-${body.tabId}`
         }

@@ -52,12 +52,21 @@
         hide-details
         @update:model-value="emit('search')"
       >
+        <template #selection="{ item }">
+          <div class="d-flex align-center" v-if="item && item.raw">
+            <div 
+              class="tag-dot mr-2" 
+              :style="{ backgroundColor: item.raw.color || '#3B82F6', width: '12px', height: '12px', borderRadius: '50%' }"
+            />
+            <span class="text-truncate">{{ item.raw.name }}</span>
+          </div>
+        </template>
         <template #item="{ props, item }">
           <v-list-item v-bind="props" :title="item.raw.name">
             <template #prepend>
               <div 
                 class="tag-dot mr-2" 
-                :style="{ backgroundColor: item.raw.color, width: '12px', height: '12px', borderRadius: '50%' }"
+                :style="{ backgroundColor: item.raw.color || '#3B82F6', width: '12px', height: '12px', borderRadius: '50%' }"
               />
             </template>
           </v-list-item>

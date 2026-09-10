@@ -1,43 +1,61 @@
 <template>
   <div class="d-inline-flex align-center flex-wrap gap-2">
     <!-- Call / Consent Request Button -->
-    <v-btn
-      v-if="consentStatus === 'granted'"
-      :color="callActive ? (callState === 'answered' ? 'success' : 'info') : 'success'"
-      :variant="variant || 'flat'"
-      prepend-icon="mdi-phone-in-talk"
-      @click="triggerCall"
-      :loading="loading"
-      :disabled="callActive"
-      v-bind="$attrs"
-    >
-      {{ callActive ? callActiveText : 'Gọi Zalo qua ZCC' }}
-    </v-btn>
+    <v-tooltip :text="callActive ? callActiveText : 'Gọi Zalo qua ZCC'" location="bottom" :disabled="!iconOnly">
+      <template #activator="{ props: tooltipProps }">
+        <v-btn
+          v-if="consentStatus === 'granted'"
+          :color="callActive ? (callState === 'answered' ? 'success' : 'info') : 'success'"
+          :variant="variant || 'flat'"
+          :icon="iconOnly"
+          @click="triggerCall"
+          :loading="loading"
+          :disabled="callActive"
+          v-bind="{...$attrs, ...(iconOnly ? tooltipProps : {})}"
+        >
+          <v-icon v-if="iconOnly">mdi-phone-in-talk</v-icon>
+          <v-icon v-else start>mdi-phone-in-talk</v-icon>
+          <span v-if="!iconOnly">{{ callActive ? callActiveText : 'Gọi Zalo qua ZCC' }}</span>
+        </v-btn>
+      </template>
+    </v-tooltip>
 
-    <v-btn
-      v-else-if="consentStatus === 'pending'"
-      color="warning"
-      variant="tonal"
-      prepend-icon="mdi-clock-outline"
-      disabled
-      v-bind="$attrs"
-      class="text-none"
-    >
-      Đang chờ khách xác nhận quyền gọi...
-    </v-btn>
+    <v-tooltip text="Đang chờ khách xác nhận quyền gọi..." location="bottom" :disabled="!iconOnly">
+      <template #activator="{ props: tooltipProps }">
+        <v-btn
+          v-if="consentStatus === 'pending'"
+          color="warning"
+          variant="tonal"
+          :icon="iconOnly"
+          disabled
+          v-bind="{...$attrs, ...(iconOnly ? tooltipProps : {})}"
+          class="text-none"
+        >
+          <v-icon v-if="iconOnly">mdi-clock-outline</v-icon>
+          <v-icon v-else start>mdi-clock-outline</v-icon>
+          <span v-if="!iconOnly">Đang chờ khách xác nhận quyền gọi...</span>
+        </v-btn>
+      </template>
+    </v-tooltip>
 
-    <v-btn
-      v-else
-      color="primary"
-      variant="tonal"
-      prepend-icon="mdi-shield-alert-outline"
-      @click="triggerRequestConsent"
-      :loading="loading"
-      v-bind="$attrs"
-      class="text-none"
-    >
-      Yêu cầu cấp quyền cuộc gọi Zalo
-    </v-btn>
+    <v-tooltip text="Yêu cầu cấp quyền cuộc gọi Zalo" location="bottom" :disabled="!iconOnly">
+      <template #activator="{ props: tooltipProps }">
+        <v-btn
+          v-if="consentStatus !== 'granted' && consentStatus !== 'pending'"
+          color="primary"
+          variant="tonal"
+          :icon="iconOnly"
+          @click="triggerRequestConsent"
+          :loading="loading"
+          v-bind="{...$attrs, ...(iconOnly ? tooltipProps : {})}"
+          class="text-none"
+        >
+          <v-icon v-if="iconOnly">mdi-shield-alert-outline</v-icon>
+          <v-icon v-else start>mdi-shield-alert-outline</v-icon>
+          <span v-if="!iconOnly">Yêu cầu cấp quyền cuộc gọi Zalo</span>
+        </v-btn>
+      </template>
+    </v-tooltip>
 
     <!-- Error/Feedback Snackbars -->
     <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="4000">
@@ -68,6 +86,7 @@ const props = defineProps<{
   contactName?: string | null;
   contactAvatar?: string | null;
   variant?: 'flat' | 'text' | 'tonal' | 'outlined';
+  iconOnly?: boolean;
 }>();
 
 const emit = defineEmits(['call-initiated', 'consent-updated', 'call-status-changed']);

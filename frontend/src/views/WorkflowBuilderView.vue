@@ -103,7 +103,7 @@
                 @click.stop="deleteNode(id)"
               ></v-btn>
 
-              <Handle type="target" position="top" class="custom-handle" />
+              <Handle type="target" :position="Position.Top" class="custom-handle" />
               
               <div class="node-icon-wrapper mb-2">
                 <v-icon size="24" :color="getIconColorForType(data.type)">
@@ -114,7 +114,7 @@
                 {{ label }}
               </div>
               
-              <Handle type="source" position="bottom" class="custom-handle" />
+              <Handle type="source" :position="Position.Bottom" class="custom-handle" />
             </div>
           </template>
         </VueFlow>

@@ -5,11 +5,12 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../shared/database/prisma-client.js';
 import { authMiddleware } from '../auth/auth-middleware.js';
+import { getConversationAccessWhere, emitToConversationRooms } from '../../shared/utils/permission-scope.js';
 import { requireZaloAccess } from '../zalo/zalo-access-middleware.js';
 import { zaloPool } from '../zalo/zalo-pool.js';
 import { zaloRateLimiter } from '../zalo/zalo-rate-limiter.js';
 import { logger } from '../../shared/utils/logger.js';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { Server } from 'socket.io';
 
 type QueryParams = Record<string, string>;
@@ -64,25 +65,31 @@ export async function chatRoutes(app: FastifyInstance) {
     const user = request.user!;
     const { accountId = '', tab = '' } = request.query as QueryParams;
 
-    const baseWhere: any = { orgId: user.orgId };
-    if (accountId) baseWhere.zaloAccountId = accountId;
+    const baseWhere: any = {
+      ...getConversationAccessWhere(user),
+    };
+    if (accountId) baseWhere.AND = [...(baseWhere.AND || []), { zaloAccountId: accountId }];
     if (tab) baseWhere.tab = tab;
-
-    if (!['owner', 'admin'].includes(user.role)) {
-      baseWhere.zaloAccount = {
-        access: {
-          some: {
-            userId: user.id
-          }
-        }
-      };
-    }
 
     const [unread, unreplied, total] = await Promise.all([
       prisma.conversation.count({ where: { ...baseWhere, unreadCount: { gt: 0 } } }),
       prisma.conversation.count({ where: { ...baseWhere, isReplied: false } }),
       prisma.conversation.count({ where: baseWhere }),
     ]);
+
+    logger.info('[conversations:counts] account-scoped visibility', {
+      currentUser: {
+        id: user.id,
+        name: (user as any).fullName || user.email,
+        role: user.role,
+        orgId: user.orgId,
+      },
+      selectedZaloAccountId: accountId || null,
+      where: baseWhere,
+      total,
+      unread,
+      unreplied,
+    });
 
     return { unread, unreplied, total };
   });
@@ -104,19 +111,11 @@ export async function chatRoutes(app: FastifyInstance) {
       tab = '',
     } = request.query as QueryParams;
 
-    const where: any = { orgId: user.orgId };
+    const where: any = {
+      ...getConversationAccessWhere(user),
+    };
     if (tab) where.tab = tab;
-    if (accountId) where.zaloAccountId = accountId;
-
-    if (!['owner', 'admin'].includes(user.role)) {
-      where.zaloAccount = {
-        access: {
-          some: {
-            userId: user.id
-          }
-        }
-      };
-    }
+    if (accountId) where.AND = [...(where.AND || []), { zaloAccountId: accountId }];
     if (search) {
       where.contact = {
         OR: [
@@ -177,6 +176,19 @@ export async function chatRoutes(app: FastifyInstance) {
       prisma.conversation.count({ where }),
     ]);
 
+    logger.info('[conversations:list] account-scoped visibility', {
+      currentUser: {
+        id: user.id,
+        name: (user as any).fullName || user.email,
+        role: user.role,
+        orgId: user.orgId,
+      },
+      selectedZaloAccountId: accountId || null,
+      where,
+      returned: conversations.length,
+      total,
+    });
+
     return {
       conversations: conversations.map((conversation) => ({ ...conversation, isPinned: conversation.pins.length > 0 })),
       total,
@@ -229,6 +241,12 @@ export async function chatRoutes(app: FastifyInstance) {
           senderName: true,
           content: true,
           contentType: true,
+          fileUrl: true,
+          fileName: true,
+          mimeType: true,
+          duration: true,
+          size: true,
+          attachments: true,
           senderType: true,
           sentAt: true,
           isDeleted: true,
@@ -285,11 +303,12 @@ export async function chatRoutes(app: FastifyInstance) {
 
         await prisma.conversation.update({
           where: { orgId: user.orgId, id },
-          data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0 },
+          data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0, aiPaused: true },
         });
 
         const io = (app as any).io as Server;
-        io?.to('org:' + user.orgId).emit('chat:message', { 
+        await emitToConversationRooms(io, id, user.orgId, 'chat:ai-status', { conversationId: id, aiPaused: true });
+        await emitToConversationRooms(io, id, user.orgId, 'chat:message', { 
           accountId: conversation.zaloOaAccountId, 
           isOA: true,
           message, 
@@ -329,36 +348,80 @@ export async function chatRoutes(app: FastifyInstance) {
         }
       }
 
-      zaloRateLimiter.recordSend(conversation.zaloAccountId!);
-      const sendResult = await instance.api.sendMessage(quote ? { msg: content, quote } : { msg: content }, threadId, threadType);
-      const zaloMsgId = String(sendResult?.msgId || sendResult?.data?.msgId || '');
+      const messageFingerprint = createHash('sha256').update(`${id}:${content}:${replyMessageId || ''}`).digest('hex');
+      const duplicate = await prisma.message.findFirst({
+        where: { orgId: user.orgId, conversationId: id, messageFingerprint, senderType: 'self', deliveryStatus: { in: ['pending', 'sent', 'retrying'] } },
+      });
+      if (duplicate) return duplicate;
 
       const message = await prisma.message.create({
         data: {
           id: randomUUID(),
           orgId: user.orgId,
           conversationId: id,
-          zaloMsgId: zaloMsgId || null,
+          zaloMsgId: null,
           senderType: 'self',
           senderUid: conversation.zaloAccount?.zaloUid || '',
           senderName: 'Staff',
           content,
           contentType: 'text',
+          deliveryStatus: 'pending',
+          messageFingerprint,
           quote: quote ?? undefined,
           sentAt: new Date(),
           repliedByUserId: user.id,
         },
       });
 
+      let sentMessage = message;
+      try {
+        zaloRateLimiter.recordSend(conversation.zaloAccountId!);
+        const sendResult = await instance.api.sendMessage(quote ? { msg: content, quote } : { msg: content }, threadId, threadType);
+        const zaloMsgId = String(sendResult?.msgId || sendResult?.data?.msgId || '');
+        sentMessage = await prisma.message.update({
+          where: { id: message.id },
+          data: { zaloMsgId: zaloMsgId || null, deliveryStatus: 'sent', lastSendError: null },
+        });
+      } catch (sendErr) {
+        const retryAt = new Date(Date.now() + 5 * 60 * 1000);
+        await prisma.message.update({
+          where: { id: message.id },
+          data: {
+            deliveryStatus: 'retrying',
+            retryCount: { increment: 1 },
+            lastSendError: sendErr instanceof Error ? sendErr.message : String(sendErr),
+            nextRetryAt: retryAt,
+          },
+        });
+        const { logAiActivity } = await import('../ai/ai-audit-service.js');
+        await logAiActivity({
+          orgId: user.orgId,
+          conversationId: id,
+          messageId: message.id,
+          actorType: 'system',
+          actionType: 'zalo.send_failed',
+          inputMessage: content,
+          confidence: 0,
+          review: {
+            issueType: 'send_failed',
+            severity: 'high',
+            reason: sendErr instanceof Error ? sendErr.message : String(sendErr),
+            aiResponse: content,
+          },
+        });
+        return reply.status(502).send({ error: 'Zalo send failed, queued for retry', messageId: message.id });
+      }
+
       await prisma.conversation.update({
         where: { orgId: user.orgId, id },
-        data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0 },
+        data: { lastMessageAt: new Date(), lastStaffMessageAt: new Date(), isReplied: true, unreadCount: 0, aiPaused: true },
       });
 
       const io = (app as any).io as Server;
-      io?.to('org:' + user.orgId).emit('chat:message', { accountId: conversation.zaloAccountId, message, conversationId: id });
+      await emitToConversationRooms(io, id, user.orgId, 'chat:ai-status', { conversationId: id, aiPaused: true });
+      await emitToConversationRooms(io, id, user.orgId, 'chat:message', { accountId: conversation.zaloAccountId, message: sentMessage, conversationId: id });
 
-      return message;
+      return sentMessage;
     } catch (err) {
       logger.error('[chat] Send message error:', err);
       return reply.status(500).send({ error: 'Failed to send message' });
@@ -397,18 +460,69 @@ export async function chatRoutes(app: FastifyInstance) {
     return { success: true, tab };
   });
 
-  // ── Send Voice Message ───────────────────────────────────────────────────
-  app.post('/api/v1/conversations/:id/voice', { preHandler: requireZaloAccess('chat') }, async (request: FastifyRequest, reply: FastifyReply) => {
+  // ── Send Voice Message (send-audio) ──────────────────────────────────────
+  app.post('/api/v1/conversations/:id/send-audio', { preHandler: requireZaloAccess('chat') }, async (request: FastifyRequest, reply: FastifyReply) => {
+    logger.info('[send-audio] ▶ Request received');
     const user = request.user!;
     const { id } = request.params as { id: string };
-    const data = await request.file();
-    if (!data) return reply.status(400).send({ error: 'Missing voice file' });
+    logger.info(`[send-audio] User=${user.id}, ConvId=${id}, ContentType=${request.headers['content-type']}`);
+
+    const { sendVoiceFile } = await import('../../shared/voice-sender.js');
+    const { convertToM4a } = await import('../../shared/utils/audio-converter.js');
+    const path = await import('node:path');
+    const fs = await import('node:fs/promises');
+    const { randomUUID } = await import('node:crypto');
+    const { createWriteStream } = await import('node:fs');
+    const { pipeline } = await import('node:stream/promises');
+    const { config } = await import('../../config/index.js');
+
+    logger.info('[send-audio] Starting multipart parse...');
+    const parts = request.parts();
+    let tempPath = '';
+    let ext = '.webm';
+    let originalMime = '';
+    let durationMs = 0;
+
+    for await (const part of parts) {
+      if (part.type === 'file') {
+        originalMime = part.mimetype;
+        const mimeMap: Record<string, string> = {
+          'audio/webm': '.webm',
+          'audio/webm;codecs=opus': '.webm',
+          'audio/ogg': '.ogg',
+          'audio/ogg;codecs=opus': '.ogg',
+          'audio/mp3': '.mp3',
+          'audio/mpeg': '.mp3',
+          'audio/wav': '.wav',
+          'audio/m4a': '.m4a',
+          'audio/x-m4a': '.m4a',
+          'audio/mp4': '.m4a',
+          'audio/aac': '.aac'
+        };
+        ext = mimeMap[originalMime] || path.extname(part.filename).toLowerCase() || '.webm';
+        if (ext === '.weba') ext = '.webm';
+
+        const audioDir = path.join(config.uploadDir, 'audio');
+        await fs.mkdir(audioDir, { recursive: true });
+
+        tempPath = path.join(audioDir, `${randomUUID()}${ext}`);
+        await pipeline(part.file, createWriteStream(tempPath));
+      } else if (part.type === 'field' && part.fieldname === 'duration') {
+        durationMs = parseInt(part.value as string) || 0;
+      }
+    }
+
+    if (!tempPath) return reply.status(400).send({ error: 'Missing audio file' });
 
     const conversation = await prisma.conversation.findFirst({
       where: { id, orgId: user.orgId },
       include: { zaloAccount: true },
     });
     if (!conversation) return reply.status(404).send({ error: 'Conversation not found' });
+    if (!conversation.zaloAccountId || !conversation.zaloAccount) {
+      await fs.unlink(tempPath).catch(() => {});
+      return reply.status(400).send({ error: 'Voice messages are only supported for connected personal Zalo accounts' });
+    }
 
     const instance = zaloPool.getInstance(conversation.zaloAccountId);
     if (!instance?.api) return reply.status(400).send({ error: 'Zalo account not connected' });
@@ -418,51 +532,42 @@ export async function chatRoutes(app: FastifyInstance) {
       return reply.status(429).send({ error: limits.reason });
     }
 
-    const { sendVoiceFile } = await import('../../shared/voice-sender.js');
-    const path = await import('node:path');
-    const fs = await import('node:fs/promises');
-    const { randomUUID } = await import('node:crypto');
-    const { createWriteStream } = await import('node:fs');
-    const { pipeline } = await import('node:stream/promises');
-    const { config } = await import('../../config/index.js');
-
-    // Mimetype mapping to extension
-    const mimeMap: Record<string, string> = {
-      'audio/webm': '.webm',
-      'audio/webm;codecs=opus': '.webm',
-      'audio/ogg': '.ogg',
-      'audio/ogg;codecs=opus': '.ogg',
-      'audio/mp3': '.mp3',
-      'audio/mpeg': '.mp3',
-      'audio/wav': '.wav',
-      'audio/m4a': '.m4a',
-      'audio/x-m4a': '.m4a',
-      'audio/mp4': '.m4a',
-      'audio/aac': '.aac'
-    };
-
-    let ext = mimeMap[data.mimetype] || path.extname(data.filename).toLowerCase();
-    if (!ext) ext = '.webm'; // default for browser media recorder
-    if (ext === '.weba') ext = '.webm'; // sometimes browser says audio/webm but gives .weba
-
-    const tempPath = path.join(config.uploadDir, `${randomUUID()}${ext}`);
+    let finalPath = tempPath;
+    let finalMime = originalMime;
     
     try {
-      await pipeline(data.file, createWriteStream(tempPath));
+
+      // 7. Convert bằng ffmpeg nếu file là webm/ogg
+      if (ext === '.webm' || ext === '.ogg') {
+        try {
+          finalPath = await convertToM4a(tempPath);
+          finalMime = 'audio/mp4';
+        } catch (convertErr: any) {
+          await fs.unlink(tempPath).catch(() => {});
+          return reply.status(500).send({ error: convertErr.message });
+        }
+      }
 
       const threadId = conversation.externalThreadId || '';
       const threadType = conversation.threadType === 'group' ? 1 : 0;
+
+      const stat = await fs.stat(finalPath);
+      const fileName = path.basename(finalPath);
+      const fileUrl = `/api/v1/files/audio/${fileName}`;
+      const publicVoiceUrl = new URL(fileUrl, config.appUrl).toString();
+
+      if (!publicVoiceUrl.startsWith('https://')) {
+        throw new Error('APP_URL must be a public HTTPS URL so Zalo can download voice messages');
+      }
 
       zaloRateLimiter.recordSend(conversation.zaloAccountId);
       const result = await sendVoiceFile({
         api: instance.api,
         threadId,
         threadType,
-        audioPath: tempPath,
+        audioPath: finalPath,
+        voiceUrl: publicVoiceUrl,
       });
-
-      // Optionally delete temp file after sending
-      fs.unlink(tempPath).catch(err => logger.error('Failed to clean up voice file:', err));
 
       const sendResult = result.data as any;
       const zaloMsgId = String(sendResult?.msgId || sendResult?.data?.msgId || '');
@@ -476,8 +581,13 @@ export async function chatRoutes(app: FastifyInstance) {
           senderType: 'self',
           senderUid: conversation.zaloAccount.zaloUid || '',
           senderName: 'Staff',
-          content: '[Tin nhắn thoại]', // Voice messages don't have text
+          content: '[Tin nhắn thoại]',
           contentType: 'voice',
+          fileUrl,
+          fileName,
+          mimeType: finalMime,
+          duration: durationMs || null,
+          size: stat.size,
           sentAt: new Date(),
           repliedByUserId: user.id,
         },
@@ -485,16 +595,19 @@ export async function chatRoutes(app: FastifyInstance) {
 
       await prisma.conversation.update({
         where: { orgId: user.orgId, id },
-        data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0 },
+        data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0, aiPaused: true },
       });
 
       const io = (app as any).io as Server;
-      io?.to('org:' + user.orgId).emit('chat:message', { accountId: conversation.zaloAccountId, message, conversationId: id });
+      await emitToConversationRooms(io, id, user.orgId, 'chat:ai-status', { conversationId: id, aiPaused: true });
+      // Emit đúng tới user room của các user có quyền trong ZaloAccountAccess
+      await emitToConversationRooms(io, id, user.orgId, 'chat:message', { accountId: conversation.zaloAccountId, message, conversationId: id });
 
       return message;
     } catch (err: any) {
       fs.unlink(tempPath).catch(() => {});
-      logger.error('[chat] Send voice error:', err);
+      if (finalPath !== tempPath) fs.unlink(finalPath).catch(() => {});
+      logger.error('[chat] Send audio error:', err);
       return reply.status(500).send({ error: err.message || 'Failed to send voice message' });
     }
   });
@@ -513,16 +626,21 @@ export async function chatRoutes(app: FastifyInstance) {
       include: { zaloAccount: true },
     });
     if (!conversation) return reply.status(404).send({ error: 'Conversation not found' });
+    if (!conversation.zaloAccountId || !conversation.zaloAccount) {
+      return reply.status(400).send({ error: 'Files and videos are only supported for connected personal Zalo accounts' });
+    }
+    const zaloAccountId = conversation.zaloAccountId;
 
-    const instance = zaloPool.getInstance(conversation.zaloAccountId);
+    const instance = zaloPool.getInstance(zaloAccountId);
     if (!instance?.api) return reply.status(400).send({ error: 'Zalo account not connected' });
 
-    const limits = await zaloRateLimiter.checkLimits(conversation.zaloAccountId);
+    const limits = await zaloRateLimiter.checkLimits(zaloAccountId);
     if (!limits.allowed) {
       return reply.status(429).send({ error: limits.reason });
     }
 
     const { zaloOps } = await import('../../shared/zalo-operations.js');
+    const { compressVideoForChat, sendNativeVideo } = await import('../../shared/video-processor.js');
     const path = await import('node:path');
     const fs = await import('node:fs/promises');
     const { randomUUID } = await import('node:crypto');
@@ -531,26 +649,97 @@ export async function chatRoutes(app: FastifyInstance) {
     const { config } = await import('../../config/index.js');
 
     const tempPaths: string[] = [];
+    const uploadedParts: Array<{ path: string; mimeType: string; originalName: string }> = [];
 
     try {
       for await (const part of parts) {
         let ext = path.extname(part.filename).toLowerCase();
         if (!ext && part.mimetype.startsWith('image/')) ext = '.jpg';
-        const tempPath = path.join(config.uploadDir, `${randomUUID()}${ext}`);
+        if (!ext && part.mimetype.startsWith('video/')) ext = '.mp4';
+        const targetDir = part.mimetype.startsWith('video/')
+          ? path.join(config.uploadDir, 'video')
+          : config.uploadDir;
+        await fs.mkdir(targetDir, { recursive: true });
+        const tempPath = path.join(targetDir, `${randomUUID()}${ext}`);
         await pipeline(part.file, createWriteStream(tempPath));
         tempPaths.push(tempPath);
+        uploadedParts.push({ path: tempPath, mimeType: part.mimetype, originalName: part.filename });
       }
 
       if (tempPaths.length === 0) return reply.status(400).send({ error: 'No files uploaded' });
 
       const threadId = conversation.externalThreadId || '';
       const threadType = conversation.threadType === 'group' ? 1 : 0;
+      const isSingleVideo = uploadedParts.length === 1 && uploadedParts[0]!.mimeType.startsWith('video/');
 
-      zaloRateLimiter.recordSend(conversation.zaloAccountId);
+      zaloRateLimiter.recordSend(zaloAccountId);
       
       const io = (app as any).io as Server;
+      if (isSingleVideo) {
+        const source = uploadedParts[0]!;
+        const compressedPath = path.join(config.uploadDir, 'video', `${randomUUID()}.mp4`);
+        const metadata = await compressVideoForChat(source.path, compressedPath);
+        const stat = await fs.stat(compressedPath);
+
+        const result = await sendNativeVideo({
+          api: instance.api,
+          threadId,
+          threadType,
+          videoPath: compressedPath,
+        });
+        const sendResult = result as any;
+        const zaloMsgId = String(sendResult?.msgId || sendResult?.data?.msgId || '');
+        const fileName = path.basename(compressedPath);
+        const fileUrl = `/api/v1/files/video/${fileName}`;
+
+        await fs.unlink(source.path).catch(() => {});
+
+        const message = await prisma.message.create({
+          data: {
+            id: randomUUID(),
+            orgId: user.orgId,
+            conversationId: id,
+            zaloMsgId: zaloMsgId || null,
+            senderType: 'self',
+            senderUid: conversation.zaloAccount.zaloUid || '',
+            senderName: 'Staff',
+            content: '[Video]',
+            contentType: 'video',
+            fileUrl,
+            fileName,
+            mimeType: 'video/mp4',
+            duration: metadata.durationMs || null,
+            size: stat.size,
+            attachments: [{
+              type: 'video',
+              url: fileUrl,
+              payload: { url: fileUrl, duration: metadata.durationMs },
+            }],
+            sentAt: new Date(),
+            repliedByUserId: user.id,
+          },
+        });
+
+        await prisma.conversation.update({
+          where: { orgId: user.orgId, id },
+          data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0, aiPaused: true },
+        });
+
+        await emitToConversationRooms(io, id, user.orgId, 'chat:ai-status', { conversationId: id, aiPaused: true });
+        await emitToConversationRooms(io, id, user.orgId, 'chat:message', { accountId: zaloAccountId, message, conversationId: id });
+
+        return message;
+      }
+
+      if (uploadedParts.some((part) => part.mimeType.startsWith('video/'))) {
+        for (const tempPath of tempPaths) {
+          fs.unlink(tempPath).catch(() => {});
+        }
+        return reply.status(400).send({ error: 'Vui lòng gửi từng video một, không gửi chung video với ảnh/tập tin khác.' });
+      }
+
       const result = await zaloOps.sendImage(
-        conversation.zaloAccountId,
+        zaloAccountId,
         threadId,
         threadType,
         tempPaths,
@@ -583,10 +772,11 @@ export async function chatRoutes(app: FastifyInstance) {
 
       await prisma.conversation.update({
         where: { orgId: user.orgId, id },
-        data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0 },
+        data: { lastMessageAt: new Date(), isReplied: true, unreadCount: 0, aiPaused: true },
       });
 
-      io?.to('org:' + user.orgId).emit('chat:message', { accountId: conversation.zaloAccountId, message, conversationId: id });
+      await emitToConversationRooms(io, id, user.orgId, 'chat:ai-status', { conversationId: id, aiPaused: true });
+      await emitToConversationRooms(io, id, user.orgId, 'chat:message', { accountId: zaloAccountId, message, conversationId: id });
 
       return message;
     } catch (err: any) {
@@ -596,5 +786,135 @@ export async function chatRoutes(app: FastifyInstance) {
       logger.error('[chat] Send file error:', err);
       return reply.status(500).send({ error: err.message || 'Failed to send files' });
     }
+  });
+
+  // ── AI Handover & Status Controls ──────────────────────────────────────────
+  app.post('/api/v1/conversations/:id/ai/pause', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user!;
+    const { id } = request.params as { id: string };
+
+    const conversation = await prisma.conversation.findFirst({
+      where: { id, orgId: user.orgId }
+    });
+    if (!conversation) return reply.status(404).send({ error: 'Conversation not found' });
+
+    await prisma.conversation.update({
+      where: { orgId: user.orgId, id },
+      data: { aiPaused: true }
+    });
+
+    const io = (app as any).io as Server;
+    await emitToConversationRooms(io, id, user.orgId, 'chat:ai-status', { conversationId: id, aiPaused: true });
+
+    return { success: true, aiPaused: true };
+  });
+
+  app.post('/api/v1/conversations/:id/ai/resume', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user!;
+    const { id } = request.params as { id: string };
+
+    const conversation = await prisma.conversation.findFirst({
+      where: { id, orgId: user.orgId }
+    });
+    if (!conversation) return reply.status(404).send({ error: 'Conversation not found' });
+
+    await prisma.conversation.update({
+      where: { orgId: user.orgId, id },
+      data: { aiPaused: false }
+    });
+
+    const io = (app as any).io as Server;
+    await emitToConversationRooms(io, id, user.orgId, 'chat:ai-status', { conversationId: id, aiPaused: false });
+
+    return { success: true, aiPaused: false };
+  });
+
+  app.post('/api/v1/conversations/:id/ai/handover', async (request: FastifyRequest, reply: FastifyReply) => {
+    const user = request.user!;
+    const { id } = request.params as { id: string };
+
+    const conversation = await prisma.conversation.findFirst({
+      where: { id, orgId: user.orgId }
+    });
+    if (!conversation) return reply.status(404).send({ error: 'Conversation not found' });
+
+    // 1. Pause AI
+    await prisma.conversation.update({
+      where: { orgId: user.orgId, id },
+      data: { aiPaused: true }
+    });
+
+    // 2. Attach 'Cần nhân viên xử lý' Tag to the contact if contactId exists
+    const contactId = conversation.contactId;
+    if (contactId) {
+      let tag = await prisma.tag.findFirst({
+        where: { orgId: user.orgId, name: 'Cần nhân viên xử lý', isActive: true }
+      });
+      if (!tag) {
+        tag = await prisma.tag.create({
+          data: {
+            orgId: user.orgId,
+            name: 'Cần nhân viên xử lý',
+            color: '#F44336',
+            description: 'Bàn giao từ AI'
+          }
+        });
+      }
+
+      const existingMapping = await prisma.contactTag.findFirst({
+        where: { contactId, tagId: tag.id }
+      });
+      if (!existingMapping) {
+        await prisma.contactTag.create({
+          data: { orgId: user.orgId, contactId, tagId: tag.id }
+        });
+
+        try {
+          const { triggerTagAutomation } = await import('../contacts/contact-sub-resource-routes.js');
+          await triggerTagAutomation(user.orgId, contactId, tag.id);
+        } catch (autoErr) {
+          logger.error('[automation] Error triggering automation on AI handover:', autoErr);
+        }
+
+        // Update Contact's JSON tags array
+        const contact = await prisma.contact.findUnique({
+          where: { id: contactId },
+          select: { tags: true }
+        });
+        let currentTags: string[] = [];
+        if (contact?.tags && Array.isArray(contact.tags)) {
+          currentTags = contact.tags as string[];
+        }
+        if (!currentTags.includes('Cần nhân viên xử lý')) {
+          currentTags.push('Cần nhân viên xử lý');
+          await prisma.contact.update({
+            where: { id: contactId },
+            data: { tags: currentTags }
+          });
+        }
+
+        const { zaloPool } = await import('../zalo/zalo-pool.js');
+        if (zaloPool.io) {
+          const { emitToContactRooms } = await import('../../shared/utils/permission-scope.js');
+          const updatedContact = await prisma.contact.findUnique({
+            where: { id: contactId },
+            include: {
+              assignedUser: { select: { id: true, fullName: true, email: true } },
+              appointments: { orderBy: { appointmentDate: 'desc' }, take: 10 },
+              contactTags: { include: { tag: true } },
+              _count: { select: { conversations: true } },
+            }
+          });
+          if (updatedContact) {
+            emitToContactRooms(zaloPool.io, contactId, user.orgId, 'contact:update', updatedContact);
+          }
+        }
+      }
+    }
+
+    const io = (app as any).io as Server;
+    await emitToConversationRooms(io, id, user.orgId, 'chat:ai-status', { conversationId: id, aiPaused: true });
+
+    return { success: true, aiPaused: true };
   });
 }

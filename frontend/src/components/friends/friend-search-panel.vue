@@ -36,30 +36,52 @@
 
         <template #append>
           <div class="d-flex flex-column align-end gap-1">
-            <v-btn
-              v-if="!pendingId[user.userId ?? user.id]"
-              size="small"
-              color="primary"
-              variant="tonal"
-              prepend-icon="mdi-account-plus-outline"
-              @click="openMessage(user.userId ?? user.id)"
-            >
-              Gửi lời mời
-            </v-btn>
+            <template v-if="user.status === 'friend'">
+              <v-chip
+                color="success"
+                size="small"
+                variant="tonal"
+                prepend-icon="mdi-account-check"
+              >
+                Đã là bạn bè
+              </v-chip>
+            </template>
+            <template v-else-if="user.status === 'sent'">
+              <v-chip
+                color="blue"
+                size="small"
+                variant="tonal"
+                prepend-icon="mdi-account-clock"
+              >
+                Đã gửi lời mời
+              </v-chip>
+            </template>
             <template v-else>
-              <v-text-field
-                v-model="messageMap[user.userId ?? user.id]"
-                placeholder="Lời nhắn (tuỳ chọn)"
-                variant="outlined"
-                density="compact"
-                hide-details
-                style="min-width: 180px"
-                class="mb-1"
-              />
-              <div class="d-flex gap-1">
-                <v-btn size="small" color="primary" @click="onSend(user.userId ?? user.id)">Gửi</v-btn>
-                <v-btn size="small" variant="text" @click="closeMessage(user.userId ?? user.id)">Hủy</v-btn>
-              </div>
+              <v-btn
+                v-if="!pendingId[user.userId ?? user.id]"
+                size="small"
+                color="primary"
+                variant="tonal"
+                prepend-icon="mdi-account-plus-outline"
+                @click="openMessage(user.userId ?? user.id)"
+              >
+                Gửi lời mời
+              </v-btn>
+              <template v-else>
+                <v-text-field
+                  v-model="messageMap[user.userId ?? user.id]"
+                  placeholder="Lời nhắn (tuỳ chọn)"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  style="min-width: 180px"
+                  class="mb-1"
+                />
+                <div class="d-flex gap-1">
+                  <v-btn size="small" color="primary" @click="onSend(user.userId ?? user.id)">Gửi</v-btn>
+                  <v-btn size="small" variant="text" @click="closeMessage(user.userId ?? user.id)">Hủy</v-btn>
+                </div>
+              </template>
             </template>
           </div>
         </template>

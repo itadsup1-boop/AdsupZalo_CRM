@@ -10,19 +10,26 @@
 
     <template v-else>
       <!-- Header -->
-      <div class="pa-3 d-flex align-center" style="border-bottom: 1px solid var(--border-glow, rgba(0,242,255,0.1));">
+      <div class="chat-thread-header pa-3 d-flex align-center" style="border-bottom: 1px solid var(--border-glow, rgba(0,242,255,0.1));">
         <!-- Back button for mobile -->
         <v-btn v-if="showBack" icon size="small" variant="text" class="mr-1" @click="$emit('go-back')">
           <v-icon>mdi-arrow-left</v-icon>
         </v-btn>
-        <v-avatar size="36" color="grey-lighten-2" class="mr-3">
+        <v-avatar size="36" color="grey-lighten-2" class="chat-header-avatar mr-3">
           <v-icon v-if="conversation.threadType === 'group'" icon="mdi-account-group" />
           <v-img v-else-if="conversation.contact?.avatarUrl" :src="conversation.contact.avatarUrl" />
           <v-icon v-else icon="mdi-account" />
         </v-avatar>
-        <div class="flex-grow-1">
-          <div class="font-weight-medium">{{ conversation.contact?.fullName || 'Unknown' }}</div>
-          <div class="text-caption text-grey">{{ conversation.zaloAccount?.displayName || 'Zalo' }}</div>
+        <div class="chat-header-title flex-grow-1">
+          <div class="font-weight-medium text-truncate" :title="conversation.threadType === 'group' ? (conversation.contact?.fullName || 'Nhóm') : (conversation.contact?.crmName || conversation.contact?.fullName || 'Unknown')">
+            {{ conversation.threadType === 'group' ? (conversation.contact?.fullName || 'Nhóm') : (conversation.contact?.crmName || conversation.contact?.fullName || 'Unknown') }}
+          </div>
+          <div class="text-caption text-grey text-truncate">
+            <template v-if="conversation.threadType !== 'group' && conversation.contact?.crmName && conversation.contact?.crmName !== conversation.contact?.fullName">
+              <span :title="conversation.contact?.fullName || undefined">{{ conversation.contact?.fullName }}</span> • 
+            </template>
+            {{ conversation.zaloAccount?.displayName || 'Zalo' }}
+          </div>
         </div>
         <!-- Nút Xem thông tin khách hàng (mdi-account-details) - Đưa lên trước để luôn xuất hiện trên mọi màn hình mobile -->
         <v-btn
@@ -33,17 +40,56 @@
           @click="$emit('toggle-contact-panel')"
         />
 
-        <v-btn size="small" variant="tonal" color="primary" class="mr-1" :loading="aiSuggestionLoading" @click="$emit('ask-ai')">
-          <v-icon size="small" class="d-inline d-sm-none">mdi-robot</v-icon>
-          <span class="d-none d-sm-inline">Ask AI</span>
-        </v-btn>
+        <v-tooltip text="Hỏi AI" location="bottom">
+          <template #activator="{ props: tooltipProps }">
+            <v-btn
+              v-bind="tooltipProps"
+              icon="mdi-robot-outline"
+              size="small"
+              variant="tonal"
+              color="primary"
+              class="mr-1 d-none d-sm-inline-flex"
+              :loading="aiSuggestionLoading"
+              @click="$emit('ask-ai')"
+            />
+          </template>
+        </v-tooltip>
+
+        <v-tooltip :text="conversation.aiPaused ? 'Bật lại AI' : 'Tạm dừng AI'" location="bottom">
+          <template #activator="{ props: tooltipProps }">
+            <v-btn
+              v-bind="tooltipProps"
+              :icon="conversation.aiPaused ? 'mdi-play-circle-outline' : 'mdi-pause-circle-outline'"
+              size="small"
+              variant="text"
+              :color="conversation.aiPaused ? 'success' : 'warning'"
+              class="mr-1 d-none d-sm-inline-flex"
+              @click="conversation.aiPaused ? $emit('resume-ai') : $emit('pause-ai')"
+            />
+          </template>
+        </v-tooltip>
+
+        <v-tooltip text="Giao nhân viên" location="bottom">
+          <template #activator="{ props: tooltipProps }">
+            <v-btn
+              v-bind="tooltipProps"
+              icon="mdi-account-arrow-right-outline"
+              size="small"
+              variant="tonal"
+              color="error"
+              class="mr-1 d-none d-sm-inline-flex"
+              @click="$emit('handover-staff')"
+            />
+          </template>
+        </v-tooltip>
 
         <v-menu v-model="showTagMenu" :close-on-content-click="false" location="bottom end">
           <template v-slot:activator="{ props }">
-            <v-btn size="small" variant="tonal" color="deep-purple-accent-1" class="mr-1" v-bind="props" :loading="loadingTags" @click="fetchTagsIfNeeded">
-              <v-icon size="small" class="d-inline d-sm-none">mdi-tag-multiple</v-icon>
-              <span class="d-none d-sm-inline">Phân loại <v-icon size="small" class="ml-1">mdi-chevron-down</v-icon></span>
-            </v-btn>
+            <v-tooltip text="Phân loại" location="bottom">
+              <template #activator="{ props: tooltipProps }">
+                <v-btn icon="mdi-tag-multiple-outline" size="small" variant="tonal" color="deep-purple-accent-1" class="mr-1 d-none d-sm-inline-flex" v-bind="{...props, ...tooltipProps}" :loading="loadingTags" @click="fetchTagsIfNeeded" />
+              </template>
+            </v-tooltip>
           </template>
           <v-card width="280">
             <v-card-text class="pa-2">
@@ -75,10 +121,11 @@
         <!-- Thẻ CRM Menu -->
         <v-menu v-if="conversation?.contact?.id" v-model="showCrmTagMenuHeader" :close-on-content-click="false" location="bottom end">
           <template v-slot:activator="{ props: menuProps }">
-            <v-btn size="small" variant="tonal" color="teal-accent-4" class="mr-1" v-bind="menuProps" :loading="loadingCrmTagsHeader" @click="fetchCrmTagsHeaderIfNeeded">
-              <v-icon size="small" class="d-inline d-sm-none">mdi-tag-outline</v-icon>
-              <span class="d-none d-sm-inline">Thẻ CRM <v-icon size="small" class="ml-1">mdi-chevron-down</v-icon></span>
-            </v-btn>
+            <v-tooltip text="Thẻ CRM" location="bottom">
+              <template #activator="{ props: tooltipProps }">
+                <v-btn icon="mdi-label-outline" size="small" variant="tonal" color="teal-accent-4" class="mr-1 d-none d-sm-inline-flex" v-bind="{...menuProps, ...tooltipProps}" :loading="loadingCrmTagsHeader" @click="fetchCrmTagsHeaderIfNeeded" />
+              </template>
+            </v-tooltip>
           </template>
           <v-card width="280">
             <v-card-text class="pa-2">
@@ -117,23 +164,62 @@
 
         <!-- On desktop: show all buttons inline -->
         <div class="d-none d-sm-flex align-center">
-          <ZaloCallButton :customerId="conversation?.contact?.id" :phone="conversation?.contact?.phone" size="small" variant="tonal" color="primary" class="mr-1" />
-          <v-btn size="small" variant="tonal" color="info" class="mr-1" @click="onLinkClick">
-            Link
-          </v-btn>
+          <ZaloCallButton :customerId="conversation?.contact?.id" :phone="conversation?.contact?.phone" size="small" variant="tonal" color="primary" class="mr-1" iconOnly />
+          <v-tooltip text="Đồng bộ lại tin nhắn 24 giờ gần nhất" location="bottom">
+            <template #activator="{ props: tooltipProps }">
+              <v-btn
+                v-bind="tooltipProps"
+                icon="mdi-sync"
+                size="small"
+                variant="tonal"
+                color="orange"
+                class="mr-1"
+                :loading="syncingMessages"
+                @click="syncCurrentConversationMessages"
+              />
+            </template>
+          </v-tooltip>
+          <v-tooltip text="Gửi Link" location="bottom">
+            <template #activator="{ props: tooltipProps }">
+              <v-btn v-bind="tooltipProps" icon="mdi-link" size="small" variant="tonal" color="info" class="mr-1" @click="onLinkClick" />
+            </template>
+          </v-tooltip>
         </div>
 
         <!-- On mobile: collapse secondary actions into a menu -->
         <v-menu location="bottom end">
           <template v-slot:activator="{ props }">
-            <v-btn icon size="small" variant="text" class="mr-1" v-bind="props">
+            <v-btn icon size="small" variant="text" class="mr-1 d-sm-none" v-bind="props">
               <v-icon size="20">mdi-dots-vertical</v-icon>
             </v-btn>
           </template>
           <v-list density="compact">
+            <v-list-item
+              prepend-icon="mdi-account-details-outline"
+              title="Thông tin khách"
+              @click="$emit('toggle-contact-panel')"
+            />
+            <v-list-item
+              prepend-icon="mdi-robot"
+              title="Ask AI"
+              :disabled="aiSuggestionLoading"
+              @click="$emit('ask-ai')"
+            />
+            <v-list-item
+              :prepend-icon="conversation.aiPaused ? 'mdi-play-circle-outline' : 'mdi-pause-circle-outline'"
+              :title="conversation.aiPaused ? 'Bật lại AI' : 'Tạm dừng AI'"
+              @click="conversation.aiPaused ? $emit('resume-ai') : $emit('pause-ai')"
+            />
+            <v-list-item
+              prepend-icon="mdi-account-arrow-right-outline"
+              title="Giao nhân viên"
+              @click="$emit('handover-staff')"
+            />
+            <v-divider class="my-1" />
             <v-list-item class="pa-0">
               <ZaloCallButton :customerId="conversation?.contact?.id" :phone="conversation?.contact?.phone" variant="text" size="small" class="px-4 w-100 justify-start" style="height: 32px; letter-spacing: normal; text-transform: none; font-weight: normal; font-size: 0.875rem;" />
             </v-list-item>
+            <v-list-item prepend-icon="mdi-sync" title="Đồng bộ tin nhắn" @click="syncCurrentConversationMessages" />
             <v-list-item prepend-icon="mdi-link" title="Gửi Link" @click="onLinkClick" />
           </v-list>
         </v-menu>
@@ -500,11 +586,14 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   send: [content: string, replyMessageId?: string | null];
-  'send-voice': [audioBlob: Blob];
+  'send-voice': [audioBlob: Blob, durationMs: number];
   'send-file': [files: File[]];
   'toggle-contact-panel': [];
   'go-back': [];
   'ask-ai': [];
+  'pause-ai': [];
+  'resume-ai': [];
+  'handover-staff': [];
   'add-reaction': [msgId: string, reaction: string];
   'delete-message': [msgId: string];
   'undo-message': [msgId: string];
@@ -524,9 +613,33 @@ const messagesContainer = ref<HTMLElement | null>(null);
 const previewImageUrl = ref('');
 const showImagePreview = computed({ get: () => !!previewImageUrl.value, set: (v) => { if (!v) previewImageUrl.value = ''; } });
 const syncSnack = ref({ show: false, text: '', color: 'success' });
+const syncingMessages = ref(false);
 
 
 const notImplementedToast = ref(false);
+
+async function syncCurrentConversationMessages() {
+  if (!props.conversation?.id || syncingMessages.value) return;
+  syncingMessages.value = true;
+  try {
+    const res = await api.post(`/conversations/${props.conversation.id}/sync-messages`, { lookbackHours: 24 });
+    const stats = res.data.stats;
+    syncSnack.value = {
+      show: true,
+      color: 'success',
+      text: `Đồng bộ xong: +${stats.messagesImported} tin, trùng ${stats.duplicatesSkipped}`,
+    };
+    emit('refresh-thread');
+  } catch (err: any) {
+    syncSnack.value = {
+      show: true,
+      color: 'error',
+      text: err.response?.data?.error || err.message || 'Đồng bộ tin nhắn thất bại',
+    };
+  } finally {
+    syncingMessages.value = false;
+  }
+}
 
 const showEmojiPicker = ref(false);
 
@@ -535,6 +648,7 @@ const recordingTime = ref(0);
 const audioChunks = ref<Blob[]>([]);
 let mediaRecorder: MediaRecorder | null = null;
 let recordingTimer: any = null;
+let recordingStream: MediaStream | null = null;
 
 const recordingTimeString = computed(() => {
   const m = Math.floor(recordingTime.value / 60);
@@ -543,9 +657,22 @@ const recordingTimeString = computed(() => {
 });
 
 async function startRecording() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('Trình duyệt không hỗ trợ ghi âm. Vui lòng sử dụng HTTPS hoặc localhost để cấp quyền truy cập Microphone.');
+    return;
+  }
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
+    recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const supportedMimeType = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/ogg;codecs=opus',
+      'audio/mp4',
+    ].find(type => MediaRecorder.isTypeSupported(type));
+    mediaRecorder = new MediaRecorder(
+      recordingStream,
+      supportedMimeType ? { mimeType: supportedMimeType } : undefined,
+    );
     audioChunks.value = [];
     
     mediaRecorder.ondataavailable = (e) => {
@@ -553,7 +680,8 @@ async function startRecording() {
     };
     
     mediaRecorder.onstop = () => {
-      stream.getTracks().forEach(track => track.stop());
+      recordingStream?.getTracks().forEach(track => track.stop());
+      recordingStream = null;
     };
     
     mediaRecorder.start();
@@ -573,8 +701,14 @@ function stopAndSendRecording() {
   if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
   
   mediaRecorder.onstop = () => {
-    const audioBlob = new Blob(audioChunks.value, { type: 'audio/webm' });
-    emit('send-voice', audioBlob);
+    const mimeType = mediaRecorder?.mimeType || audioChunks.value[0]?.type || 'audio/webm';
+    const audioBlob = new Blob(audioChunks.value, { type: mimeType });
+    if (audioBlob.size === 0) {
+      alert('Không thu được dữ liệu âm thanh. Vui lòng kiểm tra quyền microphone và thử lại.');
+      cleanupRecording();
+      return;
+    }
+    emit('send-voice', audioBlob, recordingTime.value * 1000);
     cleanupRecording();
   };
   
@@ -595,6 +729,8 @@ function cancelRecording() {
 function cleanupRecording() {
   isRecording.value = false;
   clearInterval(recordingTimer);
+  recordingStream?.getTracks().forEach(track => track.stop());
+  recordingStream = null;
   audioChunks.value = [];
   mediaRecorder = null;
 }
@@ -1079,6 +1215,7 @@ function shouldShowSeparator(index: number): boolean {
 
 /** Extract image URL from JSON content */
 function getImageUrl(msg: Message): string | null {
+  if (msg.contentType !== 'image') return null;
   if (msg.contentType === 'image' && msg.content) {
     if (msg.content.startsWith('http')) return msg.content;
     try { const p = JSON.parse(msg.content); return p.href || p.thumb || p.hdUrl || null; } catch {}
@@ -1104,6 +1241,7 @@ watch(() => props.messages.length, async () => {
 
 <style scoped>
 .message-bubble { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); }
+.chat-header-title { min-width: 0; }
 .album-grid { display: grid; gap: 3px; border-radius: 10px; overflow: hidden; max-width: 420px; }
 .album-grid-1 { grid-template-columns: 1fr; }
 .album-grid-2 { grid-template-columns: 1fr 1fr; }
@@ -1138,5 +1276,16 @@ watch(() => props.messages.length, async () => {
   background: rgba(var(--v-theme-on-surface), 0.1) !important;
   color: rgba(var(--v-theme-on-surface), 0.3) !important;
   box-shadow: none !important;
+}
+
+@media (max-width: 600px) {
+  .chat-thread-header {
+    padding: 8px 10px !important;
+    gap: 4px;
+  }
+
+  .chat-header-avatar {
+    margin-right: 8px !important;
+  }
 }
 </style>

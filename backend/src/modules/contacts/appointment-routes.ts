@@ -1,219 +1,137 @@
-/**
- * appointment-routes.ts — REST API for appointment management.
- * Supports list, detail, create, update, delete, today, and upcoming endpoints.
- * All routes require JWT auth and are scoped to user's org.
- */
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { prisma } from '../../shared/database/prisma-client.js';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { authMiddleware } from '../auth/auth-middleware.js';
 import { logger } from '../../shared/utils/logger.js';
+import {
+  cancelAppointment,
+  createAppointment,
+  getAppointment,
+  listAppointments,
+  updateAppointment,
+} from '../appointments/appointment-service.js';
 
 type QueryParams = Record<string, string>;
 
-const APPOINTMENT_INCLUDE = {
-  contact: { select: { id: true, fullName: true, phone: true, avatarUrl: true } },
-  assignedUser: { select: { id: true, fullName: true } },
-} as const;
+function appointmentError(reply: FastifyReply, err: unknown) {
+  const message = err instanceof Error ? err.message : 'Failed to process appointment';
+  const status = message.includes('not found') ? 404
+    : message.includes('tương tự') ? 409
+      : message.includes('không hợp lệ') || message.includes('bắt buộc') || message.includes('quá khứ') ? 400
+        : 500;
+  return reply.status(status).send({ error: status === 500 ? 'Failed to process appointment' : message });
+}
+
+function todayRange() {
+  const now = new Date();
+  const vietnamNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+  const start = new Date(vietnamNow.getFullYear(), vietnamNow.getMonth(), vietnamNow.getDate(), 0, 0, 0, 0);
+  const end = new Date(vietnamNow.getFullYear(), vietnamNow.getMonth(), vietnamNow.getDate(), 23, 59, 59, 999);
+  return { start, end };
+}
 
 export async function appointmentRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', authMiddleware);
 
-  // ── GET /api/v1/appointments/today — today's appointments ─────────────────
-  app.get('/api/v1/appointments/today', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const user = request.user!;
-      const today = new Date();
-      const start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0);
-      const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+  const prefixes = ['/api/v1/appointments', '/api/appointments'];
 
-      const appointments = await prisma.appointment.findMany({
-        where: { orgId: user.orgId, appointmentDate: { gte: start, lte: end } },
-        include: APPOINTMENT_INCLUDE,
-        orderBy: [{ appointmentTime: 'asc' }, { appointmentDate: 'asc' }],
-      });
-
-      return { appointments, total: appointments.length };
-    } catch (err) {
-      logger.error('[appointments] Today error:', err);
-      return reply.status(500).send({ error: 'Failed to fetch today appointments' });
-    }
-  });
-
-  // ── GET /api/v1/appointments/upcoming — next 7 days ───────────────────────
-  app.get('/api/v1/appointments/upcoming', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const user = request.user!;
-      const now = new Date();
-      const in7Days = new Date(now);
-      in7Days.setDate(in7Days.getDate() + 7);
-
-      const appointments = await prisma.appointment.findMany({
-        where: {
-          orgId: user.orgId,
-          appointmentDate: { gte: now, lte: in7Days },
-          status: 'scheduled',
-        },
-        include: APPOINTMENT_INCLUDE,
-        orderBy: [{ appointmentDate: 'asc' }, { appointmentTime: 'asc' }],
-      });
-
-      return { appointments, total: appointments.length };
-    } catch (err) {
-      logger.error('[appointments] Upcoming error:', err);
-      return reply.status(500).send({ error: 'Failed to fetch upcoming appointments' });
-    }
-  });
-
-  // ── GET /api/v1/appointments — list with filters ──────────────────────────
-  app.get('/api/v1/appointments', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const user = request.user!;
-      const {
-        page = '1',
-        limit = '50',
-        status = '',
-        contactId = '',
-        dateFrom = '',
-        dateTo = '',
-      } = request.query as QueryParams;
-
-      const where: any = { orgId: user.orgId };
-      if (status) where.status = status;
-      if (contactId) where.contactId = contactId;
-      if (dateFrom || dateTo) {
-        where.appointmentDate = {};
-        if (dateFrom) where.appointmentDate.gte = new Date(dateFrom);
-        if (dateTo) where.appointmentDate.lte = new Date(dateTo);
+  for (const prefix of prefixes) {
+    app.get(`${prefix}/today`, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { start, end } = todayRange();
+        return await listAppointments(request.user!, {
+          ...(request.query as QueryParams),
+          dateFrom: start.toISOString(),
+          dateTo: end.toISOString(),
+        });
+      } catch (err) {
+        logger.error('[appointments] Today error:', err);
+        return appointmentError(reply, err);
       }
+    });
 
-      const pageNum = parseInt(page);
-      const limitNum = parseInt(limit);
-
-      const [appointments, total] = await Promise.all([
-        prisma.appointment.findMany({
-          where,
-          include: APPOINTMENT_INCLUDE,
-          orderBy: [{ appointmentDate: 'desc' }, { appointmentTime: 'asc' }],
-          skip: (pageNum - 1) * limitNum,
-          take: limitNum,
-        }),
-        prisma.appointment.count({ where }),
-      ]);
-
-      return { appointments, total, page: pageNum, limit: limitNum };
-    } catch (err) {
-      logger.error('[appointments] List error:', err);
-      return reply.status(500).send({ error: 'Failed to fetch appointments' });
-    }
-  });
-
-  // ── GET /api/v1/appointments/:id — detail ─────────────────────────────────
-  app.get('/api/v1/appointments/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const user = request.user!;
-      const { id } = request.params as { id: string };
-
-      const appointment = await prisma.appointment.findFirst({
-        where: { id, orgId: user.orgId },
-        include: APPOINTMENT_INCLUDE,
-      });
-
-      if (!appointment) return reply.status(404).send({ error: 'Appointment not found' });
-      return appointment;
-    } catch (err) {
-      logger.error('[appointments] Detail error:', err);
-      return reply.status(500).send({ error: 'Failed to fetch appointment' });
-    }
-  });
-
-  // ── POST /api/v1/appointments — create ────────────────────────────────────
-  app.post('/api/v1/appointments', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const user = request.user!;
-      const body = request.body as Record<string, any>;
-
-      if (!body.contactId || !body.appointmentDate) {
-        return reply.status(400).send({ error: 'contactId and appointmentDate are required' });
+    app.get(`${prefix}/upcoming`, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const now = new Date();
+        const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+        return await listAppointments(request.user!, {
+          ...(request.query as QueryParams),
+          dateFrom: now.toISOString(),
+          dateTo: in7Days.toISOString(),
+          status: (request.query as QueryParams).status || 'confirmed',
+        });
+      } catch (err) {
+        logger.error('[appointments] Upcoming error:', err);
+        return appointmentError(reply, err);
       }
+    });
 
-      // Deduplication: prevent same contact + same date within org
-      const existing = await prisma.appointment.findFirst({
-        where: {
-          contactId: body.contactId,
-          appointmentDate: new Date(body.appointmentDate),
-          orgId: user.orgId,
-        },
-      });
-      if (existing) {
-        return reply.status(409).send({ error: 'Lịch hẹn đã tồn tại cho ngày này' });
+    app.get(prefix, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        return await listAppointments(request.user!, request.query as QueryParams);
+      } catch (err) {
+        logger.error('[appointments] List error:', err);
+        return appointmentError(reply, err);
       }
+    });
 
-      const appointment = await prisma.appointment.create({
-        data: {
-          orgId: user.orgId,
-          contactId: body.contactId,
-          assignedUserId: body.assignedUserId ?? user.id,
-          appointmentDate: new Date(body.appointmentDate),
-          appointmentTime: body.appointmentTime,
-          type: body.type,
-          status: body.status ?? 'scheduled',
-          notes: body.notes,
-        },
-        include: APPOINTMENT_INCLUDE,
-      });
+    app.get(`${prefix}/:id`, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
+        return await getAppointment(request.user!, id);
+      } catch (err) {
+        logger.error('[appointments] Detail error:', err);
+        return appointmentError(reply, err);
+      }
+    });
 
-      return reply.status(201).send(appointment);
-    } catch (err) {
-      logger.error('[appointments] Create error:', err);
-      return reply.status(500).send({ error: 'Failed to create appointment' });
-    }
-  });
+    app.post(prefix, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const appointment = await createAppointment(request.user!, request.body as Record<string, unknown>, (app as any).io);
+        return reply.status(201).send(appointment);
+      } catch (err) {
+        logger.error('[appointments] Create error:', err);
+        return appointmentError(reply, err);
+      }
+    });
 
-  // ── PUT /api/v1/appointments/:id — update ─────────────────────────────────
-  app.put('/api/v1/appointments/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const user = request.user!;
-      const { id } = request.params as { id: string };
-      const body = request.body as Record<string, any>;
+    app.patch(`${prefix}/:id`, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
+        return await updateAppointment(request.user!, id, request.body as Record<string, unknown>);
+      } catch (err) {
+        logger.error('[appointments] Patch error:', err);
+        return appointmentError(reply, err);
+      }
+    });
 
-      const existing = await prisma.appointment.findFirst({ where: { id, orgId: user.orgId }, select: { id: true } });
-      if (!existing) return reply.status(404).send({ error: 'Appointment not found' });
+    app.put(`${prefix}/:id`, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
+        return await updateAppointment(request.user!, id, request.body as Record<string, unknown>);
+      } catch (err) {
+        logger.error('[appointments] Update error:', err);
+        return appointmentError(reply, err);
+      }
+    });
 
-      const updated = await prisma.appointment.update({
-        where: { id },
-        data: {
-          contactId: body.contactId,
-          assignedUserId: body.assignedUserId,
-          appointmentDate: body.appointmentDate ? new Date(body.appointmentDate) : undefined,
-          appointmentTime: body.appointmentTime,
-          type: body.type,
-          status: body.status,
-          notes: body.notes,
-        },
-        include: APPOINTMENT_INCLUDE,
-      });
+    app.patch(`${prefix}/:id/cancel`, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
+        const body = request.body as { reason?: string };
+        return await cancelAppointment(request.user!, id, body?.reason);
+      } catch (err) {
+        logger.error('[appointments] Cancel error:', err);
+        return appointmentError(reply, err);
+      }
+    });
 
-      return updated;
-    } catch (err) {
-      logger.error('[appointments] Update error:', err);
-      return reply.status(500).send({ error: 'Failed to update appointment' });
-    }
-  });
-
-  // ── DELETE /api/v1/appointments/:id — delete ──────────────────────────────
-  app.delete('/api/v1/appointments/:id', async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const user = request.user!;
-      const { id } = request.params as { id: string };
-
-      const existing = await prisma.appointment.findFirst({ where: { id, orgId: user.orgId }, select: { id: true } });
-      if (!existing) return reply.status(404).send({ error: 'Appointment not found' });
-
-      await prisma.appointment.delete({ where: { id } });
-      return { success: true };
-    } catch (err) {
-      logger.error('[appointments] Delete error:', err);
-      return reply.status(500).send({ error: 'Failed to delete appointment' });
-    }
-  });
+    app.delete(`${prefix}/:id`, async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { id } = request.params as { id: string };
+        return await cancelAppointment(request.user!, id, 'Huỷ qua API DELETE');
+      } catch (err) {
+        logger.error('[appointments] Delete/cancel error:', err);
+        return appointmentError(reply, err);
+      }
+    });
+  }
 }

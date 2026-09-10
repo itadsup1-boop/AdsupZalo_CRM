@@ -35,18 +35,6 @@
 
       <v-spacer />
 
-      <!-- Status indicator -->
-      <div
-        class="d-flex align-center mr-4 px-3 py-1 rounded-pill"
-        style="background: rgba(76,175,80,0.1); border: 1px solid rgba(76,175,80,0.2);"
-      >
-        <span
-          class="status-dot"
-          style="width: 8px; height: 8px; border-radius: 50%; background: #4CAF50; display: inline-block; margin-right: 8px;"
-        ></span>
-        <span class="text-caption font-weight-bold" style="color: #4CAF50; letter-spacing: 1px;">ONLINE</span>
-      </div>
-
       <span class="text-body-2 mr-3" v-if="authStore.user">{{ authStore.user.fullName }}</span>
       <NotificationBell />
       <v-btn icon variant="text" @click="toggleTheme">
@@ -116,14 +104,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useTheme } from 'vuetify';
 import { useAuthStore } from '@/stores/auth';
 import { useRouter } from 'vue-router';
 import NotificationBell from '@/components/NotificationBell.vue';
 import GlobalSearch from '@/components/GlobalSearch.vue';
 
-import { io } from 'socket.io-client';
+import { io, type Socket } from 'socket.io-client';
 
 const theme = useTheme();
 const authStore = useAuthStore();
@@ -133,25 +121,38 @@ const drawer = ref(true);
 const rail = ref(false);
 const isDark = ref(localStorage.getItem('theme') !== 'light');
 
-// Notification state
 const showDisconnectAlert = ref(false);
 const disconnectedAccountName = ref('');
+let alertSocket: Socket | null = null;
 
 onMounted(() => {
   theme.global.name.value = isDark.value ? 'dark' : 'light';
   
   // Setup global socket listener for alerts
-  const socket = io({ transports: ['websocket', 'polling'] });
-  socket.on('zalo:disconnected-alert', (data: { name: string }) => {
+  alertSocket = io({
+    transports: ['websocket', 'polling'],
+    auth: { token: localStorage.getItem('token') }
+  });
+  
+  alertSocket.on('connect', () => {
+    alertSocket?.emit('user:join');
+  });
+  
+  alertSocket.on('zalo:disconnected-alert', (data: { name: string }) => {
     disconnectedAccountName.value = data.name;
     showDisconnectAlert.value = true;
   });
+
+});
+
+onUnmounted(() => {
+  alertSocket?.disconnect();
+  alertSocket = null;
 });
 
 const menuItems = [
   { title: 'Dashboard', icon: 'mdi-view-dashboard-outline', path: '/dashboard' },
   { title: 'Tin nhắn', icon: 'mdi-message-text-outline', path: '/chat' },
-  { title: 'Nhóm', icon: 'mdi-account-group', path: '/groups' },
   { title: 'Bạn bè', icon: 'mdi-account-multiple-outline', path: '/friends' },
   { title: 'Khách hàng', icon: 'mdi-account-group-outline', path: '/contacts' },
   { title: 'Tài khoản Zalo', icon: 'mdi-cellphone-link', path: '/zalo-accounts' },

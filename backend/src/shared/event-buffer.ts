@@ -5,6 +5,8 @@
  */
 import type { Server } from 'socket.io';
 import type { RedisClient } from './redis-client.js';
+import { prisma } from './database/prisma-client.js';
+import { emitToConversationRooms } from './utils/permission-scope.js';
 import { logger } from './utils/logger.js';
 import { getRedis } from './redis-client.js';
 
@@ -130,30 +132,35 @@ async function flush(): Promise<void> {
   if (redis) {
     await flushRedis();
   } else {
-    flushMemory();
+    await flushMemory();
   }
 }
 
-function flushMemory(): void {
+async function flushMemory(): Promise<void> {
   const now = Date.now();
   for (const [conversationId, typers] of memTyping) {
     for (const [uid, entry] of typers) {
       if (entry.expiresAt <= now) typers.delete(uid);
     }
-    const orgId = Array.from(typers.values())[0]?.orgId;
     const payload = {
       conversationId,
       typers: Array.from(typers.values()).map(t => ({ userId: t.userId, userName: t.userName })),
     };
-    if (orgId) {
-      ioRef!.to('org:' + orgId).emit('chat:typing', payload);
-    } else {
-      ioRef!.emit('chat:typing', payload);
+    try {
+      const conv = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        select: { orgId: true }
+      });
+      if (conv?.orgId) {
+        await emitToConversationRooms(ioRef, conversationId, conv.orgId, 'chat:typing', payload);
+      }
+    } catch (err) {
+      logger.error(`[event-buffer] Error emitting typing:`, err);
     }
     if (typers.size === 0) memTyping.delete(conversationId);
   }
 
-  for (const [, batch] of memReactions) {
+  for (const [conversationId, batch] of memReactions) {
     if (batch.reactions.length > 0) {
       const payload = {
         conversationId: batch.conversationId,
@@ -163,10 +170,16 @@ function flushMemory(): void {
           reaction: normalizeReaction(reaction.reaction),
         })),
       };
-      if (batch.orgId) {
-        ioRef!.to('org:' + batch.orgId).emit('chat:reactions', payload);
-      } else {
-        ioRef!.emit('chat:reactions', payload);
+      try {
+        const conv = await prisma.conversation.findUnique({
+          where: { id: conversationId },
+          select: { orgId: true }
+        });
+        if (conv?.orgId) {
+          await emitToConversationRooms(ioRef, conversationId, conv.orgId, 'chat:reactions', payload);
+        }
+      } catch (err) {
+        logger.error(`[event-buffer] Error emitting reactions:`, err);
       }
     }
   }
@@ -195,7 +208,13 @@ async function flushRedis(): Promise<void> {
       }
 
       if (active.length > 0 || Object.keys(entries).length > 0) {
-        ioRef!.emit('chat:typing', { conversationId, typers: active });
+        const conv = await prisma.conversation.findUnique({
+          where: { id: conversationId },
+          select: { orgId: true }
+        });
+        if (conv?.orgId) {
+          await emitToConversationRooms(ioRef, conversationId, conv.orgId, 'chat:typing', { conversationId, typers: active });
+        }
       }
     }
 
@@ -214,10 +233,16 @@ async function flushRedis(): Promise<void> {
 
       if (msgId && items.length > 0) {
         const reactions = items.map((i: string) => {
-        const parsed = JSON.parse(i) as { userId: string; userName: string; reaction: string; action: 'add' | 'remove' };
-        return { ...parsed, reaction: normalizeReaction(parsed.reaction) };
-      });
-        ioRef!.emit('chat:reactions', { conversationId, msgId, reactions });
+          const parsed = JSON.parse(i) as { userId: string; userName: string; reaction: string; action: 'add' | 'remove' };
+          return { ...parsed, reaction: normalizeReaction(parsed.reaction) };
+        });
+        const conv = await prisma.conversation.findUnique({
+          where: { id: conversationId },
+          select: { orgId: true }
+        });
+        if (conv?.orgId) {
+          await emitToConversationRooms(ioRef, conversationId, conv.orgId, 'chat:reactions', { conversationId, msgId, reactions });
+        }
       }
 
       await redis.del(base, listKey);
@@ -225,7 +250,7 @@ async function flushRedis(): Promise<void> {
   } catch (err) {
     logger.warn('[event-buffer] Redis flush error, falling back: %s', (err as Error).message);
     redis = null;
-    flushMemory();
+    await flushMemory();
   }
 }
 

@@ -3,6 +3,7 @@ import { logger } from '../../shared/utils/logger.js';
 import { randomUUID, createHash } from 'node:crypto';
 import { emitWebhook } from '../api/webhook-service.js';
 import { Server } from 'socket.io';
+import { emitToConversationRooms, getContactTargetRooms } from '../../shared/utils/permission-scope.js';
 
 export async function handleOAWebhook(body: any, io?: Server) {
   logger.info(`[ZaloOA] Webhook received: ${JSON.stringify(body)}`);
@@ -165,9 +166,9 @@ export async function handleOAWebhook(body: any, io?: Server) {
       }
     });
 
-    // Emit Socket event — scoped to org room to prevent cross-tenant data leakage
+    // Emit Socket event — scoped to authorized conversation rooms
     if (io) {
-      io.to('org:' + orgId).emit('chat:message', {
+      await emitToConversationRooms(io, conversation.id, orgId, 'chat:message', {
         accountId: account.id,
         isOA: true,
         message: newMessage,
@@ -250,12 +251,17 @@ export async function handleOAWebhook(body: any, io?: Server) {
 
         // Notify frontend via socket
         if (io) {
-          io.to(orgId).emit('call:status', {
-            callId: callLog.id,
-            status: newStatus,
-            customerId: callLog.customerId,
-            duration: callData?.duration
-          });
+          const contactRooms = await getContactTargetRooms(callLog.customerId, orgId);
+          const targetRooms = new Set(contactRooms);
+          targetRooms.add(`org_${orgId}_user_${callLog.agentId}`);
+          for (const room of targetRooms) {
+            io.to(room).emit('call:status', {
+              callId: callLog.id,
+              status: newStatus,
+              customerId: callLog.customerId,
+              duration: callData?.duration
+            });
+          }
         }
       } else {
         logger.warn(`[ZaloOA] No call log found for Zalo call_id=${callId}`);
@@ -277,10 +283,13 @@ export async function handleOAWebhook(body: any, io?: Server) {
           });
           logger.info(`[ZaloOA] Consent granted for zaloUid=${zaloUserId}`);
           if (io) {
-            io.to(orgId).emit('call:consent', {
-              contactId: consentRecord.contactId,
-              status: 'granted'
-            });
+            const contactRooms = await getContactTargetRooms(consentRecord.contactId, orgId);
+            for (const room of contactRooms) {
+              io.to(room).emit('call:consent', {
+                contactId: consentRecord.contactId,
+                status: 'granted'
+              });
+            }
           }
         }
       }

@@ -127,7 +127,7 @@ export async function contactSubResourceRoutes(app: FastifyInstance): Promise<vo
   });
 }
 
-async function triggerTagAutomation(orgId: string, contactId: string, tagId: string) {
+export async function triggerTagAutomation(orgId: string, contactId: string, tagId: string) {
   const scenarios = await prisma.messageScenario.findMany({
     where: {
       orgId,
@@ -143,7 +143,9 @@ async function triggerTagAutomation(orgId: string, contactId: string, tagId: str
 
   for (const scenario of scenarios) {
     for (const step of scenario.steps) {
-      const scheduledAt = new Date(Date.now() + step.delayMinutes * 60 * 1000);
+      const scheduledAt = step.delayType === 'absolute' && step.absoluteTime
+        ? new Date(step.absoluteTime)
+        : new Date(Date.now() + step.delayMinutes * 60 * 1000);
       
       const existing = await prisma.scheduledMessage.findFirst({
         where: {
@@ -169,5 +171,13 @@ async function triggerTagAutomation(orgId: string, contactId: string, tagId: str
         },
       });
     }
+  }
+
+  // Trigger automation workflows associated with this tag
+  try {
+    const { triggerWorkflowsByTag } = await import('../automation/workflow-executor.js');
+    await triggerWorkflowsByTag(orgId, contactId, tagId);
+  } catch (err) {
+    logger.error(`[automation] Error triggering workflows for tag ${tagId}:`, err);
   }
 }

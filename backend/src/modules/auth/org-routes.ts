@@ -76,4 +76,62 @@ export async function orgRoutes(app: FastifyInstance): Promise<void> {
       }
     }
   );
+
+  // GET /api/v1/organization/anti-spam
+  app.get('/api/v1/organization/anti-spam', async (request: FastifyRequest) => {
+    const user = request.user!;
+    try {
+      const db = getTenantPrisma(user.orgId);
+      const setting = await db.appSetting.findUnique({
+        where: { orgId_settingKey: { orgId: user.orgId, settingKey: 'anti_spam_settings' } }
+      });
+      if (!setting || !setting.valuePlain) {
+        return {
+          enabled: true,
+          quietHoursStart: '22:00',
+          quietHoursEnd: '08:00',
+          maxMessagesPerHour: 3,
+          maxMessagesPerDay: 10,
+          recentReplyThresholdMinutes: 15,
+          duplicateThresholdHours: 24,
+        };
+      }
+      return JSON.parse(setting.valuePlain);
+    } catch (err) {
+      logger.error('[org-routes] Get anti-spam settings error:', err);
+      return {
+        enabled: true,
+        quietHoursStart: '22:00',
+        quietHoursEnd: '08:00',
+        maxMessagesPerHour: 3,
+        maxMessagesPerDay: 10,
+        recentReplyThresholdMinutes: 15,
+        duplicateThresholdHours: 24,
+      };
+    }
+  });
+
+  // PUT /api/v1/organization/anti-spam
+  app.put(
+    '/api/v1/organization/anti-spam',
+    { preHandler: requireRole('owner', 'admin') },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const user = request.user!;
+      const settingsData = request.body as any;
+
+      try {
+        const db = getTenantPrisma(user.orgId);
+        await db.appSetting.upsert({
+          where: { orgId_settingKey: { orgId: user.orgId, settingKey: 'anti_spam_settings' } },
+          update: { valuePlain: JSON.stringify(settingsData) },
+          create: { orgId: user.orgId, settingKey: 'anti_spam_settings', valuePlain: JSON.stringify(settingsData) }
+        });
+        logger.info(`Anti-spam settings updated for org ${user.orgId} by ${user.email}`);
+        return { success: true };
+      } catch (err) {
+        logger.error('[org-routes] Update anti-spam settings error:', err);
+        return reply.status(500).send({ error: 'Failed to update anti-spam settings' });
+      }
+    }
+  );
 }

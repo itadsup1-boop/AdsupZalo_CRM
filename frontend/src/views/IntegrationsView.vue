@@ -274,7 +274,7 @@ async function handleDelete() {
 async function handleSync(id: string) {
   syncing.value = id;
   try {
-    await api.post(`/integrations/${id}/sync`);
+    await api.post(`/integrations/${id}/sync`, {});
     await fetchIntegrations();
   } catch (err: any) {
     error.value = err.response?.data?.error || 'Lỗi đồng bộ';

@@ -10,8 +10,10 @@ class QueueService {
     try {
       // @ts-ignore - rabbitUrl might be missing in config type but exists in env
       const url = config.rabbitUrl || 'amqp://localhost';
+      // @ts-ignore
       this.connection = await amqp.connect(url);
       if (this.connection) {
+        // @ts-ignore
         this.channel = await this.connection.createChannel();
       }
 

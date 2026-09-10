@@ -5,18 +5,14 @@
  */
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
+import { getZaloAccountAccessWhere } from '../../shared/utils/permission-scope.js';
 
 type Permission = 'read' | 'chat' | 'admin';
-
-const hierarchy: Record<Permission, number> = { read: 1, chat: 2, admin: 3 };
 
 // Factory: returns a preHandler that checks the user has at least minPermission on the Zalo account
 export function requireZaloAccess(minPermission: Permission) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user!;
-
-    // Owner/admin bypass — full access to all accounts in their org
-    if (['owner', 'admin'].includes(user.role)) return;
 
     const params = request.params as Record<string, string>;
     let zaloAccountId = params.zaloAccountId || params.id;
@@ -39,17 +35,12 @@ export function requireZaloAccess(minPermission: Permission) {
 
     try {
       const db = getTenantPrisma(user.orgId);
-      const access = await db.zaloAccountAccess.findFirst({
-        where: { zaloAccountId, userId: user.id },
+      const account = await db.zaloAccount.findFirst({
+        where: { id: zaloAccountId, ...getZaloAccountAccessWhere(user) },
+        select: { id: true },
       });
-
-      if (!access) {
+      if (!account) {
         return reply.status(403).send({ error: 'Không có quyền truy cập tài khoản Zalo này' });
-      }
-
-      const userLevel = hierarchy[access.permission as Permission] ?? 0;
-      if (userLevel < hierarchy[minPermission]) {
-        return reply.status(403).send({ error: 'Không đủ quyền' });
       }
     } catch {
       return reply.status(500).send({ error: 'Internal error checking access' });

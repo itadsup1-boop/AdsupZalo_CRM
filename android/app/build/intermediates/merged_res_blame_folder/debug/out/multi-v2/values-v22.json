@@ -4,7 +4,7 @@
             "outputFile": "vn.adsup.crm.app-mergeDebugResources-34:/values-v22/values-v22.xml",
             "map": [
                 {
-                    "source": "/home/hai-anh/.gradle/caches/9.0-milestone-1/transforms/77cbf5ccf481d1d08b3d76351e4b4c18/transformed/appcompat-1.6.1/res/values-v22/values-v22.xml",
+                    "source": "/home/ok/.gradle/caches/9.0-milestone-1/transforms/77cbf5ccf481d1d08b3d76351e4b4c18/transformed/appcompat-1.6.1/res/values-v22/values-v22.xml",
                     "from": {
                         "startLines": "2,3,4,9",
                         "startColumns": "4,4,4,4",

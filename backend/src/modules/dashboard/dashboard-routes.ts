@@ -6,6 +6,11 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../../shared/database/prisma-client.js';
 import { authMiddleware } from '../auth/auth-middleware.js';
 import { logger } from '../../shared/utils/logger.js';
+import {
+  getContactAccessWhere,
+  getAppointmentAccessWhere,
+  getConversationAccessWhere,
+} from '../../shared/utils/permission-scope.js';
 
 type QueryParams = Record<string, string>;
 
@@ -36,22 +41,27 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/dashboard/kpi
   app.get('/api/v1/dashboard/kpi', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { orgId } = request.user!;
+      const user = request.user!;
+      const orgId = user.orgId;
       const { today, tomorrow } = todayRange();
       const weekAgo = weekAgoDate(today);
+
+      const convAccess = getConversationAccessWhere(user);
+      const aptAccess = getAppointmentAccessWhere(user);
+      const contactAccess = getContactAccessWhere(user);
 
       const [messagesToday, unreplied, unread, aptsToday, newContacts, totalContacts] =
         await Promise.all([
           prisma.message.count({
-            where: { conversation: { orgId }, sentAt: { gte: today, lt: tomorrow } },
+            where: { conversation: { ...convAccess }, sentAt: { gte: today, lt: tomorrow } },
           }),
-          prisma.conversation.count({ where: { orgId, isReplied: false, unreadCount: { gt: 0 } } }),
-          prisma.conversation.count({ where: { orgId, unreadCount: { gt: 0 } } }),
+          prisma.conversation.count({ where: { ...convAccess, isReplied: false, unreadCount: { gt: 0 } } }),
+          prisma.conversation.count({ where: { ...convAccess, unreadCount: { gt: 0 } } }),
           prisma.appointment.count({
-            where: { orgId, appointmentDate: { gte: today, lt: tomorrow }, status: 'scheduled' },
+            where: { ...aptAccess, appointmentDate: { gte: today, lt: tomorrow }, status: 'scheduled' },
           }),
-          prisma.contact.count({ where: { orgId, createdAt: { gte: weekAgo } } }),
-          prisma.contact.count({ where: { orgId } }),
+          prisma.contact.count({ where: { ...contactAccess, createdAt: { gte: weekAgo } } }),
+          prisma.contact.count({ where: contactAccess }),
         ]);
 
       return {
@@ -71,11 +81,14 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/dashboard/message-volume?from=&to=
   app.get('/api/v1/dashboard/message-volume', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { orgId } = request.user!;
+      const user = request.user!;
+      const orgId = user.orgId;
       const query = request.query as QueryParams;
       const from =
         query.from || new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
       const to = query.to || new Date().toISOString().split('T')[0];
+      const isPrivileged = ['owner', 'admin'].includes(user.role);
+      const userId = user.id;
 
       const rows = await prisma.$queryRaw<
         Array<{ date: Date; sent: bigint; received: bigint }>
@@ -89,6 +102,19 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
         WHERE c.org_id = ${orgId}
           AND m.sent_at >= ${from}::date
           AND m.sent_at < (${to}::date + interval '1 day')
+          AND (
+            ${isPrivileged} = true
+            OR EXISTS (
+              SELECT 1 FROM zalo_account_access zaa
+              WHERE zaa.zalo_account_id = c.zalo_account_id
+                AND zaa.user_id = ${userId}
+            )
+            OR EXISTS (
+              SELECT 1 FROM zalo_accounts za
+              WHERE za.id = c.zalo_account_id
+                AND za.owner_user_id = ${userId}
+            )
+          )
         GROUP BY DATE(m.sent_at)
         ORDER BY date ASC
       `;
@@ -109,10 +135,11 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/dashboard/pipeline — grouped by generic contact status
   app.get('/api/v1/dashboard/pipeline', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { orgId } = request.user!;
+      const user = request.user!;
+      const contactAccess = getContactAccessWhere(user);
       const pipeline = await prisma.contact.groupBy({
         by: ['status'],
-        where: { orgId, status: { not: null } },
+        where: { ...contactAccess, status: { not: null } },
         _count: true,
       });
       return { data: pipeline.map((p) => ({ status: p.status, count: p._count })) };
@@ -125,10 +152,11 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/dashboard/sources
   app.get('/api/v1/dashboard/sources', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { orgId } = request.user!;
+      const user = request.user!;
+      const contactAccess = getContactAccessWhere(user);
       const sources = await prisma.contact.groupBy({
         by: ['source'],
-        where: { orgId, source: { not: null } },
+        where: { ...contactAccess, source: { not: null } },
         _count: true,
       });
       return { data: sources.map((s) => ({ source: s.source, count: s._count })) };
@@ -141,9 +169,10 @@ export async function dashboardRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/v1/dashboard/appointments?from=&to=
   app.get('/api/v1/dashboard/appointments', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const { orgId } = request.user!;
+      const user = request.user!;
+      const aptAccess = getAppointmentAccessWhere(user);
       const query = request.query as QueryParams;
-      const where: Record<string, any> = { orgId };
+      const where: Record<string, any> = { ...aptAccess };
       if (query.from || query.to) {
         where.appointmentDate = {};
         if (query.from) where.appointmentDate.gte = new Date(query.from);

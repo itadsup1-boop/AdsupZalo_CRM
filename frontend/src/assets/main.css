@@ -349,3 +349,18 @@ html, body {
 .v-theme--light .text-grey-lighten-2 {
   color: #bbb !important;
 }
+
+/* Tooltip Legibility Fix */
+.v-tooltip > .v-overlay__content {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #0A192F !important;
+  font-weight: 500;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+  padding: 6px 12px !important;
+}
+
+.v-theme--light .v-tooltip > .v-overlay__content {
+  background: rgba(10, 25, 47, 0.95) !important;
+  color: #FFFFFF !important;
+}

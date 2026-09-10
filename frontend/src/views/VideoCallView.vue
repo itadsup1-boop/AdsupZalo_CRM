@@ -119,10 +119,12 @@ const setupSocket = () => {
   const wsUrl = import.meta.env.VITE_WS_URL || window.location.origin;
   socket = io(wsUrl, {
     withCredentials: true,
+    auth: { token: localStorage.getItem('token') }
   });
 
   socket.on('connect', () => {
     isConnected.value = true;
+    socket?.emit('user:join');
     socket?.emit('call:join-room', { roomId, userId, userName });
   });
 

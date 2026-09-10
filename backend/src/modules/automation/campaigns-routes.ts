@@ -128,49 +128,62 @@ export async function campaignsRoutes(app: FastifyInstance): Promise<void> {
         });
       }
 
-      // Schedule messages for each contact and step
-      if (campaign.scenario && campaign.scenario.steps) {
-        const activeSteps = campaign.scenario.steps.filter((s: any) => s.isActive);
-        for (const contact of contacts) {
-          for (const step of activeSteps) {
-            const scheduledAt = new Date(Date.now() + step.delayMinutes * 60 * 1000);
-            
-            // Check if already scheduled for this contact, campaign and step
-            const existing = await prisma.scheduledMessage.findFirst({
-              where: {
-                orgId: user.orgId,
-                contactId: contact.id,
-                campaignId: campaign.id,
-                stepId: step.id,
-                status: 'pending'
-              }
-            });
-
-            if (existing) continue;
-
-            await prisma.scheduledMessage.create({
-              data: {
-                orgId: user.orgId,
-                contactId: contact.id,
-                campaignId: campaign.id,
-                scenarioId: campaign.scenarioId,
-                stepId: step.id,
-                zaloAccountId: campaign.zaloAccountId,
-                content: step.content,
-                scheduledAt,
-                status: 'pending'
-              }
-            });
-          }
-        }
-      }
-
+      // First update status to running so UI updates immediately
       await prisma.campaign.update({
         where: { id },
         data: { status: 'running' }
       });
+
+      // Schedule messages for each contact and step IN THE BACKGROUND
+      if (campaign.scenario && campaign.scenario.steps) {
+        const activeSteps = campaign.scenario.steps.filter((s: any) => s.isActive);
+        
+        // Fire and forget asynchronous scheduling
+        setTimeout(async () => {
+          try {
+            logger.info(`[campaigns] Starting background scheduling for campaign ${id} to ${contacts.length} contacts`);
+            for (const contact of contacts) {
+              for (const step of activeSteps) {
+                const scheduledAt = step.delayType === 'absolute' && step.absoluteTime
+                  ? new Date(step.absoluteTime)
+                  : new Date(Date.now() + step.delayMinutes * 60 * 1000);
+                
+                // Check if already scheduled for this contact, campaign and step
+                const existing = await prisma.scheduledMessage.findFirst({
+                  where: {
+                    orgId: user.orgId,
+                    contactId: contact.id,
+                    campaignId: campaign.id,
+                    stepId: step.id,
+                    status: 'pending'
+                  }
+                });
+
+                if (existing) continue;
+
+                await prisma.scheduledMessage.create({
+                  data: {
+                    orgId: user.orgId,
+                    contactId: contact.id,
+                    campaignId: campaign.id,
+                    scenarioId: campaign.scenarioId,
+                    stepId: step.id,
+                    zaloAccountId: campaign.zaloAccountId,
+                    content: step.content,
+                    scheduledAt,
+                    status: 'pending'
+                  }
+                });
+              }
+            }
+            logger.info(`[campaigns] Finished scheduling for campaign ${id}`);
+          } catch (bgError) {
+            logger.error(`[campaigns] Background scheduling error for campaign ${id}:`, bgError);
+          }
+        }, 0);
+      }
       
-      return { success: true, message: 'Campaign started and messages scheduled' };
+      return { success: true, message: 'Campaign started and messages scheduling in background' };
     } catch (error) {
       logger.error('[campaigns] Start error:', error);
       return reply.status(500).send({ error: 'Failed to start campaign' });

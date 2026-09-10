@@ -29,13 +29,6 @@
           Tất cả
           <v-chip v-if="friends.length" size="x-small" class="ml-1">{{ friends.length }}</v-chip>
         </v-tab>
-        <v-tab value="online">
-          <v-icon start color="success">mdi-circle-small</v-icon>
-          Online
-          <v-chip v-if="onlineFriends.length" size="x-small" color="success" class="ml-1">
-            {{ onlineFriends.length }}
-          </v-chip>
-        </v-tab>
         <v-tab value="requests">
           <v-icon start>mdi-account-clock-outline</v-icon>
           Lời mời
@@ -63,21 +56,10 @@
           />
         </v-window-item>
 
-        <!-- Online -->
-        <v-window-item value="online">
-          <FriendList
-            :friends="onlineFriends"
-            :loading="loading"
-            @remove="onRemove"
-            @block="onBlock"
-            @set-alias="openAliasDialog"
-            @remove-alias="onRemoveAlias"
-          />
-        </v-window-item>
-
         <!-- Requests -->
         <v-window-item value="requests">
           <FriendRequestPanel
+            :received-requests="receivedRequests"
             :sent-requests="sentRequests"
             :loading="loading"
             @cancel="onCancelRequest"
@@ -89,8 +71,8 @@
         <!-- Search -->
         <v-window-item value="search">
           <FriendSearchPanel
-            :results="searchResults"
-            :loading="loading"
+            :results="searchResultsWithStatus"
+            :loading="searchLoading"
             @search="onSearch"
             @send-request="onSendRequest"
           />
@@ -163,31 +145,44 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onMounted, computed } from 'vue';
 import { useSelectedAccount } from '@/composables/use-selected-account';
 import { useFriends } from '@/composables/use-friends';
+import { toast } from 'vue-sonner';
 import FriendList from '@/components/friends/friend-list.vue';
 import FriendRequestPanel from '@/components/friends/friend-request-panel.vue';
 import FriendSearchPanel from '@/components/friends/friend-search-panel.vue';
 
 const { selectedAccountId, accounts } = useSelectedAccount();
 const {
-  friends, onlineFriends, sentRequests, recommendations, searchResults, loading,
-  fetchFriends, fetchOnlineFriends, fetchSentRequests, fetchRecommendations,
+  friends, sentRequests, receivedRequests, recommendations, searchResults, loading, searchLoading,
+  fetchFriends, fetchSentRequests, fetchRecommendations,
   searchFriends, sendRequest, acceptRequest, rejectRequest, cancelRequest,
-  removeFriend, blockUser, setAlias, removeAlias, setupSocket, destroySocket,
+  removeFriend, blockUser, setAlias, removeAlias,
 } = useFriends();
 
 const tab = ref('all');
+const searchResultsWithStatus = computed(() => {
+  return searchResults.value.map(user => {
+    const uid = String(user.userId ?? user.uid ?? user.id ?? '');
+    const isFriend = friends.value.some(f => String(f.userId ?? f.uid ?? f.id ?? '') === uid);
+    const isSent = sentRequests.value.some(r => {
+      const rUid = String(r.userId ?? r.uid ?? r.id ?? r.toUser?.userId ?? r.toUser?.uid ?? '');
+      return rUid === uid;
+    });
+    let status: 'friend' | 'sent' | 'none' = 'none';
+    if (isFriend) status = 'friend';
+    else if (isSent) status = 'sent';
+    return { ...user, status };
+  });
+});
 const aliasDialog = ref(false);
 const aliasInput = ref('');
 const aliasPendingUserId = ref('');
 
 async function loadAll(accountId: string) {
-  // fetchFriends MUST complete first so fetchOnlineFriends can map names/avatars
   await fetchFriends(accountId);
   await Promise.all([
-    fetchOnlineFriends(accountId),
     fetchSentRequests(accountId),
     fetchRecommendations(accountId),
   ]);
@@ -195,13 +190,7 @@ async function loadAll(accountId: string) {
 
 onMounted(() => {
   if (selectedAccountId.value) loadAll(selectedAccountId.value);
-  setupSocket();
 });
-
-onUnmounted(() => {
-  destroySocket();
-});
-
 
 watch(selectedAccountId, (id) => {
   if (id) loadAll(id);
@@ -257,7 +246,16 @@ async function onSearch(query: string) {
 }
 
 async function onSendRequest(userId: string, message?: string) {
-  if (selectedAccountId.value) await sendRequest(selectedAccountId.value, userId, message);
+  if (!selectedAccountId.value) return;
+  try {
+    await sendRequest(selectedAccountId.value, userId, message);
+    toast.success('Đã gửi lời mời kết bạn thành công');
+    await fetchSentRequests(selectedAccountId.value);
+  } catch (err: any) {
+    console.error('onSendRequest failed:', err);
+    const errorMsg = err.response?.data?.error || err.message || 'Lỗi hệ thống';
+    toast.error(`Gửi lời mời kết bạn thất bại: ${errorMsg}`);
+  }
 }
 </script>
 

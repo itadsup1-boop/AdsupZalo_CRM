@@ -99,8 +99,18 @@ services:
     depends_on:
       - db
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: zalo-crm-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
 volumes:
   pg_data:
   file_storage:
   redis_data:
   browser_profiles:
+  ollama_data:

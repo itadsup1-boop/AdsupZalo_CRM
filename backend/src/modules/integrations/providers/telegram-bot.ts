@@ -29,17 +29,24 @@ export async function sendTelegramNotification(
     prisma.message.count({
       where: { conversation: { orgId }, createdAt: { gte: today } },
     }),
-    prisma.appointment.count({
+    prisma.appointment.findMany({
       where: { orgId, status: 'scheduled', appointmentDate: { gte: today } },
+      select: { appointmentTime: true, customerName: true },
+      orderBy: { appointmentTime: 'asc' },
     }),
   ]);
+
+  const appointmentsList = pendingAppointments.length > 0 
+    ? pendingAppointments.map(a => `  - ${a.appointmentTime || 'Chưa rõ'}: ${a.customerName || 'Khách hàng'}`).join('\n')
+    : '  Không có';
 
   const text = [
     '📊 *ZaloCRM — Tóm tắt hôm nay*',
     '',
     `👤 Khách hàng mới: ${newContacts}`,
     `💬 Tin nhắn: ${todayMessages}`,
-    `📅 Lịch hẹn chờ: ${pendingAppointments}`,
+    `📅 Lịch hẹn chờ: ${pendingAppointments.length}`,
+    appointmentsList,
     '',
     `🕐 ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}`,
   ].join('\n');

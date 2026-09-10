@@ -44,7 +44,12 @@ export function mockReply() {
 
 // ── Mock Socket.IO server ──────────────────────────────────────────────────
 export function mockIO() {
-  return { emit: vi.fn() } as any;
+  const mockEmit = vi.fn();
+  const mockTo = vi.fn(() => ({ emit: mockEmit }));
+  return {
+    emit: mockEmit,
+    to: mockTo,
+  } as any;
 }
 
 // ── Prisma mock factory ────────────────────────────────────────────────────

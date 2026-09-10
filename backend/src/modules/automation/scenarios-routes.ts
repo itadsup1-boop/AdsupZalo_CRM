@@ -22,7 +22,7 @@ export async function scenariosRoutes(app: FastifyInstance): Promise<void> {
   app.post('/api/v1/scenarios', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const user = request.user!;
-      const { name, description, triggerTagId, isActive, steps } = request.body as any;
+      const { name, description, category, triggerTagId, isActive, steps } = request.body as any;
       
       if (!name) return reply.status(400).send({ error: 'Name is required' });
 
@@ -31,6 +31,7 @@ export async function scenariosRoutes(app: FastifyInstance): Promise<void> {
           orgId: user.orgId,
           name,
           description,
+          category,
           triggerTagId,
           isActive: isActive !== undefined ? isActive : true,
           steps: {
@@ -58,7 +59,7 @@ export async function scenariosRoutes(app: FastifyInstance): Promise<void> {
     try {
       const user = request.user!;
       const { id } = request.params as { id: string };
-      const { name, description, triggerTagId, isActive, steps } = request.body as any;
+      const { name, description, category, triggerTagId, isActive, steps } = request.body as any;
 
       const existing = await prisma.messageScenario.findFirst({ where: { id, orgId: user.orgId } });
       if (!existing) return reply.status(404).send({ error: 'Scenario not found' });
@@ -83,6 +84,7 @@ export async function scenariosRoutes(app: FastifyInstance): Promise<void> {
           data: {
             name: name !== undefined ? name : existing.name,
             description: description !== undefined ? description : existing.description,
+            category: category !== undefined ? category : existing.category,
             triggerTagId: triggerTagId !== undefined ? triggerTagId : existing.triggerTagId,
             isActive: isActive !== undefined ? isActive : existing.isActive,
             ...(steps ? {
@@ -132,6 +134,26 @@ export async function scenariosRoutes(app: FastifyInstance): Promise<void> {
     } catch (error) {
       logger.error('[scenarios] Delete error:', error);
       return reply.status(500).send({ error: 'Failed to delete scenario' });
+    }
+  });
+
+  app.get('/api/v1/scenarios/scheduled-logs', async (request: FastifyRequest) => {
+    try {
+      const user = request.user!;
+      const logs = await prisma.scheduledMessage.findMany({
+        where: { orgId: user.orgId },
+        include: {
+          contact: { select: { id: true, fullName: true, phone: true } },
+          scenario: { select: { id: true, name: true } },
+          step: { select: { id: true, content: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      });
+      return { logs };
+    } catch (error) {
+      logger.error('[scenarios] Get logs error:', error);
+      return { logs: [] };
     }
   });
 }

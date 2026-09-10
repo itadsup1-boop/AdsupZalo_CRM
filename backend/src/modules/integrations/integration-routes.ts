@@ -101,22 +101,29 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // POST /api/v1/integrations/:id/sync — trigger manual sync (admin+)
-  app.post('/api/v1/integrations/:id/sync', { preHandler: requireRole('owner', 'admin') }, async (request: FastifyRequest, reply: FastifyReply) => {
-    try {
-      const { orgId } = request.user!;
-      const { id } = request.params as { id: string };
+  app.post(
+    '/api/v1/integrations/:id/sync',
+    {
+      preHandler: requireRole('owner', 'admin'),
+      config: { rawBody: true },
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const { orgId } = request.user!;
+        const { id } = request.params as { id: string };
 
-      const integration = await prisma.integration.findFirst({ where: { id, orgId } });
-      if (!integration) return reply.status(404).send({ error: 'Integration not found' });
-      if (!integration.enabled) return reply.status(400).send({ error: 'Integration is disabled' });
+        const integration = await prisma.integration.findFirst({ where: { id, orgId } });
+        if (!integration) return reply.status(404).send({ error: 'Integration not found' });
+        if (!integration.enabled) return reply.status(400).send({ error: 'Integration is disabled' });
 
-      const log = await runSync(integration);
-      return log;
-    } catch (err) {
-      logger.error('[integrations] POST sync error:', err);
-      return reply.status(500).send({ error: 'Sync failed' });
-    }
-  });
+        const log = await runSync(integration);
+        return reply.send(log);
+      } catch (err) {
+        logger.error('[integrations] POST sync error:', err);
+        return reply.status(500).send({ error: 'Sync failed' });
+      }
+    },
+  );
 
   // GET /api/v1/integrations/:id/logs — sync history
   app.get('/api/v1/integrations/:id/logs', async (request: FastifyRequest, reply: FastifyReply) => {

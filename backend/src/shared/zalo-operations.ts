@@ -156,7 +156,7 @@ async function exec<T>(opts: ExecOptions, fn: (api: any) => Promise<T>): Promise
         if (opts.socketRoom) {
           opts.io.to(opts.socketRoom).emit(opts.socketEvent, payload);
         } else {
-          opts.io.emit(opts.socketEvent, payload);
+          logger.warn(`[zalo-ops:${accountId}] Skipped global socket emit for ${opts.socketEvent} to prevent leakage`);
         }
       }
 
@@ -230,9 +230,9 @@ async function sendCard(accountId: string, threadId: string, threadType: 0 | 1, 
     (api) => api.sendCard(cardData, threadId, threadType));
 }
 
-async function sendVoice(accountId: string, threadId: string, threadType: 0 | 1, voicePath: string, duration?: number) {
+async function sendVoice(accountId: string, threadId: string, threadType: 0 | 1, voiceUrl: string) {
   return exec({ accountId, category: 'message', operation: 'sendVoice' },
-    (api) => api.sendVoice(voicePath, threadId, threadType, duration));
+    (api) => api.sendVoice({ voiceUrl }, threadId, threadType));
 }
 
 async function forwardMessage(accountId: string, msgId: string, threadId: string, threadType: 0 | 1) {
@@ -469,8 +469,48 @@ async function getFriendRecommendations(accountId: string) {
 }
 
 async function sendFriendRequest(accountId: string, message: string, userId: string) {
+  let phone = 'unknown';
+  let senderName = 'unknown';
+  try {
+    const sender = await prisma.zaloAccount.findUnique({
+      where: { id: accountId },
+      select: { displayName: true }
+    });
+    senderName = sender?.displayName || 'unknown';
+
+    const contact = await prisma.contact.findFirst({
+      where: { zaloUid: userId },
+      select: { phone: true }
+    });
+    if (contact?.phone) {
+      phone = contact.phone;
+    }
+  } catch (dbErr) {
+    logger.error(`[zalo-ops:sendFriendRequest] DB query failed:`, dbErr);
+  }
+
+  logger.info(`[zalo-ops:sendFriendRequest] Request: Sender Account=${senderName} (${accountId}) -> Target User ID=${userId} (Phone: ${phone}), Message="${message}"`);
+
   return exec({ accountId, category: 'friend_action', operation: 'sendFriendRequest' },
-    (api) => api.sendFriendRequest(message, userId));
+    async (api) => {
+      try {
+        const result = await api.sendFriendRequest(message, userId);
+        logger.info(`[zalo-ops:sendFriendRequest] Success response:`, result);
+        return result;
+      } catch (innerErr: any) {
+        logger.error(`[zalo-ops:sendFriendRequest] Zalo API error details:`, {
+          message: innerErr.message,
+          code: innerErr.code,
+          stack: innerErr.stack
+        });
+        // Ném lỗi ZaloOpError sạch để route helper xử lý
+        throw new ZaloOpError(
+          innerErr.message || "Gửi lời mời kết bạn thất bại",
+          'API_ERROR',
+          400
+        );
+      }
+    });
 }
 
 async function acceptFriendRequest(accountId: string, userId: string) {

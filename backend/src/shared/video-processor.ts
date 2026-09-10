@@ -122,6 +122,29 @@ async function probeVideoFile(filePath: string): Promise<VideoProbeMetadata> {
   }
 }
 
+export async function compressVideoForChat(inputPath: string, outputPath: string): Promise<VideoProbeMetadata> {
+  await runBinary('ffmpeg', [
+    '-y',
+    '-i', inputPath,
+    '-map', '0:v:0',
+    '-map', '0:a?',
+    '-vf', "scale='min(720,iw)':-2",
+    '-c:v', 'libx264',
+    '-preset', 'veryfast',
+    '-crf', '28',
+    '-maxrate', '1200k',
+    '-bufsize', '2400k',
+    '-pix_fmt', 'yuv420p',
+    '-c:a', 'aac',
+    '-b:a', '96k',
+    '-movflags', '+faststart',
+    outputPath,
+  ]);
+
+  await fs.access(outputPath);
+  return probeVideoFile(outputPath);
+}
+
 async function generateThumbnail(videoPath: string): Promise<GeneratedThumbnail> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'zalocrm-video-thumb-'));
   const outputPath = path.join(dir, 'thumbnail.jpg');

@@ -9,6 +9,7 @@
         <v-text-field v-model.number="local.maxDaily" type="number" label="Quota mỗi ngày" :min="1" :rules="[v => v >= 1 || 'Tối thiểu 1']" class="mb-3" />
         <v-switch v-model="local.enabled" label="Bật AI" inset color="primary" />
         <v-switch v-model="local.autoReplyEnabled" label="AI Tự động trả lời khách hàng (Autonomous AI Agent)" inset color="success" />
+        <v-switch v-model="local.intentClassificationEnabled" label="AI Tự động phân loại ý định khách hàng (Auto Intent Classification)" inset color="success" />
         <v-textarea v-model="local.systemPrompt" label="Kịch bản tư vấn cho AI (System Prompt)" rows="4" placeholder="Ví dụ: Bạn là nhân viên bán hàng của shop ABC, chuyên bán áo thun. Giá áo là 150k..." class="mt-2" variant="outlined" auto-grow persistent-placeholder />
       </v-card-text>
       <v-card-actions>
@@ -30,12 +31,12 @@ type ProviderInfo = { id: string; name: string; models: ProviderModel[] };
 const props = defineProps<{
   modelValue: boolean;
   loading: boolean;
-  config: { provider: string; model: string; maxDaily: number; enabled: boolean; autoReplyEnabled?: boolean; systemPrompt?: string };
+  config: { provider: string; model: string; maxDaily: number; enabled: boolean; autoReplyEnabled?: boolean; intentClassificationEnabled?: boolean; systemPrompt?: string };
 }>();
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
-  save: [value: { provider: string; model: string; maxDaily: number; enabled: boolean; autoReplyEnabled: boolean; systemPrompt: string }];
+  save: [value: { provider: string; model: string; maxDaily: number; enabled: boolean; autoReplyEnabled: boolean; intentClassificationEnabled: boolean; systemPrompt: string }];
 }>();
 
 const providers = ref<ProviderInfo[]>([]);
@@ -48,7 +49,7 @@ const modelOptions = computed(() => {
   return found?.models ?? [];
 });
 
-const local = reactive({ provider: 'anthropic', model: '', maxDaily: 500, enabled: true, autoReplyEnabled: false, systemPrompt: '' });
+const local = reactive({ provider: 'anthropic', model: '', maxDaily: 500, enabled: true, autoReplyEnabled: false, intentClassificationEnabled: false, systemPrompt: '' });
 
 /* When provider changes, auto-select first model if current is invalid */
 function onProviderChange() {
@@ -81,6 +82,7 @@ watch(() => props.config, (value) => {
   local.maxDaily = value.maxDaily;
   local.enabled = value.enabled;
   local.autoReplyEnabled = value.autoReplyEnabled ?? false;
+  local.intentClassificationEnabled = value.intentClassificationEnabled ?? false;
   local.systemPrompt = value.systemPrompt ?? '';
 }, { immediate: true, deep: true });
 </script>

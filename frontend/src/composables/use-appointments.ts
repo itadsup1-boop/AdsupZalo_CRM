@@ -9,13 +9,23 @@ import { api } from '@/api/index';
 
 export interface Appointment {
   id: string;
-  contactId: string;
-  contact?: { id: string; fullName: string | null; phone: string | null };
+  contactId?: string;
+  contact?: { id: string; fullName: string | null; crmName?: string | null; phone: string | null };
+  customerName: string | null;
+  phone: string | null;
+  serviceName: string | null;
+  branchId: string | null;
+  branch?: { id: string; name: string } | null;
   appointmentDate: string;
   appointmentTime: string;
   type: string;
   status: string;
+  note: string | null;
   notes: string | null;
+  source: string;
+  createdBy: string;
+  reminder24hSentAt?: string | null;
+  reminder2hSentAt?: string | null;
   createdAt: string;
 }
 
@@ -24,11 +34,17 @@ export interface AppointmentFilters {
   to: string;
   status: string;
   contactId: string;
+  branchId: string;
+  service: string;
+  q: string;
 }
 
 export const APPOINTMENT_STATUS_OPTIONS = [
-  { text: 'Đã lên lịch', value: 'scheduled' },
+  { text: 'Mới', value: 'new' },
+  { text: 'Đã xác nhận', value: 'confirmed' },
+  { text: 'Đã đến', value: 'arrived' },
   { text: 'Hoàn thành', value: 'completed' },
+  { text: 'Đổi lịch', value: 'rescheduled' },
   { text: 'Đã huỷ', value: 'cancelled' },
   { text: 'Vắng mặt', value: 'no_show' },
 ];
@@ -42,8 +58,11 @@ export const APPOINTMENT_TYPE_OPTIONS = [
 
 export function statusChipColor(status: string): string {
   switch (status) {
-    case 'scheduled': return 'blue';
+    case 'new': return 'blue';
+    case 'confirmed': return 'indigo';
+    case 'arrived': return 'cyan';
     case 'completed': return 'green';
+    case 'rescheduled': return 'orange';
     case 'cancelled': return 'grey';
     case 'no_show': return 'red';
     default: return 'grey';
@@ -68,6 +87,9 @@ export function useAppointments() {
     to: '',
     status: '',
     contactId: '',
+    branchId: '',
+    service: '',
+    q: '',
   });
 
   async function fetchAppointments() {
@@ -79,6 +101,9 @@ export function useAppointments() {
           dateTo: filters.to || undefined,
           status: filters.status || undefined,
           contactId: filters.contactId || undefined,
+          branchId: filters.branchId || undefined,
+          service: filters.service || undefined,
+          q: filters.q || undefined,
         },
       });
       appointments.value = res.data.appointments ?? res.data;
@@ -124,7 +149,7 @@ export function useAppointments() {
   async function updateAppointment(id: string, payload: Partial<Appointment>): Promise<boolean> {
     saving.value = true;
     try {
-      await api.put(`/appointments/${id}`, payload);
+      await api.patch(`/appointments/${id}`, payload);
       const idx = appointments.value.findIndex(a => a.id === id);
       if (idx !== -1) appointments.value[idx] = { ...appointments.value[idx], ...payload };
       return true;
@@ -155,7 +180,13 @@ export function useAppointments() {
   }
 
   async function cancelAppointment(id: string): Promise<boolean> {
-    return updateAppointment(id, { status: 'cancelled' } as Partial<Appointment>);
+    try {
+      await api.patch(`/appointments/${id}/cancel`, {});
+      return true;
+    } catch (err) {
+      console.error('Failed to cancel appointment:', err);
+      return false;
+    }
   }
 
   return {

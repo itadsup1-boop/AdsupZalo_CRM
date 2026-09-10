@@ -1,5 +1,5 @@
 tunnel: eef51e9f-3b43-4bea-9e4e-0b8f17282ee4
-credentials-file: /home/hai-anh/.cloudflared/eef51e9f-3b43-4bea-9e4e-0b8f17282ee4.json
+credentials-file: /home/ok/.cloudflared/eef51e9f-3b43-4bea-9e4e-0b8f17282ee4.json
 protocol: http2
 
 ingress:

@@ -33,13 +33,9 @@ export const requireRole = (minRole: UserRole) => {
 };
 
 /**
- * Đặc quyền cho Staff: Chỉ xem những chat được gán
+ * Staff/member list visibility is org-wide. Keep this middleware as a no-op for
+ * older routes that still register it.
  */
 export const enforceStaffScope = async (request: FastifyRequest) => {
-  const user = request.user as { role: UserRole; id: string };
-  
-  if (user.role === 'staff') {
-    // Inject thêm filter vào query params hoặc body
-    (request.query as any).assignedTo = user.id;
-  }
+  return;
 };

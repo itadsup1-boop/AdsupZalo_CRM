@@ -9,6 +9,8 @@
       <v-tab value="users">Nhân viên</v-tab>
       <v-tab value="teams">Đội nhóm</v-tab>
       <v-tab value="org">Tổ chức</v-tab>
+      <v-tab value="ai-knowledge">Kiến thức AI</v-tab>
+      <v-tab value="anti-spam">Chống Spam</v-tab>
     </v-tabs>
 
     <v-window v-model="tab">
@@ -235,6 +237,16 @@
       <v-window-item value="org">
         <OrgSettings />
       </v-window-item>
+
+      <!-- Tab 4: AI Knowledge Base -->
+      <v-window-item value="ai-knowledge">
+        <AiKnowledgeSettings />
+      </v-window-item>
+
+      <!-- Tab 5: Anti-Spam settings -->
+      <v-window-item value="anti-spam">
+        <AntiSpamSettings />
+      </v-window-item>
     </v-window>
 
     <v-snackbar v-model="snackbar" timeout="2000">
@@ -249,6 +261,8 @@ import { useUsers, type OrgUser } from '@/composables/use-users';
 import { useAuthStore } from '@/stores/auth';
 import TeamManagement from '@/components/settings/TeamManagement.vue';
 import OrgSettings from '@/components/settings/OrgSettings.vue';
+import AiKnowledgeSettings from '@/components/settings/AiKnowledgeSettings.vue';
+import AntiSpamSettings from '@/components/settings/AntiSpamSettings.vue';
 
 const { users, loading, error, fetchUsers, createUser, approveUser, updateUser, resetPassword, deleteUser } = useUsers();
 const authStore = useAuthStore();

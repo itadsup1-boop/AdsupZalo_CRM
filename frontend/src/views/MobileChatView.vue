@@ -22,12 +22,16 @@
         :sending="sendingMsg"
         :show-contact-panel="showContactPanel"
         :show-back="true"
-        :ai-suggestion="(null as any)"
-        :ai-suggestion-loading="false"
-        :ai-suggestion-error="(null as any)"
+        :ai-suggestion="aiSuggestion"
+        :ai-suggestion-loading="aiSuggestionLoading"
+        :ai-suggestion-error="aiSuggestionError"
         @send="handleSend"
         @send-voice="sendVoiceMessage"
         @send-file="sendFileMessage"
+        @ask-ai="generateAiSuggestion"
+        @pause-ai="selectedConvId && pauseConversationAi(selectedConvId)"
+        @resume-ai="selectedConvId && resumeConversationAi(selectedConvId)"
+        @handover-staff="selectedConvId && handoverConversationToStaff(selectedConvId)"
         @go-back="goBack"
         @toggle-contact-panel="handleToggleContactPanel"
         @refresh-thread="selectedConvId && fetchMessages(selectedConvId)"
@@ -86,9 +90,11 @@ const route = useRoute();
 const {
   conversations, selectedConvId, selectedConv, messages,
   loadingConvs, loadingMsgs, sendingMsg, searchQuery, accountFilter,
+  aiSuggestion, aiSuggestionLoading, aiSuggestionError,
   aiSummary, aiSummaryLoading, aiSentiment, aiSentimentLoading,
   fetchConversations, fetchMessages, selectConversation, sendMessage, sendMessageTo, sendVoiceMessage, sendFileMessage,
-  generateAiSummary, generateAiSentiment,
+  generateAiSuggestion, generateAiSummary, generateAiSentiment,
+  pauseConversationAi, resumeConversationAi, handoverConversationToStaff,
   initSocket, destroySocket, requestNotificationPermission,
   isMobileChatActive,
 } = useChat();

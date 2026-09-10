@@ -46,6 +46,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   prismaMock.conversation.findFirst.mockResolvedValue(CONV);
   prismaMock.message.findFirst.mockResolvedValue({ id: 'msg-1', zaloMsgId: 'zalo-msg-1', senderUid: 'uid-sender', repliedByUserId: 'user-1' });
+  prismaMock.contact.findFirst.mockResolvedValue({ id: 'contact-99', zaloUid: 'ext-1', phone: '123' });
   prismaMock.message.update.mockResolvedValue({});
   prismaMock.message.create.mockResolvedValue({});
   prismaMock.messageReaction.upsert.mockResolvedValue({});
@@ -232,7 +233,7 @@ describe('POST /api/v1/conversations/:id/card', () => {
     const app = buildApp();
     const res = await app.inject({ method: 'POST', url: '/api/v1/conversations/conv-1/card', payload: { contactId: 'contact-99' } });
     expect(res.statusCode).toBe(200);
-    expect(zaloOpsMock.sendCard).toHaveBeenCalledWith('za-1', 'ext-1', 0, 'contact-99');
+    expect(zaloOpsMock.sendCard).toHaveBeenCalledWith('za-1', 'ext-1', 0, { userId: 'ext-1' });
     expect(prismaMock.message.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ contentType: 'contact_card' }) }));
   });
 

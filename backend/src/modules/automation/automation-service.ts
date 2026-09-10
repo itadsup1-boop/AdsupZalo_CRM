@@ -124,6 +124,15 @@ async function executeAction(action: AutomationAction, context: AutomationContex
   }
 
   if (action.type === 'send_template' && context.conversation?.id && context.conversation.zaloAccountId) {
+    const conversation = await prisma.conversation.findFirst({
+      where: { id: context.conversation.id, orgId: context.orgId },
+      select: { aiPaused: true },
+    });
+    if (conversation?.aiPaused) {
+      logger.info(`[automation] Skipping send_template because AI is paused for conversation ${context.conversation.id}`);
+      return;
+    }
+
     const sentMessage = await sendTemplateAction({
       templateId: action.templateId,
       orgId: context.orgId,

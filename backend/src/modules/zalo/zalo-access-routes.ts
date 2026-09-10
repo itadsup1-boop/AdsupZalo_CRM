@@ -9,6 +9,7 @@ import { authMiddleware } from '../auth/auth-middleware.js';
 import { requireRole } from '../auth/role-middleware.js';
 import { randomUUID } from 'node:crypto';
 import { logger } from '../../shared/utils/logger.js';
+import { canAccessZaloAccount } from '../../shared/utils/permission-scope.js';
 
 const VALID_PERMISSIONS = ['read', 'chat', 'admin'] as const;
 type Permission = (typeof VALID_PERMISSIONS)[number];
@@ -20,6 +21,11 @@ export async function zaloAccessRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/v1/zalo-accounts/:id/access', async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user!;
     const { id } = request.params as { id: string };
+
+    const hasAccess = await canAccessZaloAccount(user, id);
+    if (!hasAccess) {
+      return reply.status(403).send({ error: 'Forbidden' });
+    }
 
     const db = getTenantPrisma(user.orgId);
     const account = await db.zaloAccount.findFirst({ where: { id } });

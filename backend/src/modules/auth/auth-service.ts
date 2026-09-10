@@ -14,6 +14,7 @@ export interface JwtPayload {
   email: string;
   role: string;
   orgId: string;
+  teamId?: string | null;
 }
 
 export interface InviteTokenPayload {
@@ -62,6 +63,7 @@ export async function setup(
     email: result.user.email,
     role: result.user.role,
     orgId: result.user.orgId,
+    teamId: null,
   };
 }
 
@@ -127,6 +129,7 @@ export async function join(
     email: user.email,
     role: user.role,
     orgId: user.orgId,
+    teamId: null,
   };
 }
 
@@ -206,7 +209,7 @@ export async function login(email: string, password: string): Promise<JwtPayload
     throw err;
   }
 
-  return { id: user.id, email: user.email, role: user.role, orgId: user.orgId };
+  return { id: user.id, email: user.email, role: user.role, orgId: user.orgId, teamId: user.teamId };
 }
 
 // Get user profile
@@ -222,6 +225,7 @@ export async function getProfile(orgId: string, userId: string) {
       isActive: true,
       isPending: true,
       orgId: true,
+      teamId: true,
       org: { select: { name: true } },
     },
   });

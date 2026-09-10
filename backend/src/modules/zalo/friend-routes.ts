@@ -9,6 +9,54 @@ import { zaloOps } from '../../shared/zalo-operations.js';
 import { resolveAccount, checkAccess, handleError } from './zalo-route-helpers.js';
 
 const BASE = '/api/v1/zalo-accounts/:accountId/friends';
+const FIND_USER_TIMEOUT_MS = 5000;
+
+function uniqueValues(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.map(v => (v || '').trim()).filter(Boolean)));
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise
+      .then((value) => resolve(value))
+      .catch((err) => reject(err))
+      .finally(() => clearTimeout(timer));
+  });
+}
+
+function buildPhoneSearchQueries(input: string) {
+  const trimmed = input.trim();
+  const digits = trimmed.replace(/\D/g, '');
+  if (digits.length < 9 || digits.length > 15) return [trimmed];
+
+  const normalized = digits.startsWith('00') ? digits.slice(2) : digits;
+  const variants: string[] = [trimmed, normalized];
+
+  if (normalized.startsWith('84') && normalized.length >= 11) {
+    const local = `0${normalized.slice(2)}`;
+    variants.push(local);
+  } else if (normalized.startsWith('0') && normalized.length >= 10) {
+    const intl = `84${normalized.slice(1)}`;
+    variants.push(intl);
+  } else if (normalized.length === 9) {
+    const local = `0${normalized}`;
+    const intl = `84${normalized}`;
+    variants.push(local, intl);
+  }
+
+  return uniqueValues(variants).slice(0, 2);
+}
+
+function hasFindUserResult(result: any) {
+  if (!result) return false;
+  if (Array.isArray(result)) return result.length > 0;
+  if (result.uid || result.userId || result.id || result.zaloId) return true;
+  if (Array.isArray(result.data)) return result.data.length > 0;
+  if (result.data && typeof result.data === 'object') return hasFindUserResult(result.data);
+  if (result.userInfo || result.profile || result.dataInfo) return true;
+  return Object.keys(result).length > 0 && !result.error;
+}
 
 export async function friendRoutes(app: FastifyInstance) {
   app.addHook('preHandler', authMiddleware);
@@ -38,8 +86,24 @@ export async function friendRoutes(app: FastifyInstance) {
     if (!await checkAccess(request, reply, accountId, 'read')) return;
     try {
       await resolveAccount(accountId, user.orgId);
-      const data = await zaloOps.findUser(accountId, q);
-      return { data };
+      const queries = buildPhoneSearchQueries(q);
+      let lastError: unknown = null;
+
+      for (const query of queries) {
+        try {
+          const data = await withTimeout(
+            zaloOps.findUser(accountId, query),
+            FIND_USER_TIMEOUT_MS,
+            `findUser(${query})`,
+          );
+          if (hasFindUserResult(data)) return { data, searchedQuery: query };
+        } catch (err) {
+          lastError = err;
+        }
+      }
+
+      if (lastError && queries.length === 1) throw lastError;
+      return { data: null, searchedQueries: queries };
     } catch (err) {
       return handleError(reply, err, 'friend-op');
     }

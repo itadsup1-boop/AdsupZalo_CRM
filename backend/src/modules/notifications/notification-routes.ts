@@ -8,6 +8,11 @@ import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 import { logger } from '../../shared/utils/logger.js';
 import { authMiddleware } from '../auth/auth-middleware.js';
 import { zaloPool } from '../zalo/zalo-pool.js';
+import {
+  getConversationAccessWhere,
+  getAppointmentAccessWhere,
+  getZaloAccountAccessWhere
+} from '../../shared/utils/permission-scope.js';
 
 interface NotificationItem {
   id: string;
@@ -23,12 +28,45 @@ export async function notificationRoutes(app: FastifyInstance) {
 
   app.get('/api/v1/notifications', async (request) => {
     const user = request.user!;
+    const currentUser = await prisma.user.findFirst({
+      where: { orgId: user.orgId, id: user.id },
+      select: { teamId: true },
+    });
     const notifications: NotificationItem[] = [];
+
+    const storedNotifications = await prisma.notification.findMany({
+      where: {
+        orgId: user.orgId,
+        OR: [
+          { userId: user.id },
+          ...(currentUser?.teamId ? [{ teamId: currentUser.teamId }] : []),
+          ...(['owner', 'admin'].includes(user.role) ? [{ userId: null, teamId: null }] : []),
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    });
+
+    for (const item of storedNotifications) {
+      notifications.push({
+        id: item.id,
+        type: item.type,
+        priority: item.priority,
+        title: item.title,
+        detail: item.readAt ? `${item.detail}` : item.detail,
+        createdAt: item.createdAt.toISOString(),
+      });
+    }
 
     // 1. Unreplied conversations > 30 min
     const thirtyMinAgo = new Date(Date.now() - 30 * 60000);
+    const convAccess = getConversationAccessWhere(user);
     const unreplied = await prisma.conversation.count({
-      where: { orgId: user.orgId, isReplied: false, lastMessageAt: { lt: thirtyMinAgo } },
+      where: {
+        ...convAccess,
+        isReplied: false,
+        lastMessageAt: { lt: thirtyMinAgo }
+      },
     });
     if (unreplied > 0) {
       notifications.push({
@@ -47,9 +85,10 @@ export async function notificationRoutes(app: FastifyInstance) {
     const todayEnd = new Date(todayStart);
     todayEnd.setDate(todayEnd.getDate() + 1);
 
+    const aptAccess = getAppointmentAccessWhere(user);
     const todayApts = await prisma.appointment.findMany({
       where: {
-        orgId: user.orgId,
+        ...aptAccess,
         appointmentDate: { gte: todayStart, lt: todayEnd },
         status: 'scheduled',
       },
@@ -74,7 +113,7 @@ export async function notificationRoutes(app: FastifyInstance) {
 
     const tmrApts = await prisma.appointment.count({
       where: {
-        orgId: user.orgId,
+        ...aptAccess,
         appointmentDate: { gte: tomorrowStart, lt: tomorrowEnd },
         status: 'scheduled',
       },
@@ -91,8 +130,9 @@ export async function notificationRoutes(app: FastifyInstance) {
     }
 
     // 4. Disconnected Zalo accounts
+    const zaloAccess = getZaloAccountAccessWhere(user);
     const accounts = await prisma.zaloAccount.findMany({
-      where: { orgId: user.orgId },
+      where: zaloAccess,
       select: { id: true, displayName: true },
     });
     for (const acc of accounts) {
@@ -110,6 +150,35 @@ export async function notificationRoutes(app: FastifyInstance) {
     }
 
     return { notifications };
+  });
+
+  app.patch('/api/v1/notifications/:id/read', async (request, reply) => {
+    const user = request.user!;
+    const { id } = request.params as { id: string };
+    const currentUser = await prisma.user.findFirst({
+      where: { orgId: user.orgId, id: user.id },
+      select: { teamId: true },
+    });
+
+    const notification = await prisma.notification.findFirst({
+      where: {
+        id,
+        orgId: user.orgId,
+        OR: [
+          { userId: user.id },
+          ...(currentUser?.teamId ? [{ teamId: currentUser.teamId }] : []),
+          ...(['owner', 'admin'].includes(user.role) ? [{ userId: null, teamId: null }] : []),
+        ],
+      },
+      select: { id: true },
+    });
+    if (!notification) return reply.status(404).send({ error: 'Notification not found' });
+
+    await prisma.notification.update({
+      where: { orgId_id: { orgId: user.orgId, id } },
+      data: { readAt: new Date() },
+    });
+    return { success: true };
   });
 
   // POST /api/v1/notifications/subscribe — Save push subscription

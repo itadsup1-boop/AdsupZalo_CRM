@@ -27,8 +27,8 @@
             ></v-switch>
           </template>
           <template v-slot:item.actions="{ item }">
-            <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openEditDialog(item)"></v-btn>
-            <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="deleteTag(item.id)"></v-btn>
+            <v-btn icon="mdi-pencil" size="small" variant="text" color="primary" @click="openEditDialog(item.raw || item)"></v-btn>
+            <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="deleteTag((item.raw || item).id)"></v-btn>
           </template>
         </v-data-table>
       </v-col>

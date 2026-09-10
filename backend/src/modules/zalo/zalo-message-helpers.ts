@@ -71,6 +71,74 @@ export interface AlbumInfo {
   albumTotal: number | null;
 }
 
+export interface MessageMediaInfo {
+  fileUrl: string | null;
+  fileName: string | null;
+  mimeType: string | null;
+  duration: number | null;
+  size: number | null;
+  attachments: Array<Record<string, unknown>>;
+}
+
+/** Extract media fields from Zalo's rich-message payload. */
+export function extractMessageMedia(contentType: string, rawContent: unknown): MessageMediaInfo {
+  const empty: MessageMediaInfo = {
+    fileUrl: null,
+    fileName: null,
+    mimeType: null,
+    duration: null,
+    size: null,
+    attachments: [],
+  };
+  if (typeof rawContent !== 'object' || rawContent === null) return empty;
+
+  const content = rawContent as Record<string, unknown>;
+  let params: Record<string, unknown> = {};
+  try {
+    params = typeof content.params === 'string'
+      ? JSON.parse(content.params)
+      : (content.params as Record<string, unknown> | undefined) ?? {};
+  } catch {
+    params = {};
+  }
+
+  const url = [params.m4a, params.url, content.href, content.url]
+    .find((value): value is string => typeof value === 'string' && /^https?:\/\//i.test(value)) ?? null;
+  if (!url) return empty;
+
+  const duration = Number(params.duration ?? content.duration);
+  const size = Number(params.fileSize ?? content.fileSize);
+  const extension = (() => {
+    try {
+      return new URL(url).pathname.split('.').pop()?.toLowerCase() ?? '';
+    } catch {
+      return '';
+    }
+  })();
+  const mimeByExtension: Record<string, string> = {
+    aac: 'audio/aac',
+    m4a: 'audio/mp4',
+    mp3: 'audio/mpeg',
+    wav: 'audio/wav',
+    webm: 'audio/webm',
+    mp4: 'video/mp4',
+  };
+  const mimeType = mimeByExtension[extension] ?? null;
+
+  return {
+    fileUrl: url,
+    fileName: typeof content.title === 'string' && content.title ? content.title : null,
+    mimeType,
+    duration: Number.isFinite(duration) && duration > 0 ? Math.round(duration) : null,
+    size: Number.isFinite(size) && size > 0 ? Math.round(size) : null,
+    attachments: [{
+      type: contentType === 'voice' ? 'audio' : contentType,
+      url,
+      payload: { url, duration: Number.isFinite(duration) ? duration : undefined },
+    }],
+  };
+}
+
 /**
  * Extract multi-image album metadata from Zalo content payload.
  * Zalo tags each photo in an album with a shared group_layout_id and position.

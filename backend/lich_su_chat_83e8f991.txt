@@ -1,0 +1,60 @@
+[13:26:56 10/6/2026] Nhân viên: C Huyền
+[13:41:35 10/6/2026] Nhân viên: {"title":"Bạn vừa kết bạn với Lâm Huyền","description":"","href":"","thumb":"","childnumber":0,"action":"msginfo.actionlist","params":"{\"msg\":{\"vi\":\"Bạn vừa kết bạn với %1$s\",\"en\":\"%1$s just became your friend\",\"my\":\"%1$s just became your friend\"},\"avatarUrl\":[\"https://s160-ava-talk.zadn.vn/4/1/e/2/10/160/372aa112977ba0df6295fddb1c9cd7ce.jpg\"],\"simpleInfos\":[{\"uid\":1430766139275612302,\"dpn\":\"Lâm Huyền\",\"avt\":\"https://s160-ava-talk.zadn.vn/4/1/e/2/10/160/372aa112977ba0df6295fddb1c9cd7ce.jpg\"}],\"highLightsV2\":[{\"uid\":1430766139275612302,\"dpn\":\"Lâm Huyền\",\"ignoreNickname\":0,\"type\":0,\"ts\":0}],\"totalUpdateMem\":0}","type":""}
+[13:46:32 10/6/2026] Nhân viên: 💖 Em gửi chị hướng dẫn chăm sóc da sau xoá nhăn đuôi mắt nhé:
+
+🌷 Trong 6–12 tiếng đầu
+ • Chưa rửa mặt, hạn chế chạm tay lên da
+ • Không makeup
+ • Tránh nắng, tránh đổ mồ hôi nhiều
+
+🌷 Trong 3 ngày đầu
+ • Rửa mặt nhẹ nhàng bằng sữa rửa mặt dịu nhẹ
+ • Dùng serum HA/B5 và kem dưỡng phục hồi
+ • Bôi chống nắng SPF 50 khi ra ngoài
+ • Uống nhiều nước để da căng bóng giữ lâu hơn
+
+🌷 Kiêng 5–7 ngày
+ • Không tẩy da chết, peel, retinol, treatment mạnh
+ • Không xông hơi, sauna, bơi hồ
+ • Không massage hoặc tác động mạnh lên da
+
+✨ Da có thể hơi đỏ hoặc lấm tấm nốt kim nhẹ 1–2 ngày đầu là hoàn toàn bình thường chị nhé.
+
+Có gì chị cứ nhắn em để em theo dõi da và hỗ trợ mình sát nhất ạ 💕
+[14:37:05 13/6/2026] Nhân viên: Em chào c Huyền ạ
+[14:37:46 13/6/2026] Nhân viên: c ơi hôm nay c thấy tình trạng da của mình thế nào rồi ạ?
+[17:08:57 13/6/2026] Nhân viên: Vẫn vậy em à
+[17:09:08 13/6/2026] Nhân viên: Chưa thấy căng lên ít nào hic
+[17:09:36 13/6/2026] Nhân viên: dạ vùng xoá nhăn của mình cần thời gian để tăng sinh dần chị nhé
+[17:10:02 13/6/2026] Nhân viên: chị uống nhiều nước ấm giúp em nha
+[17:10:20 13/6/2026] Nhân viên: C vẫn uống nhiều nước em
+[17:10:40 13/6/2026] Nhân viên: Uống nhiều đến mức ăn rồi đi vs nè hii
+[17:15:36 13/6/2026] Nhân viên: dạ vâng chị
+[17:15:37 13/6/2026] Nhân viên: {"id":30474,"catId":10939,"type":7}
+[17:15:56 13/6/2026] Nhân viên: chị theo dõi thêm rồi có gì báo em nha
+[17:16:12 13/6/2026] Nhân viên: Oki em
+[17:16:15 13/6/2026] Nhân viên: tầm 15-20 ngày nữa c qua tái khám bác kiểm tra tình trạng cho mình ạ
+[17:20:04 13/6/2026] Nhân viên: Oki em nhé
+[17:21:33 13/6/2026] Nhân viên: dạ vâng chị
+[09:47:41 17/6/2026] Nhân viên: em chào chị Huyền ạ
+[09:47:45 17/6/2026] Nhân viên: Chị ơi tình trạng da mặt hiện tại của mình thế nào rồi ạ?
+[11:25:47 17/6/2026] Nhân viên: C thấy cải thiện chút ít rồi em à
+[11:26:18 17/6/2026] Nhân viên: Nhưng vết cho chỉ vào một bên vẫn còn hơi tím hi
+[11:43:18 17/6/2026] Nhân viên: dạ vâng vài hôm là nó sẽ hết c ạ
+[11:43:30 17/6/2026] Nhân viên: chắc do cơ địa mình hơi dữ
+[11:43:49 17/6/2026] Nhân viên: trvia quá chị gái ạ
+[11:43:51 17/6/2026] Nhân viên: 🥰
+[11:47:35 17/6/2026] Nhân viên: Hii
+[11:47:52 17/6/2026] Nhân viên: Hy vọng vài hôm nữa thấy cải thiện rõ
+[12:29:46 17/6/2026] Nhân viên: Dạ c uống nhiều nước nữa nha c
+[16:55:44 17/6/2026] Nhân viên: Oki rm
+[17:02:07 17/6/2026] Nhân viên: Dạ c
+[14:33:20 19/6/2026] Nhân viên: em chào c Huyền ạ
+[14:33:49 19/6/2026] Nhân viên: hôm nay chị Huyền thấy mắt mình thế nào rồi ạ
+[14:34:31 19/6/2026] Nhân viên: Nay hết tìm rồi em
+[14:34:48 19/6/2026] Nhân viên: Nhưng vẫn còn vết nhăn c thấy đỡ xíu à
+[17:37:48 19/6/2026] Nhân viên: dạ chị cứ theo dõi thêm nhé
+[17:39:53 19/6/2026] Nhân viên: có gì chị nhắn em nha
+[17:49:18 19/6/2026] Nhân viên: Oki em
+[12:53:40 20/6/2026] Nhân viên: em chào c Huyền ạ
+[12:54:01 20/6/2026] Nhân viên: c Huyền nay da mặt mình thế nào rồi chị nhỉ

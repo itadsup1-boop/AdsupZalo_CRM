@@ -58,8 +58,17 @@
 
           <!-- Sticker / Video / Voice / GIF -->
           <div v-else-if="message.contentType === 'sticker'">🏷️ Sticker</div>
-          <div v-else-if="message.contentType === 'video'">🎥 Video</div>
-          <div v-else-if="message.contentType === 'voice'">🎤 Tin nhắn thoại</div>
+          <VideoMessageBubble
+            v-else-if="message.contentType === 'video'"
+            :video-url="getVideoUrl(message)"
+            :thumbnail-url="getVideoThumbnailUrl(message)"
+            :duration="getVideoDuration(message)"
+          />
+          <VoiceMessageBubble
+            v-else-if="message.contentType === 'voice' || message.contentType === 'audio'"
+            :audio-url="getAudioUrl(message)"
+            :duration-ms="getAudioDuration(message)"
+          />
           <div v-else-if="message.contentType === 'gif'">GIF</div>
 
           <!-- Reminder -->
@@ -159,6 +168,8 @@ import type { Message } from '@/composables/use-chat';
 import SpecialMessageRenderer from '@/components/chat/special-message-renderer.vue';
 import ReactionDisplay from '@/components/chat/reaction-display.vue';
 import ReactionPicker from '@/components/chat/reaction-picker.vue';
+import VoiceMessageBubble from '@/components/chat/voice-message-bubble.vue';
+import VideoMessageBubble from '@/components/chat/video-message-bubble.vue';
 import { formatMessageTimestamp } from '@/utils/date-formatter';
 
 
@@ -192,6 +203,7 @@ function parseContent(content: string | null): unknown {
 }
 
 function getImageUrl(msg: Message): string | null {
+  if (msg.contentType !== 'image') return null;
   if (msg.contentType === 'image' && msg.content) {
     if (msg.content.startsWith('http')) return msg.content;
     try { const p = JSON.parse(msg.content); return p.href || p.thumb || p.hdUrl || null; } catch {}
@@ -219,6 +231,100 @@ function getFileInfo(msg: Message): { name: string; size: string; href: string }
     }
   } catch {}
   return null;
+}
+
+function getAudioUrl(msg: Message): string {
+  if (msg.fileUrl) return msg.fileUrl;
+  
+  // Try finding in attachments (e.g. from webhook sync)
+  if (msg.attachments && msg.attachments.length > 0) {
+    const audioAttachment = msg.attachments.find((a: any) => a.type === 'audio');
+    if (audioAttachment?.payload?.url) return audioAttachment.payload.url;
+    if (audioAttachment?.url) return audioAttachment.url;
+  }
+  
+  // Try parsing content
+  if (msg.content?.startsWith('{')) {
+    try {
+      const p = JSON.parse(msg.content);
+      if (p.href && (p.href.includes('.m4a') || p.href.includes('.mp3') || p.href.includes('.aac') || p.href.includes('.amr'))) {
+        return p.href;
+      }
+    } catch {}
+  }
+  
+  return '';
+}
+
+function getVideoUrl(msg: Message): string {
+  if (msg.fileUrl) return msg.fileUrl;
+
+  if (msg.attachments && msg.attachments.length > 0) {
+    const videoAttachment = msg.attachments.find((a: any) => a.type === 'video');
+    if (videoAttachment?.payload?.url) return videoAttachment.payload.url;
+    if (videoAttachment?.url) return videoAttachment.url;
+  }
+
+  if (msg.content?.startsWith('{')) {
+    try {
+      const p = JSON.parse(msg.content);
+      const params = typeof p.params === 'string' ? JSON.parse(p.params) : p.params;
+      return p.href || p.url || params?.url || params?.mp4 || params?.videoUrl || '';
+    } catch {}
+  }
+
+  return msg.content?.startsWith('http') ? msg.content : '';
+}
+
+function getVideoThumbnailUrl(msg: Message): string {
+  if (msg.attachments && msg.attachments.length > 0) {
+    const videoAttachment = msg.attachments.find((a: any) => a.type === 'video');
+    const payload = videoAttachment?.payload || {};
+    if (payload.thumbnailUrl) return payload.thumbnailUrl;
+    if (payload.thumbUrl) return payload.thumbUrl;
+    if (videoAttachment?.thumbnailUrl) return videoAttachment.thumbnailUrl;
+  }
+
+  if (msg.content?.startsWith('{')) {
+    try {
+      const p = JSON.parse(msg.content);
+      const params = typeof p.params === 'string' ? JSON.parse(p.params) : p.params;
+      return p.thumb || p.thumbnail || p.thumbnailUrl || params?.thumb || params?.thumbnailUrl || '';
+    } catch {}
+  }
+
+  return '';
+}
+
+function getVideoDuration(msg: Message): number | undefined {
+  if (msg.duration && msg.duration > 0) return msg.duration;
+  if (msg.attachments && msg.attachments.length > 0) {
+    const videoAttachment = msg.attachments.find((a: any) => a.type === 'video');
+    const duration = Number(videoAttachment?.payload?.duration ?? videoAttachment?.duration);
+    if (Number.isFinite(duration) && duration > 0) return duration;
+  }
+  if (msg.content?.startsWith('{')) {
+    try {
+      const content = JSON.parse(msg.content);
+      const params = typeof content.params === 'string' ? JSON.parse(content.params) : content.params;
+      const duration = Number(params?.duration ?? content.duration);
+      if (Number.isFinite(duration) && duration > 0) return duration;
+    } catch {}
+  }
+  return undefined;
+}
+
+function getAudioDuration(msg: Message): number {
+  if (msg.duration && msg.duration > 0) return msg.duration;
+  if (!msg.content?.startsWith('{')) return 0;
+  try {
+    const content = JSON.parse(msg.content);
+    const params = typeof content.params === 'string' ? JSON.parse(content.params) : content.params;
+    const duration = Number(params?.duration ?? content.duration);
+    return Number.isFinite(duration) && duration > 0 ? duration : 0;
+  } catch {
+    return 0;
+  }
 }
 
 // --- Cards & Links Logic ---

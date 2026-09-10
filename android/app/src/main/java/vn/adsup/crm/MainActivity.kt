@@ -5,10 +5,14 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.webkit.JavascriptInterface
+import android.webkit.PermissionRequest
+import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -22,6 +26,13 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private var cachedFcmToken: String? = null
+    private var pendingWebPermissionRequest: PermissionRequest? = null
+    private var mediaPlayer: MediaPlayer? = null
+
+    companion object {
+        private const val NOTIFICATION_PERMISSION_REQUEST = 1001
+        private const val MICROPHONE_PERMISSION_REQUEST = 1002
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,6 +65,7 @@ class MainActivity : AppCompatActivity() {
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         settings.databaseEnabled = true
+        settings.mediaPlaybackRequiresUserGesture = false
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
 
         // Thêm Javascript Interface (Cầu nối Android Bridge cho web Vue 3 gọi lấy Token)
@@ -64,6 +76,40 @@ class MainActivity : AppCompatActivity() {
                 super.onPageFinished(view, url)
                 // Đẩy token xuống web khi trang load hoàn thành
                 cachedFcmToken?.let { sendTokenToWeb(it) }
+            }
+        }
+
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: PermissionRequest) {
+                runOnUiThread {
+                    val asksForAudio = request.resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)
+                    if (!asksForAudio) {
+                        request.deny()
+                        return@runOnUiThread
+                    }
+
+                    if (ContextCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.RECORD_AUDIO
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        request.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
+                    } else {
+                        pendingWebPermissionRequest?.deny()
+                        pendingWebPermissionRequest = request
+                        ActivityCompat.requestPermissions(
+                            this@MainActivity,
+                            arrayOf(Manifest.permission.RECORD_AUDIO),
+                            MICROPHONE_PERMISSION_REQUEST
+                        )
+                    }
+                }
+            }
+
+            override fun onPermissionRequestCanceled(request: PermissionRequest) {
+                if (pendingWebPermissionRequest === request) {
+                    pendingWebPermissionRequest = null
+                }
             }
         }
 
@@ -90,9 +136,34 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
                 PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1001)
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_PERMISSION_REQUEST)
             }
         }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != MICROPHONE_PERMISSION_REQUEST) return
+
+        val webRequest = pendingWebPermissionRequest ?: return
+        pendingWebPermissionRequest = null
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            webRequest.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
+        } else {
+            webRequest.deny()
+            Toast.makeText(this, "Cần cấp quyền microphone để ghi âm", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun onDestroy() {
+        mediaPlayer?.release()
+        mediaPlayer = null
+        webView.destroy()
+        super.onDestroy()
     }
 
     private fun fetchFcmToken() {
@@ -122,6 +193,54 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun showToast(msg: String) {
             Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
+        }
+
+        @JavascriptInterface
+        fun playAudio(url: String) {
+            if (!url.startsWith("https://crm.adsup.vn/")) {
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "Đường dẫn âm thanh không hợp lệ", Toast.LENGTH_SHORT).show()
+                }
+                return
+            }
+
+            runOnUiThread {
+                try {
+                    mediaPlayer?.release()
+                    mediaPlayer = MediaPlayer().apply {
+                        setAudioAttributes(
+                            AudioAttributes.Builder()
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                                .setUsage(AudioAttributes.USAGE_MEDIA)
+                                .build()
+                        )
+                        setDataSource(url)
+                        setOnPreparedListener { it.start() }
+                        setOnCompletionListener {
+                            it.release()
+                            if (mediaPlayer === it) mediaPlayer = null
+                        }
+                        setOnErrorListener { player, _, _ ->
+                            player.release()
+                            if (mediaPlayer === player) mediaPlayer = null
+                            Toast.makeText(this@MainActivity, "Không phát được tin nhắn thoại", Toast.LENGTH_SHORT).show()
+                            true
+                        }
+                        prepareAsync()
+                    }
+                } catch (error: Exception) {
+                    Log.e("VOICE_PLAYER", "Failed to play audio", error)
+                    Toast.makeText(this@MainActivity, "Không phát được tin nhắn thoại", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun stopAudio() {
+            runOnUiThread {
+                mediaPlayer?.release()
+                mediaPlayer = null
+            }
         }
     }
 }

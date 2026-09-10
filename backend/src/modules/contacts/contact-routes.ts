@@ -4,13 +4,17 @@
  * All routes require JWT auth and are scoped to user's org.
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { prisma } from '../../shared/database/prisma-client.js';
 import { getTenantPrisma } from '../../shared/database/prisma-tenant.js';
 import { authMiddleware } from '../auth/auth-middleware.js';
+import { getContactAccessWhere } from '../../shared/utils/permission-scope.js';
+import { hasPermission, normalizeRole } from '../../shared/auth/permission-matrix.js';
 import { requireRole } from '../auth/role-middleware.js';
 import { logger } from '../../shared/utils/logger.js';
 import { mergeContacts } from './merge-service.js';
 import { runContactIntelligence } from './contact-intelligence.js';
 import { runAutomationRules } from '../automation/automation-service.js';
+import { assignContactToSale } from '../assignment/assignment-service.js';
 
 type QueryParams = Record<string, string>;
 
@@ -27,17 +31,22 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         search = '',
         source = '',
         status = '',
-        assignedUserId = '',
+        accountId = '',
+        zaloAccountId = '',
         tagId = '',
       } = request.query as QueryParams;
 
       const db = getTenantPrisma(user.orgId);
 
-      // ── Build ownership-safe where clause ─────────────────────────────────
-      const where: any = { mergedInto: null };
+      const contactAccess = getContactAccessWhere(user);
+      const where: any = { ...contactAccess, mergedInto: null };
       
-      if (assignedUserId) {
-        where.assignedUserId = assignedUserId;
+      const selectedZaloAccountId = accountId || zaloAccountId;
+      if (selectedZaloAccountId) {
+        where.AND = [
+          ...(where.AND || []),
+          { conversations: { some: { zaloAccountId: selectedZaloAccountId } } },
+        ];
       }
 
       if (source) where.source = source;
@@ -64,7 +73,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
           where.AND = [ { OR: where.OR }, searchClause ];
           delete where.OR;
         } else {
-          where.AND = [ searchClause ];
+          where.AND = [ ...(where.AND || []), searchClause ];
         }
       }
 
@@ -85,6 +94,19 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         db.contact.count({ where }),
       ]);
 
+      logger.info('[contacts:list] account-scoped visibility', {
+        currentUser: {
+          id: user.id,
+          name: (user as any).fullName || user.email,
+          role: user.role,
+          orgId: user.orgId,
+        },
+        selectedZaloAccountId: selectedZaloAccountId || null,
+        where,
+        returned: contacts.length,
+        total,
+      });
+
       return { contacts, total, page: pageNum, limit: limitNum };
     } catch (err) {
       logger.error('[contacts] List error:', err);
@@ -99,7 +121,8 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       const orgId = user.orgId;
 
       const db = getTenantPrisma(orgId);
-      const whereBase: any = { status: { not: null }, mergedInto: null };
+      const contactAccess = getContactAccessWhere(user);
+      const whereBase: any = { ...contactAccess, status: { not: null }, mergedInto: null };
       
       // No restricted assignment filter for members
 
@@ -115,7 +138,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
 
       await Promise.all(
         statuses.map(async (st: string) => {
-          const where: any = { status: st ?? null, mergedInto: null };
+          const where: any = { ...contactAccess, status: st ?? null, mergedInto: null };
           // No restricted assignment filter for members
           const contacts = await db.contact.findMany({
             where,
@@ -156,8 +179,9 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       const { id } = request.params as { id: string };
 
       const db = getTenantPrisma(user.orgId);
+      const contactAccess = getContactAccessWhere(user);
       const contact = await db.contact.findFirst({
-        where: { id },
+        where: { id, ...contactAccess },
         include: {
           assignedUser: { select: { id: true, fullName: true, email: true } },
           appointments: { orderBy: { appointmentDate: 'desc' }, take: 10 },
@@ -184,9 +208,22 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       const body = request.body as Record<string, any>;
 
       const db = getTenantPrisma(user.orgId);
+      const assignedUserId = user.role === 'member' ? user.id : body.assignedUserId;
+      let teamId = body.teamId || user.teamId || null;
+      if (assignedUserId && assignedUserId !== user.id) {
+        const assignedUser = await prisma.user.findFirst({
+          where: { id: assignedUserId, orgId: user.orgId },
+          select: { teamId: true }
+        });
+        if (assignedUser?.teamId) {
+          teamId = assignedUser.teamId;
+        }
+      }
+
       const contact = await db.contact.create({
         data: {
           orgId: user.orgId,
+          teamId: teamId || null,
           fullName: body.fullName,
           crmName: body.crmName,
           phone: body.phone,
@@ -197,12 +234,18 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
           sourceDate: body.sourceDate ? new Date(body.sourceDate) : undefined,
           status: body.status ?? 'new',
           nextAppointment: body.nextAppointment ? new Date(body.nextAppointment) : undefined,
-          assignedUserId: user.role === 'member' ? user.id : body.assignedUserId,
+          assignedUserId,
           notes: body.notes,
           tags: body.tags ?? [],
           metadata: body.metadata ?? {},
         },
       });
+
+      if (!contact.assignedUserId) {
+        assignContactToSale(contact.id, user.orgId, { type: 'system' }).catch((assignErr) => {
+          logger.error('[contacts] Auto assignment failed:', assignErr);
+        });
+      }
 
       const org = await db.organization.findUnique({
         where: { id: user.orgId },
@@ -235,17 +278,25 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       const user = request.user!;
       const { id } = request.params as { id: string };
       const body = request.body as Record<string, any>;
+      if (!hasPermission(normalizeRole(user.role), 'contacts:update')) {
+        return reply.status(403).send({ error: 'Không có quyền cập nhật khách hàng' });
+      }
 
       const db = getTenantPrisma(user.orgId);
 
+      const contactAccess = getContactAccessWhere(user);
       // Pre-fetch for permission check
       const existing = await db.contact.findFirst({
-        where: { id },
+        where: { id, ...contactAccess },
         select: { status: true, assignedUserId: true },
       });
       if (!existing) return reply.status(404).send({ error: 'Contact not found' });
       
       // No restricted assignment filter for members
+
+      const assignedUserId = user.role === 'member' 
+        ? (existing.assignedUserId === null ? user.id : undefined) 
+        : body.assignedUserId;
 
       const updateData: any = {
         fullName: body.fullName,
@@ -257,14 +308,27 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         sourceDate: body.sourceDate ? new Date(body.sourceDate) : undefined,
         status: body.status,
         nextAppointment: body.nextAppointment ? new Date(body.nextAppointment) : undefined,
-        // Members cannot re-assign contacts to others, but they can "claim" an unassigned one
-        assignedUserId: user.role === 'member' 
-          ? (existing.assignedUserId === null ? user.id : undefined) 
-          : body.assignedUserId,
+        assignedUserId,
         notes: body.notes,
         tags: body.tags,
         metadata: body.metadata,
       };
+
+      if (assignedUserId !== undefined) {
+        if (assignedUserId === null) {
+          updateData.teamId = null;
+        } else {
+          const targetUser = await prisma.user.findFirst({
+            where: { id: assignedUserId, orgId: user.orgId },
+            select: { teamId: true }
+          });
+          if (targetUser?.teamId) {
+            updateData.teamId = targetUser.teamId;
+          }
+        }
+      } else if (body.teamId !== undefined) {
+        updateData.teamId = body.teamId;
+      }
       
       if (body.firstContactDate !== undefined) {
         updateData.firstContactDate = body.firstContactDate ? new Date(body.firstContactDate) : null;
@@ -312,13 +376,17 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
     try {
       const user = request.user!;
       const { id } = request.params as { id: string };
+      if (!hasPermission(normalizeRole(user.role), 'contacts:update')) {
+        return reply.status(403).send({ error: 'Không có quyền cập nhật khách hàng' });
+      }
       const { tags } = request.body as { tags: string[] };
 
       if (!Array.isArray(tags)) return reply.status(400).send({ error: 'tags must be an array' });
 
       const db = getTenantPrisma(user.orgId);
       
-      const existing = await db.contact.findFirst({ where: { id }, select: { assignedUserId: true } });
+      const contactAccess = getContactAccessWhere(user);
+      const existing = await db.contact.findFirst({ where: { id, ...contactAccess }, select: { assignedUserId: true } });
       if (!existing) return reply.status(404).send({ error: 'Contact not found' });
 
       // No restricted assignment filter for members
@@ -336,10 +404,14 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
     try {
       const user = request.user!;
       const { id } = request.params as { id: string };
+      if (!hasPermission(normalizeRole(user.role), 'contacts:delete')) {
+        return reply.status(403).send({ error: 'Không có quyền xóa khách hàng' });
+      }
 
       const db = getTenantPrisma(user.orgId);
       
-      const existing = await db.contact.findFirst({ where: { id }, select: { assignedUserId: true } });
+      const contactAccess = getContactAccessWhere(user);
+      const existing = await db.contact.findFirst({ where: { id, ...contactAccess }, select: { assignedUserId: true } });
       if (!existing) return reply.status(404).send({ error: 'Contact not found' });
 
       // No restricted assignment filter for members

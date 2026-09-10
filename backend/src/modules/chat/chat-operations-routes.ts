@@ -11,6 +11,7 @@ import { requireZaloAccess } from '../zalo/zalo-access-middleware.js';
 import { zaloOps, ZaloOpError } from '../../shared/zalo-operations.js';
 import { eventBuffer } from '../../shared/event-buffer.js';
 import { logger } from '../../shared/utils/logger.js';
+import { emitToConversationRooms, getConversationTargetRooms } from '../../shared/utils/permission-scope.js';
 
 interface ResolvedMessageRefs {
   messageId: string;
@@ -38,7 +39,7 @@ async function resolveMessageRefs(conversationId: string, messageId: string, use
     cliMsgId: message.zaloMsgId,
     ownerId: message.senderUid || '',
     repliedByUserId: message.repliedByUserId || null,
-    senderType: message.senderType || 'contact',
+    senderType: message.senderType || (message.repliedByUserId ? 'self' : 'contact'),
   };
 }
 
@@ -108,7 +109,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
         },
       });
       const io = (app as any).io as Server;
-      io?.to('org:' + user.orgId).emit('chat:reactions', {
+      await emitToConversationRooms(io, id, user.orgId, 'chat:reactions', {
         conversationId: id,
         messageId: refs.messageId,
         msgId: refs.messageId,
@@ -168,7 +169,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
       }
 
       const io = (app as any).io as Server;
-      io?.to('org:' + user.orgId).emit('chat:deleted', { conversationId: id, messageId: refs.messageId, zaloMsgId: refs.zaloMsgId });
+      await emitToConversationRooms(io, id, user.orgId, 'chat:deleted', { conversationId: id, messageId: refs.messageId, zaloMsgId: refs.zaloMsgId });
       return { success: true };
     } catch (err) { return handleError(err, reply); }
   });
@@ -222,7 +223,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
 
       const io = (app as any).io as Server;
       // Emit chat:deleted with updated content
-      io?.to('org:' + user.orgId).emit('chat:deleted', { 
+      await emitToConversationRooms(io, id, user.orgId, 'chat:deleted', { 
         conversationId: id, 
         messageId: refs.messageId, 
         zaloMsgId: refs.zaloMsgId,
@@ -262,7 +263,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
       await prisma.message.update({ where: { id: refs.messageId }, data: { content, updatedAt: new Date() } });
 
       const io = (app as any).io as Server;
-      io?.to('org:' + user.orgId).emit('chat:message-edited', { conversationId: id, messageId: refs.messageId, zaloMsgId: refs.zaloMsgId, content });
+      await emitToConversationRooms(io, id, user.orgId, 'chat:message-edited', { conversationId: id, messageId: refs.messageId, zaloMsgId: refs.zaloMsgId, content });
       return { success: true };
     } catch (err) { return handleError(err, reply); }
   });
@@ -316,7 +317,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
         create: { id: randomUUID(), orgId: user.orgId, zaloAccountId: conv.zaloAccountId, conversationId: id },
       });
       const io = (app as any).io as Server;
-      io?.to('org:' + user.orgId).emit('chat:pinned', { conversationId: id, isPinned: true });
+      await emitToConversationRooms(io, id, user.orgId, 'chat:pinned', { conversationId: id, isPinned: true });
       return { success: true, result };
     } catch (err) { return handleError(err, reply); }
   });
@@ -336,7 +337,7 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
         where: { zaloAccountId: conv.zaloAccountId, conversationId: id },
       });
       const io = (app as any).io as Server;
-      io?.to('org:' + user.orgId).emit('chat:unpinned', { conversationId: id, isPinned: false });
+      await emitToConversationRooms(io, id, user.orgId, 'chat:unpinned', { conversationId: id, isPinned: false });
       return { success: true, result };
     } catch (err) { return handleError(err, reply); }
   });
@@ -494,7 +495,6 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
       return { success: true, labels: result?.labelData || labelData };
     } catch (err) { return handleError(err, reply); }
   });
-
   // ── POST /labels ─────────────────────────────────────────────────────────────
   app.post('/api/v1/conversations/:id/labels', chatAccess, async (request: FastifyRequest, reply: FastifyReply) => {
     const user = request.user!;
@@ -532,9 +532,9 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
       // 3. Update back to Zalo — must include version!
       const result = await zaloOps.updateLabels(conv.zaloAccountId, updatedLabels, version);
       
-      // Emit socket event to update frontend instantly — scoped to org
+      // Emit socket event to update frontend instantly — scoped to target rooms
       const io = (app as any).io as Server;
-      io?.to('org:' + user.orgId).emit('chat:labels-updated', { conversationId: id, labelIds });
+      await emitToConversationRooms(io, id, user.orgId, 'chat:labels-updated', { conversationId: id, labelIds });
 
       return { success: true, result };
     } catch (err) { return handleError(err, reply); }
@@ -545,54 +545,93 @@ export async function chatOperationsRoutes(app: FastifyInstance) {
 
 // Socket.IO event handlers for chat operations
 export function registerChatSocketHandlers(io: Server): void {
-  // Store presence data in-memory (for production, use Redis)
-  const presence = new Map<string, { userId: string; userName: string; conversationId: string | null }>();
+  const presence = new Map<string, { userId: string; userName: string; conversationId: string | null; teamId: string | null; role: string }>();
 
   io.on('connection', (socket) => {
     logger.info(`[socket] Client connected: ${socket.id}`);
 
     // 1. Join room (Org-based isolation)
-    socket.on('join:org', (orgId: string) => {
-      socket.join(`org:${orgId}`);
-      logger.info(`[socket] Client ${socket.id} joined org:${orgId}`);
+    socket.on('join:org', () => {
+      const { orgId } = socket.data || {};
+      if (orgId) {
+        socket.join(`org:${orgId}`);
+        logger.info(`[socket] Client ${socket.id} joined org:${orgId}`);
+      }
     });
 
     // 2. Presence & Viewing
-    socket.on('presence:viewing', (data: { orgId: string; userId: string; userName: string; conversationId: string | null }) => {
-      presence.set(socket.id, { userId: data.userId, userName: data.userName, conversationId: data.conversationId });
+    socket.on('presence:viewing', async (data: { orgId: string; userId: string; userName: string; conversationId: string | null }) => {
+      const { orgId, userId, teamId, role } = socket.data || {};
+      if (!orgId || !userId) return;
+      presence.set(socket.id, {
+        userId,
+        userName: data.userName,
+        conversationId: data.conversationId,
+        teamId: teamId || null,
+        role: role || 'member'
+      });
       
-      // Broadcast presence to others in the same org
-      io.to(`org:${data.orgId}`).emit('presence:update', Array.from(presence.values()));
+      // Broadcast presence to others safely (admins see all; branch members see their branch + admins)
+      const fullPresence = Array.from(presence.values());
+      io.to(`org_${orgId}_admins`).emit('presence:update', fullPresence);
+      if (teamId) {
+        const branchPresence = fullPresence.filter(p => p.teamId === teamId || ['owner', 'admin'].includes(p.role));
+        io.to(`org_${orgId}_branch_${teamId}`).emit('presence:update', branchPresence);
+      } else {
+        const selfPresence = fullPresence.filter(p => p.userId === userId || ['owner', 'admin'].includes(p.role));
+        io.to(`org_${orgId}_user_${userId}`).emit('presence:update', selfPresence);
+      }
       
       // Handle Conversation Locking logic
       if (data.conversationId) {
         socket.join(`conv:${data.conversationId}`);
-        // Notify others that this conversation is being viewed/locked
-        socket.to(`org:${data.orgId}`).emit('chat:locked', {
-          conversationId: data.conversationId,
-          lockedBy: data.userId,
-          lockedByName: data.userName,
-          expiresAt: new Date(Date.now() + 30000).toISOString() // 30s lock
-        });
+        // Notify others that this conversation is being viewed/locked safely
+        const rooms = await getConversationTargetRooms(data.conversationId, orgId);
+        for (const room of rooms) {
+          if (room !== `org_${orgId}_user_${userId}`) {
+            io.to(room).emit('chat:locked', {
+              conversationId: data.conversationId,
+              lockedBy: userId,
+              lockedByName: data.userName,
+              expiresAt: new Date(Date.now() + 30000).toISOString() // 30s lock
+            });
+          }
+        }
       }
     });
 
     // 3. Typing indicator
-    socket.on('chat:typing', (data: { orgId: string; conversationId: string; userId: string; userName: string; isTyping: boolean }) => {
-      socket.to(`org:${data.orgId}`).emit('chat:typing', data);
+    socket.on('chat:typing', async (data: { orgId: string; conversationId: string; userId: string; userName: string; isTyping: boolean }) => {
+      const { orgId, userId } = socket.data || {};
+      if (!orgId || !userId) return;
+      
+      const rooms = await getConversationTargetRooms(data.conversationId, orgId);
+      for (const room of rooms) {
+        if (room !== `org_${orgId}_user_${userId}`) {
+          io.to(room).emit('chat:typing', { ...data, orgId, userId });
+        }
+      }
       
       if (data.isTyping) {
-        eventBuffer.recordTyping(data.conversationId, data.userId, data.userName);
+        eventBuffer.recordTyping(data.conversationId, userId, data.userName, orgId);
       }
     });
 
     // 4. Seen status
-    socket.on('chat:seen', (data: { orgId: string; conversationId: string; userId: string; lastMsgId: string }) => {
-      socket.to(`org:${data.orgId}`).emit('chat:seen', data);
+    socket.on('chat:seen', async (data: { orgId: string; conversationId: string; userId: string; lastMsgId: string }) => {
+      const { orgId, userId } = socket.data || {};
+      if (!orgId || !userId) return;
       
-      // Update DB seen status
-      prisma.conversation.update({
-        where: { id: data.conversationId },
+      const rooms = await getConversationTargetRooms(data.conversationId, orgId);
+      for (const room of rooms) {
+        if (room !== `org_${orgId}_user_${userId}`) {
+          io.to(room).emit('chat:seen', { ...data, orgId, userId });
+        }
+      }
+      
+      // Update DB seen status under strict org isolation
+      prisma.conversation.updateMany({
+        where: { id: data.conversationId, orgId },
         data: { unreadCount: 0, isReplied: true }
       }).catch(err => logger.error('[socket] Failed to update seen status:', err));
     });
@@ -601,7 +640,20 @@ export function registerChatSocketHandlers(io: Server): void {
       const p = presence.get(socket.id);
       if (p) {
         presence.delete(socket.id);
-        // Clean up locks if needed
+        
+        // Broadcast updated presence to others safely on disconnect
+        const { orgId, userId, teamId, role } = socket.data || {};
+        if (orgId && userId) {
+          const fullPresence = Array.from(presence.values());
+          io.to(`org_${orgId}_admins`).emit('presence:update', fullPresence);
+          if (teamId) {
+            const branchPresence = fullPresence.filter(x => x.teamId === teamId || ['owner', 'admin'].includes(x.role));
+            io.to(`org_${orgId}_branch_${teamId}`).emit('presence:update', branchPresence);
+          } else {
+            const selfPresence = fullPresence.filter(x => x.userId === userId || ['owner', 'admin'].includes(x.role));
+            io.to(`org_${orgId}_user_${userId}`).emit('presence:update', selfPresence);
+          }
+        }
       }
       logger.info(`[socket] Client disconnected: ${socket.id}`);
     });

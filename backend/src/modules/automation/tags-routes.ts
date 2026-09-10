@@ -113,8 +113,13 @@ export async function tagsRoutes(app: FastifyInstance): Promise<void> {
         data: { orgId: user.orgId, contactId, tagId },
       });
 
-      // Optionally, check if any active scenarios use this tag as trigger
-      // That logic could be extracted to a service
+      // Check if any active scenarios use this tag as trigger
+      try {
+        const { triggerTagAutomation } = await import('../contacts/contact-sub-resource-routes.js');
+        await triggerTagAutomation(user.orgId, contactId, tagId);
+      } catch (autoErr) {
+        logger.error('[tags] Failed to trigger automation for tag:', autoErr);
+      }
       
       return { success: true };
     } catch (error) {

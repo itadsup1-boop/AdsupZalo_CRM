@@ -170,20 +170,7 @@
         Lưu thất bại, thử lại!
       </v-alert>
 
-      <AiSummaryCard :summary="aiSummary" :loading="aiSummaryLoading" @refresh="$emit('refresh-ai-summary')" />
 
-      <v-card variant="outlined" class="mb-3">
-        <v-card-title class="d-flex align-center text-body-1">
-          <v-icon class="mr-2">mdi-chart-bell-curve-cumulative</v-icon>
-          Cảm xúc khách hàng
-          <v-spacer />
-          <v-btn size="small" variant="text" :loading="aiSentimentLoading" @click="$emit('refresh-ai-sentiment')">Làm mới</v-btn>
-        </v-card-title>
-        <v-card-text>
-          <AiSentimentBadge :sentiment="aiSentiment" />
-          <div v-if="aiSentiment?.reason" class="text-body-2 mt-2">{{ aiSentiment.reason }}</div>
-        </v-card-text>
-      </v-card>
 
       <ChatAppointments
         v-if="props.contactId"
@@ -201,8 +188,7 @@ import type { Contact } from '@/composables/use-contacts';
 import type { AiSentiment } from '@/composables/use-chat';
 import { useChatContactPanel } from '@/composables/use-chat-contact-panel';
 import ChatAppointments from './ChatAppointments.vue';
-import AiSummaryCard from '@/components/ai/ai-summary-card.vue';
-import AiSentimentBadge from '@/components/ai/ai-sentiment-badge.vue';
+
 
 const props = defineProps<{
   contactId: string | null;

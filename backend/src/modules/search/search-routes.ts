@@ -22,11 +22,12 @@ export async function searchRoutes(app: FastifyInstance) {
           orgId: user.orgId,
           OR: [
             { fullName: { contains: searchTerm, mode: 'insensitive' } },
+            { crmName: { contains: searchTerm, mode: 'insensitive' } },
             { phone: { contains: searchTerm } },
             { notes: { contains: searchTerm, mode: 'insensitive' } },
           ],
         },
-        select: { id: true, fullName: true, phone: true, diseaseCode: true, diseaseName: true },
+        select: { id: true, fullName: true, crmName: true, phone: true, diseaseCode: true, diseaseName: true },
         take: 10,
       }),
       prisma.message.findMany({
@@ -39,7 +40,7 @@ export async function searchRoutes(app: FastifyInstance) {
           content: true,
           senderName: true,
           sentAt: true,
-          conversation: { select: { id: true, contact: { select: { fullName: true } } } },
+          conversation: { select: { id: true, contact: { select: { fullName: true, crmName: true } } } },
         },
         orderBy: { sentAt: 'desc' },
         take: 10,
@@ -49,7 +50,14 @@ export async function searchRoutes(app: FastifyInstance) {
           orgId: user.orgId,
           OR: [
             { notes: { contains: searchTerm, mode: 'insensitive' } },
-            { contact: { fullName: { contains: searchTerm, mode: 'insensitive' } } },
+            {
+              contact: {
+                OR: [
+                  { fullName: { contains: searchTerm, mode: 'insensitive' } },
+                  { crmName: { contains: searchTerm, mode: 'insensitive' } },
+                ],
+              },
+            },
           ],
         },
         select: {
@@ -57,7 +65,7 @@ export async function searchRoutes(app: FastifyInstance) {
           appointmentDate: true,
           appointmentTime: true,
           notes: true,
-          contact: { select: { fullName: true } },
+          contact: { select: { fullName: true, crmName: true } },
         },
         take: 10,
       }),

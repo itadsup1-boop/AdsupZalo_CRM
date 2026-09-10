@@ -18,7 +18,7 @@ RUN npx tsc --skipLibCheck || echo "Ignoring TS errors"
 
 # ── Stage 3: Production image ────────────────────────────────────────────────
 FROM node:20-alpine
-RUN apk add --no-cache tini
+RUN apk add --no-cache tini ffmpeg
 WORKDIR /app
 
 # Copy built artefacts
@@ -28,6 +28,7 @@ COPY --from=backend-builder /app/backend/prisma     /app/prisma
 COPY --from=backend-builder /app/backend/prisma.config.ts /app/prisma.config.ts
 COPY --from=backend-builder /app/backend/package.json /app/package.json
 COPY --from=backend-builder /app/backend/scripts     /app/scripts
+COPY --from=backend-builder /app/backend/certs       /app/certs
 COPY --from=backend-builder /app/backend/service-account.json* /app/
 COPY --from=frontend-builder /app/frontend/dist     /app/static
 

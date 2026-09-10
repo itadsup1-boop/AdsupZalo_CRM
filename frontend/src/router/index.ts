@@ -124,6 +124,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/reports/ai-agent',
+    name: 'AiAgentReport',
+    component: () => import('@/views/AiAgentReportView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/analytics',
     name: 'Analytics',
     component: () => import('@/views/AnalyticsView.vue'),
@@ -154,9 +160,15 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/ai-review',
+    name: 'AiReview',
+    component: () => import('@/views/AiReviewView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/groups',
     name: 'Groups',
-    component: () => import('@/views/GroupsView.vue'),
+    redirect: '/dashboard',
     meta: { requiresAuth: true },
   },
   {

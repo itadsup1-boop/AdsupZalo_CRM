@@ -9,6 +9,8 @@ import { requireRole } from '../auth/role-middleware.js';
 import { zaloPool } from './zalo-pool.js';
 import { logger } from '../../shared/utils/logger.js';
 import { randomUUID } from 'node:crypto';
+import { canAccessZaloAccount } from '../../shared/utils/permission-scope.js';
+import { runZaloMessageBackfill } from './zalo-message-backfill.js';
 
 export async function zaloSyncRoutes(app: FastifyInstance) {
   app.addHook('preHandler', authMiddleware);
@@ -99,6 +101,72 @@ export async function zaloSyncRoutes(app: FastifyInstance) {
     } catch (err) {
       logger.error('[sync] Full sync error:', err);
       return reply.status(500).send({ error: 'Full sync failed: ' + String(err) });
+    }
+  });
+
+  // Backfill missing messages for one account. Defaults to last 24 hours.
+  app.post('/api/v1/zalo-accounts/:id/sync-messages', async (request, reply) => {
+    const user = request.user!;
+    const { id } = request.params as { id: string };
+    const body = (request.body || {}) as { since?: string; lookbackHours?: number };
+
+    const hasAccess = await canAccessZaloAccount(user, id);
+    if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
+
+    const instance = zaloPool.getInstance(id);
+    if (!instance?.api) return reply.status(400).send({ error: 'Zalo account not connected' });
+
+    try {
+      const stats = await runZaloMessageBackfill({
+        accountId: id,
+        orgId: user.orgId,
+        api: instance.api,
+        since: body.since ? new Date(body.since) : undefined,
+        lookbackHours: body.lookbackHours || 24,
+        requestOldMessages: true,
+        reason: 'manual_account',
+      });
+      return { success: true, stats };
+    } catch (err) {
+      logger.error(`[sync] Message backfill failed for account ${id}:`, err);
+      return reply.status(500).send({ error: 'Message sync failed: ' + String(err) });
+    }
+  });
+
+  // Backfill missing messages for a single CRM conversation.
+  app.post('/api/v1/conversations/:id/sync-messages', async (request, reply) => {
+    const user = request.user!;
+    const { id } = request.params as { id: string };
+    const body = (request.body || {}) as { since?: string; lookbackHours?: number };
+    const db = getTenantPrisma(user.orgId);
+
+    const conversation = await db.conversation.findFirst({
+      where: { id },
+      select: { id: true, zaloAccountId: true },
+    });
+    if (!conversation?.zaloAccountId) return reply.status(404).send({ error: 'Conversation not found' });
+
+    const hasAccess = await canAccessZaloAccount(user, conversation.zaloAccountId);
+    if (!hasAccess) return reply.status(403).send({ error: 'Forbidden' });
+
+    const instance = zaloPool.getInstance(conversation.zaloAccountId);
+    if (!instance?.api) return reply.status(400).send({ error: 'Zalo account not connected' });
+
+    try {
+      const stats = await runZaloMessageBackfill({
+        accountId: conversation.zaloAccountId,
+        orgId: user.orgId,
+        api: instance.api,
+        conversationId: id,
+        since: body.since ? new Date(body.since) : undefined,
+        lookbackHours: body.lookbackHours || 24,
+        requestOldMessages: true,
+        reason: 'manual_conversation',
+      });
+      return { success: true, stats };
+    } catch (err) {
+      logger.error(`[sync] Message backfill failed for conversation ${id}:`, err);
+      return reply.status(500).send({ error: 'Conversation sync failed: ' + String(err) });
     }
   });
 

@@ -3,6 +3,7 @@ import { api } from '@/api/index';
 import { io, Socket } from 'socket.io-client';
 import type { Contact } from '@/composables/use-contacts';
 import { useAuthStore } from '@/stores/auth';
+import { useZaloAccounts } from '@/composables/use-zalo-accounts';
 
 interface ZaloAccount {
   id: string;
@@ -59,6 +60,7 @@ export interface Conversation {
   unreadCount: number;
   isReplied: boolean;
   isPinned?: boolean;
+  aiPaused?: boolean;
   messages?: ConversationMessage[];
 }
 
@@ -82,6 +84,12 @@ export interface Message {
   albumTotal: number | null;
   reply?: ReplyMessageRef | null;
   reactions?: MessageReactionView[];
+  attachments?: any[];
+  fileUrl?: string | null;
+  fileName?: string | null;
+  mimeType?: string | null;
+  duration?: number | null;
+  size?: number | null;
 }
 
 // Module-level singleton so all components share the same state
@@ -106,6 +114,8 @@ export function useChat() {
   const aiUsage = ref({ usedToday: 0, maxDaily: 500, remaining: 500, enabled: true });
   const aiConfig = ref<AiConfig>({ provider: 'anthropic', model: 'claude-sonnet-4-6', maxDaily: 500, enabled: true });
   let socket: Socket | null = null;
+  const accountsReady = ref(false);
+  const { accounts, fetchAccounts } = useZaloAccounts();
 
   const selectedConv = computed(() =>
     conversations.value.find(c => c.id === selectedConvId.value) || null,
@@ -156,7 +166,7 @@ export function useChat() {
     loadingMsgs.value = true;
     try {
       const res = await api.get(`/conversations/${convId}/messages`, {
-        params: { limit: 100 },
+        params: { limit: 250 },
       });
       messages.value = (res.data.messages as RawMessage[]).map(normalizeMessage);
     } catch (err) {
@@ -209,7 +219,11 @@ export function useChat() {
     aiSuggestionError.value = '';
     try {
       const res = await api.post('/ai/suggest', { conversationId: selectedConvId.value });
-      aiSuggestion.value = res.data.content || '';
+      let content = res.data.content || '';
+      if (content.includes('[CANNOT_ANSWER]')) {
+        content = 'AI không chắc chắn câu trả lời dựa trên kho kiến thức. Hệ thống đã tự động gắn thẻ "Cần nhân viên xử lý" và gửi thông báo cho nhân viên phụ trách.';
+      }
+      aiSuggestion.value = content;
       await fetchAiUsage();
     } catch (err: any) {
       aiSuggestionError.value = err.response?.data?.error || 'Không thể tạo gợi ý AI';
@@ -246,6 +260,36 @@ export function useChat() {
     }
   }
 
+  async function pauseConversationAi(convId: string) {
+    try {
+      await api.post(`/conversations/${convId}/ai/pause`, {});
+      const conv = conversations.value.find(c => c.id === convId);
+      if (conv) conv.aiPaused = true;
+    } catch (err) {
+      console.error('Failed to pause AI:', err);
+    }
+  }
+
+  async function resumeConversationAi(convId: string) {
+    try {
+      await api.post(`/conversations/${convId}/ai/resume`, {});
+      const conv = conversations.value.find(c => c.id === convId);
+      if (conv) conv.aiPaused = false;
+    } catch (err) {
+      console.error('Failed to resume AI:', err);
+    }
+  }
+
+  async function handoverConversationToStaff(convId: string) {
+    try {
+      await api.post(`/conversations/${convId}/ai/handover`, {});
+      const conv = conversations.value.find(c => c.id === convId);
+      if (conv) conv.aiPaused = true;
+    } catch (err) {
+      console.error('Failed to handover to staff:', err);
+    }
+  }
+
   async function selectConversation(convId: string) {
     selectedConvId.value = convId;
     clearAiState();
@@ -253,8 +297,9 @@ export function useChat() {
     try {
       const convDetail = await api.get(`/conversations/${convId}`);
       const conv = conversations.value.find(c => c.id === convId);
-      if (conv && convDetail.data.contact) {
-        conv.contact = convDetail.data.contact;
+      if (conv) {
+        if (convDetail.data.contact) conv.contact = convDetail.data.contact;
+        conv.aiPaused = convDetail.data.aiPaused;
       }
     } catch {
       // Non-critical
@@ -267,6 +312,69 @@ export function useChat() {
       // Ignore mark-read errors
     }
     await Promise.allSettled([generateAiSummary(), generateAiSentiment(), fetchAiUsage()]);
+  }
+
+  // Helper to locally update the conversation list without doing a full fetch
+  // This ensures the UI instantly updates without needing to wait for a full list reload from the server.
+  function updateConversationListLocally(conversationId: string, message: any) {
+    const index = conversations.value.findIndex(c => c.id === conversationId);
+    if (index !== -1) {
+      const conv = conversations.value[index];
+      
+      // Update preview snippet
+      if (!conv.messages) conv.messages = [];
+      conv.messages[0] = {
+        id: message.id,
+        zaloMsgId: message.zaloMsgId,
+        senderUid: message.senderUid,
+        senderName: message.senderName,
+        content: message.content,
+        contentType: message.contentType,
+        senderType: message.senderType,
+        sentAt: message.sentAt,
+        isDeleted: message.isDeleted,
+        reactions: message.reactions
+      } as any;
+      
+      // Update timestamp
+      conv.lastMessageAt = message.sentAt;
+      
+      // Update read/reply status based on who sent it
+      if (message.senderType === 'self') {
+        conv.isReplied = true;
+        conv.unreadCount = 0;
+      } else {
+        conv.isReplied = false;
+        if (conversationId !== selectedConvId.value) {
+          conv.unreadCount = (conv.unreadCount || 0) + 1;
+        } else {
+          conv.unreadCount = 0;
+        }
+      }
+
+      // Tránh dùng splice/unshift trên Proxy của Vue 3 vì nó gây lag/đứng UI (nó kích hoạt tracker trên toàn bộ index mảng)
+      // Thay vào đó, tạo một mảng mới hoàn toàn và gán lại (re-assign)
+      const newList = conversations.value.filter(c => c.id !== conversationId);
+      
+      // Xử lý giữ nguyên các hội thoại đã ghim (Pin) ở trên cùng
+      if (conv.isPinned) {
+        newList.unshift(conv);
+      } else {
+        // Tìm vị trí của hội thoại không ghim đầu tiên
+        const firstUnpinnedIndex = newList.findIndex(c => !c.isPinned);
+        if (firstUnpinnedIndex === -1) {
+          newList.push(conv);
+        } else {
+          newList.splice(firstUnpinnedIndex, 0, conv);
+        }
+      }
+      
+      conversations.value = newList;
+    } else {
+      // Nếu có tin nhắn từ người mới (chưa có trong danh sách hiện tại),
+      // bắt buộc phải tải lại danh sách từ server để lấy tên, avatar...
+      fetchConversations();
+    }
   }
 
   async function sendMessage(content: string, replyMessageId?: string | null) {
@@ -285,6 +393,8 @@ export function useChat() {
           messages.value.push(res.data);
         }
       }
+      // Instantly update the left sidebar
+      updateConversationListLocally(conversationId, res.data);
     } catch (err) {
       console.error('Failed to send message:', err);
       throw err;
@@ -293,23 +403,34 @@ export function useChat() {
     }
   }
 
-  async function sendVoiceMessage(audioBlob: Blob) {
+  async function sendVoiceMessage(audioBlob: Blob, durationMs: number = 0) {
     if (!selectedConvId.value) return;
     sendingMsg.value = true;
     try {
       const formData = new FormData();
-      formData.append('file', audioBlob, 'voice_message.webm');
+      const extensionByMime: Record<string, string> = {
+        'audio/webm': 'webm',
+        'audio/ogg': 'ogg',
+        'audio/mp4': 'm4a',
+        'audio/mpeg': 'mp3',
+        'audio/wav': 'wav',
+      };
+      const baseMime = audioBlob.type.split(';')[0].toLowerCase();
+      const extension = extensionByMime[baseMime] || 'webm';
+      formData.append('file', audioBlob, `voice_message.${extension}`);
+      if (durationMs > 0) {
+        formData.append('duration', durationMs.toString());
+      }
       
-      const res = await api.post(`/conversations/${selectedConvId.value}/voice`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const res = await api.post(`/conversations/${selectedConvId.value}/send-audio`, formData);
       if (!messages.value.find(m => m.id === res.data.id)) {
         messages.value.push(res.data);
       }
+      updateConversationListLocally(selectedConvId.value, res.data);
     } catch (err) {
       console.error('Failed to send voice message:', err);
+      const message = (err as any)?.response?.data?.error || 'Không gửi được tin nhắn thoại. Vui lòng thử lại.';
+      alert(message);
       throw err;
     } finally {
       sendingMsg.value = false;
@@ -333,6 +454,7 @@ export function useChat() {
       if (!messages.value.find(m => m.id === res.data.id)) {
         messages.value.push(res.data);
       }
+      updateConversationListLocally(selectedConvId.value, res.data);
     } catch (err) {
       console.error('Failed to send files:', err);
       throw err;
@@ -505,8 +627,15 @@ export function useChat() {
   function initSocket() {
     // Tự động kích hoạt lắng nghe Firebase trên Android WebView
     initAndroidFcmListener();
+    // Fetch accounts and mark ready so socket guard can validate accountId
+    fetchAccounts().then(() => {
+      accountsReady.value = true;
+    }).catch(() => {});
 
-    socket = io({ transports: ['websocket', 'polling'] });
+    socket = io({
+      transports: ['websocket', 'polling'],
+      auth: { token: localStorage.getItem('token') }
+    });
 
     // Join org-scoped room immediately on connect — CRITICAL for multi-tenant isolation
     // Without this, the client receives socket events from ALL organizations
@@ -516,9 +645,32 @@ export function useChat() {
       if (orgId) {
         socket!.emit('org:join', { orgId });
       }
+      socket!.emit('user:join');
     });
 
-    socket.on('chat:message', (data: { message: Message; conversationId: string }) => {
+    socket.on('chat:message', (data: { message: Message; conversationId: string; accountId?: string }) => {
+      const targetAccountId = data.accountId;
+      const auth = useAuthStore();
+      const isAdmin = auth.user?.role === 'admin' || auth.user?.role === 'owner';
+
+      // For non-admin users: strictly enforce account-level access control.
+      // Block events if accounts haven't loaded yet (race condition guard) OR
+      // if the target account is not in user's allowed list.
+      if (!isAdmin) {
+        if (!accountsReady.value) {
+          // Accounts list not ready yet — silently discard to prevent race-condition leaks.
+          console.debug(`[Socket] Deferred chat:message — accounts not ready yet.`);
+          return;
+        }
+        if (targetAccountId) {
+          const hasAccess = accounts.value.some(acc => acc.id === targetAccountId);
+          if (!hasAccess) {
+            console.warn(`[Socket] Blocked chat:message for unauthorized account ${targetAccountId}`);
+            return;
+          }
+        }
+      }
+
       // Play sound and show notification if message is not from self
       if (data.message.senderType !== 'self') {
         playNotificationSound();
@@ -530,10 +682,14 @@ export function useChat() {
           messages.value.push(normalizeMessage(data.message as RawMessage));
         }
       }
-      fetchConversations();
+      
+      // Update locally instead of fetching the whole list to prevent UI jitter
+      updateConversationListLocally(data.conversationId, data.message);
+      // fetchConversations(); // Ghi chú: Đã thay thế bằng updateConversationListLocally để mượt hơn
     });
 
-    socket.on('chat:deleted', (data: { messageId?: string; zaloMsgId?: string; content?: string }) => {
+    socket.on('chat:deleted', (data: { conversationId?: string; messageId?: string; zaloMsgId?: string; content?: string }) => {
+      if (data.conversationId && !conversations.value.some(c => c.id === data.conversationId)) return;
       const msg = messages.value.find(m => m.id === data.messageId || m.zaloMsgId === data.zaloMsgId);
       if (msg) {
         msg.isDeleted = true;
@@ -541,12 +697,14 @@ export function useChat() {
       }
     });
 
-    socket.on('chat:message-edited', (data: { messageId?: string; zaloMsgId?: string; content: string }) => {
+    socket.on('chat:message-edited', (data: { conversationId?: string; messageId?: string; zaloMsgId?: string; content: string }) => {
+      if (data.conversationId && !conversations.value.some(c => c.id === data.conversationId)) return;
       const msg = messages.value.find(m => m.id === data.messageId || m.zaloMsgId === data.zaloMsgId);
       if (msg) msg.content = data.content;
     });
 
-    socket.on('chat:reactions', (data: { messageId?: string; msgId?: string; zaloMsgId?: string; reactions: { userId: string; userName: string; reaction: string; action: 'add' | 'remove' }[] }) => {
+    socket.on('chat:reactions', (data: { conversationId?: string; messageId?: string; msgId?: string; zaloMsgId?: string; reactions: { userId: string; userName: string; reaction: string; action: 'add' | 'remove' }[] }) => {
+      if (data.conversationId && !conversations.value.some(c => c.id === data.conversationId)) return;
       const msg = messages.value.find(m => m.id === data.messageId || m.id === data.msgId || m.zaloMsgId === data.zaloMsgId);
       if (!msg) return;
       const counts = new Map<string, number>();
@@ -558,12 +716,21 @@ export function useChat() {
       msg.reactions = Array.from(counts.entries()).map(([emoji, count]) => ({ emoji, count, reacted: false }));
     });
 
-    socket.on('chat:pinned', () => {
+    socket.on('chat:pinned', (data?: { conversationId?: string }) => {
+      if (data?.conversationId && !conversations.value.some(c => c.id === data.conversationId)) return;
       fetchConversations();
     });
 
-    socket.on('chat:unpinned', () => {
+    socket.on('chat:unpinned', (data?: { conversationId?: string }) => {
+      if (data?.conversationId && !conversations.value.some(c => c.id === data.conversationId)) return;
       fetchConversations();
+    });
+
+    socket.on('chat:ai-status', (data: { conversationId: string; aiPaused: boolean }) => {
+      const conv = conversations.value.find(c => c.id === data.conversationId);
+      if (conv) {
+        conv.aiPaused = data.aiPaused;
+      }
     });
   }
 
@@ -603,6 +770,9 @@ export function useChat() {
     sendVoiceMessage,
     sendFileMessage,
     generateAiSuggestion,
+    pauseConversationAi,
+    resumeConversationAi,
+    handoverConversationToStaff,
     generateAiSummary,
     generateAiSentiment,
     clearAiState,

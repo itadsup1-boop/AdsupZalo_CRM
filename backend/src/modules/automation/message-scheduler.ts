@@ -38,7 +38,16 @@ async function processScheduledMessages() {
       scheduledAt: { lte: now },
     },
     include: {
-      contact: true,
+      contact: {
+        include: {
+          team: true,
+          customerProducts: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      },
     },
     take: 20, // Process in small batches
   });
@@ -100,9 +109,33 @@ async function processScheduledMessages() {
       // Record sending and call API
       zaloRateLimiter.recordSend(zaloAccountId);
       
+      const branchName = (msg.contact as any)?.team?.name || '';
+      const serviceNames = (msg.contact as any)?.customerProducts
+        ? (msg.contact as any).customerProducts.map((cp: any) => cp.product?.name).filter(Boolean).join(', ')
+        : '';
+
       const personalizedContent = msg.content
         .replace(/\{\{name\}\}/g, msg.contact.crmName || msg.contact.fullName || 'Khách hàng')
-        .replace(/\{\{phone\}\}/g, msg.contact.phone || '');
+        .replace(/\{\{phone\}\}/g, msg.contact.phone || '')
+        .replace(/\{\{branch\}\}/g, branchName)
+        .replace(/\{\{service\}\}/g, serviceNames);
+
+      // Check Anti-spam limits
+      const { checkSpamLimits } = await import('./anti-spam.js');
+      const spamCheck = await checkSpamLimits(msg.orgId, msg.contactId, personalizedContent);
+      if (!spamCheck.allowed) {
+        if (spamCheck.action === 'wait') {
+          logger.warn(`[scheduler] Scheduled message ${msg.id} postponed due to quiet hours: ${spamCheck.reason}`);
+          continue; // Keep pending to retry later when quiet hours end
+        } else {
+          logger.warn(`[scheduler] Scheduled message ${msg.id} skipped due to anti-spam rule: ${spamCheck.reason}`);
+          await prisma.scheduledMessage.update({
+            where: { id: msg.id },
+            data: { status: 'failed', errorReason: `Anti-Spam: ${spamCheck.reason}` },
+          });
+          continue;
+        }
+      }
 
       logger.info(`[scheduler] Sending scheduled message to contact ${msg.contact.fullName} (UID: ${msg.contact.zaloUid})`);
       const sendResult = await instance.api.sendMessage({ msg: personalizedContent }, msg.contact.zaloUid, 0);

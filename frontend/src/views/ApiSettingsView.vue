@@ -63,8 +63,9 @@
         <div class="text-body-2">Quota/ngày: <strong>{{ aiConfig.maxDaily }}</strong></div>
         <div class="text-body-2">Trạng thái AI Suggest: <strong>{{ aiConfig.enabled ? 'Bật' : 'Tắt' }}</strong></div>
         <div class="text-body-2">Tự động trả lời khách (Autonomous Agent): <strong>{{ aiConfig.autoReplyEnabled ? 'Đang bật' : 'Đang tắt' }}</strong></div>
+        <div class="text-body-2">Tự động phân loại ý định khách hàng (Intent Classification): <strong>{{ aiConfig.intentClassificationEnabled ? 'Đang bật' : 'Đang tắt' }}</strong></div>
         <div v-if="aiConfig.autoReplyEnabled" class="text-body-2 text-truncate mt-1 text-medium-emphasis">
-          Kịch bản: <em>{{ aiConfig.systemPrompt || 'Chưa cấu hình kịch bản' }}</em>
+          Kịch bản: <em>{{ aiConfig.systemPrompt || 'Chưa kịch bản' }}</em>
         </div>
       </v-card-text>
     </v-card>
@@ -117,7 +118,7 @@ const saving = ref(false);
 const testing = ref(false);
 const showAiConfig = ref(false);
 const aiSaving = ref(false);
-const aiConfig = ref({ provider: 'anthropic', model: 'claude-sonnet-4-6', maxDaily: 500, enabled: true, autoReplyEnabled: false, systemPrompt: '' });
+const aiConfig = ref({ provider: 'anthropic', model: 'claude-sonnet-4-6', maxDaily: 500, enabled: true, autoReplyEnabled: false, intentClassificationEnabled: false, systemPrompt: '' });
 
 const snack = ref({ show: false, text: '', color: 'success' });
 
@@ -154,10 +155,11 @@ async function loadAiConfig() {
       maxDaily: res.data.maxDaily,
       enabled: res.data.enabled,
       autoReplyEnabled: res.data.autoReplyEnabled ?? false,
+      intentClassificationEnabled: res.data.intentClassificationEnabled ?? false,
       systemPrompt: res.data.systemPrompt ?? '',
     };
   } catch {
-    aiConfig.value = { provider: 'anthropic', model: 'claude-sonnet-4-6', maxDaily: 500, enabled: true, autoReplyEnabled: false, systemPrompt: '' };
+    aiConfig.value = { provider: 'anthropic', model: 'claude-sonnet-4-6', maxDaily: 500, enabled: true, autoReplyEnabled: false, intentClassificationEnabled: false, systemPrompt: '' };
   }
 }
 
@@ -207,7 +209,7 @@ async function testWebhook() {
   }
 }
 
-async function saveAiConfig(value: { provider: string; model: string; maxDaily: number; enabled: boolean; autoReplyEnabled: boolean; systemPrompt: string }) {
+async function saveAiConfig(value: { provider: string; model: string; maxDaily: number; enabled: boolean; autoReplyEnabled: boolean; intentClassificationEnabled: boolean; systemPrompt: string }) {
   aiSaving.value = true;
   try {
     const res = await api.put('/ai/config', value);
@@ -217,6 +219,7 @@ async function saveAiConfig(value: { provider: string; model: string; maxDaily: 
       maxDaily: res.data.maxDaily,
       enabled: res.data.enabled,
       autoReplyEnabled: res.data.autoReplyEnabled ?? false,
+      intentClassificationEnabled: res.data.intentClassificationEnabled ?? false,
       systemPrompt: res.data.systemPrompt ?? '',
     };
     showAiConfig.value = false;

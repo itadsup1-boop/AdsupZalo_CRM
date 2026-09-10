@@ -1,150 +1,80 @@
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { api } from '@/api/index';
-import { io, Socket } from 'socket.io-client';
 
 export function useFriends() {
   const friends = ref<any[]>([]);
-  const onlineUserIds = ref<string[]>([]);
-  let socket: Socket | null = null;
 
-  const isFriendOnline = (friend: any) => {
-    const id = String(friend?.userId ?? friend?.uid ?? friend?.id ?? friend?.zaloId ?? '');
-    return (
-      friend?.online === true ||
-      friend?.isOnline === true ||
-      friend?.is_online === true ||
-      friend?.online === 1 ||
-      friend?.is_online === 1 ||
-      String(friend?.status || '').toLowerCase() === 'online' ||
-      String(friend?.presence || '').toLowerCase() === 'online' ||
-      (id && onlineUserIds.value.includes(id))
-    );
+  const normalizeArrayPayload = (payload: any): any[] => {
+    if (!payload) return [];
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload.data)) return payload.data;
+    if (Array.isArray(payload.friends)) return payload.friends;
+    if (Array.isArray(payload.profiles)) return payload.profiles;
+    if (payload.profiles && typeof payload.profiles === 'object') return Object.values(payload.profiles);
+    if (payload.data && typeof payload.data === 'object') return Object.values(payload.data);
+    if (typeof payload === 'object') return Object.values(payload);
+    return [];
   };
 
-  const onlineFriends = computed(() => {
-    return friends.value.filter(isFriendOnline);
-  });
-
   const sentRequests = ref<any[]>([]);
+  const receivedRequests = ref<any[]>([]);
   const recommendations = ref<any[]>([]);
   const searchResults = ref<any[]>([]);
   const loading = ref(false);
+  const searchLoading = ref(false);
 
   function base(accountId: string) {
     return `/zalo-accounts/${accountId}/friends`;
+  }
+
+  function normalizePhone(value: string) {
+    return String(value || '').replace(/\D/g, '');
+  }
+
+  function getPhoneVariants(value: string) {
+    const digits = normalizePhone(value);
+    const variants = new Set([digits]);
+    if (digits.startsWith('84') && digits.length >= 11) {
+      variants.add(`0${digits.slice(2)}`);
+    } else if (digits.startsWith('0') && digits.length >= 10) {
+      variants.add(`84${digits.slice(1)}`);
+    } else if (digits.length === 9) {
+      variants.add(`0${digits}`);
+      variants.add(`84${digits}`);
+    }
+    return Array.from(variants).filter(Boolean);
+  }
+
+  function flattenFindUserPayload(payload: any): any[] {
+    if (!payload) return [];
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload.data)) return payload.data;
+    if (payload.data && typeof payload.data === 'object') return flattenFindUserPayload(payload.data);
+    if (payload.userInfo) return flattenFindUserPayload(payload.userInfo);
+    if (payload.profile) return flattenFindUserPayload(payload.profile);
+    if (payload.dataInfo) return flattenFindUserPayload(payload.dataInfo);
+    if (payload.profiles && typeof payload.profiles === 'object') return Object.values(payload.profiles);
+    if (payload.changed_profiles && typeof payload.changed_profiles === 'object') return Object.values(payload.changed_profiles);
+    if (payload.uid || payload.userId || payload.id || payload.zaloId) return [payload];
+    return [];
   }
 
   async function fetchFriends(accountId: string) {
     loading.value = true;
     try {
       const res = await api.get(`${base(accountId)}`);
-      friends.value = res.data?.data ?? res.data ?? [];
+      friends.value = normalizeArrayPayload(res.data?.data ?? res.data).map((friend: any) => ({
+        ...friend,
+        userId: friend.userId ?? friend.uid ?? friend.uId ?? friend.id ?? friend.zaloId ?? friend.zaloUid,
+        displayName: friend.displayName ?? friend.zaloName ?? friend.zalo_name ?? friend.name ?? friend.display_name,
+        phone: friend.phone ?? friend.phoneNumber ?? friend.mobile,
+      }));
     } catch (err) {
       console.error('fetchFriends failed:', err);
     } finally {
       loading.value = false;
     }
   }
-
-  async function fetchOnlineFriends(accountId: string) {
-    loading.value = true;
-    try {
-      const res = await api.get(`${base(accountId)}/online`);
-      const payload = res.data?.data ?? res.data;
-      const onlinesRaw: any[] = payload?.onlines ?? [];
-
-      // Update onlineUserIds so computed property onlineFriends will update automatically
-      onlineUserIds.value = onlinesRaw.map((o: any) => String(o.userId));
-
-      // Also directly assign online status properties on friends.value objects so both checks pass
-      friends.value = friends.value.map((f: any) => {
-        const isOnline = onlineUserIds.value.includes(String(f.userId));
-        return {
-          ...f,
-          isOnline,
-          online: isOnline,
-          status: isOnline ? 'online' : f.status,
-          presence: isOnline ? 'online' : (f.presence || '')
-        };
-      });
-
-      console.log('[Friends] All friends count:', friends.value.length);
-      console.log('[Friends] Online raw count:', onlinesRaw.length,
-                  '| Computed online friends:', onlineFriends.value.length);
-      if (friends.value.length > 0) {
-        console.log('[Friends] Sample friends (first 5):', friends.value.slice(0, 5));
-      }
-    } catch (err) {
-      console.error('fetchOnlineFriends failed:', err);
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  function setupSocket() {
-    if (socket) return;
-    socket = io({ transports: ['websocket', 'polling'] });
-
-    socket.on('online_users', (ids: any) => {
-      if (Array.isArray(ids)) {
-        onlineUserIds.value = ids.map(String);
-        console.log('[Socket] Received online_users. Count:', onlineUserIds.value.length);
-      }
-    });
-
-    socket.on('presence:update', (payload: any) => {
-      if (payload && !Array.isArray(payload)) {
-        const id = String(payload.userId || payload.uid || payload.id || '');
-        if (id) {
-          const isOnline = payload.online === true || payload.status === 'online';
-          console.log('[Socket] Received presence:update for:', id, 'online:', isOnline);
-          if (isOnline) {
-            if (!onlineUserIds.value.includes(id)) onlineUserIds.value.push(id);
-          } else {
-            onlineUserIds.value = onlineUserIds.value.filter(x => x !== id);
-          }
-        }
-      }
-    });
-
-    socket.on('user:online', (data: any) => {
-      const id = String(data?.userId ?? data?.uid ?? data?.id ?? data ?? '');
-      console.log('[Socket] Received user:online for:', id);
-      if (id && !onlineUserIds.value.includes(id)) {
-        onlineUserIds.value.push(id);
-      }
-    });
-
-    socket.on('friend:online', (data: any) => {
-      const id = String(data?.userId ?? data?.uid ?? data?.id ?? data ?? '');
-      console.log('[Socket] Received friend:online for:', id);
-      if (id && !onlineUserIds.value.includes(id)) {
-        onlineUserIds.value.push(id);
-      }
-    });
-
-    socket.on('zalo:presence', (data: any) => {
-      const id = String(data?.userId ?? data?.uid ?? data?.id ?? data?.zaloId ?? '');
-      if (id) {
-        const isOnline = data?.online === true || data?.status === 'online' || data?.presence === 'online';
-        console.log('[Socket] Received zalo:presence for:', id, 'online:', isOnline);
-        if (isOnline) {
-          if (!onlineUserIds.value.includes(id)) onlineUserIds.value.push(id);
-        } else {
-          onlineUserIds.value = onlineUserIds.value.filter(x => x !== id);
-        }
-      }
-    });
-  }
-
-  function destroySocket() {
-    if (socket) {
-      socket.disconnect();
-      socket = null;
-      console.log('[Socket] Disconnected and destroyed');
-    }
-  }
-
 
   async function fetchRecommendations(accountId: string) {
     loading.value = true;
@@ -165,6 +95,10 @@ export function useFriends() {
           phone: item.dataInfo.phoneNumber ?? null,
           recommType: item.dataInfo.recommType,
         }));
+      
+      // Separate received requests from recommendations (recommType === 2)
+      receivedRequests.value = recommendations.value.filter(r => r.recommType === 2 || r.recommItemType === 2);
+      recommendations.value = recommendations.value.filter(r => r.recommType !== 2 && r.recommItemType !== 2);
     } catch (err) {
       console.error('fetchRecommendations failed:', err);
     } finally {
@@ -195,47 +129,68 @@ export function useFriends() {
   }
 
   async function searchFriends(accountId: string, query: string) {
-    loading.value = true;
+    if (!query) {
+      searchResults.value = [];
+      return;
+    }
+    searchLoading.value = true;
     try {
-      const res = await api.get(`${base(accountId)}/find`, { params: { q: query } });
-      const raw = res.data?.data ?? res.data;
-
-      // findUser API returns a single user object, not an array.
-      // Normalize field names to match the component's expected shape.
-      const normalize = (u: any) => ({
-        ...u,
-        userId: u.userId ?? u.uid,          // uid → userId
-        displayName: u.displayName ?? u.display_name ?? u.zalo_name,  // snake_case → camelCase
-        name: u.name ?? u.display_name ?? u.zalo_name,
-        avatar: u.avatar,
-        phone: u.phone ?? u.phoneNumber ?? null,
+      const q = query.toLowerCase().trim();
+      // Search local friends first
+      const qPhoneVariants = getPhoneVariants(query);
+      const localMatches = friends.value.filter((f: any) => {
+        const name = (f.displayName || f.name || '').toLowerCase();
+        const phone = normalizePhone(f.phone || f.phoneNumber || '');
+        return name.includes(q) || (!!phone && qPhoneVariants.some(v => phone.includes(v) || v.includes(phone)));
       });
 
-      if (Array.isArray(raw)) {
-        searchResults.value = raw.map(normalize);
-      } else if (raw && (raw.uid || raw.userId)) {
-        searchResults.value = [normalize(raw)];
-      } else {
-        searchResults.value = [];
-      }
+      // Format local matches for search results panel
+      const localResults = localMatches.map((u: any) => ({
+        ...u,
+        status: 'friend'
+      }));
 
-      console.log('[Search] query:', query, '| raw:', raw, '| results:', searchResults.value);
+      searchResults.value = localResults;
+
+      // If query looks like a phone number, also try global findUser
+      const isPhone = normalizePhone(query).length >= 9;
+      if (isPhone) {
+        try {
+          const res = await api.get(`${base(accountId)}/find`, {
+            params: { q: query },
+            timeout: 12000,
+          });
+          const raw = res.data?.data ?? res.data;
+
+          const normalize = (u: any) => ({
+            ...u,
+            userId: u.userId ?? u.uid ?? u.id ?? u.zaloId,
+            displayName: u.displayName ?? u.display_name ?? u.zalo_name ?? u.zaloName ?? u.name,
+            name: u.name ?? u.display_name ?? u.zalo_name ?? u.zaloName,
+            avatar: u.avatar ?? u.avatarUrl,
+            phone: u.phone ?? u.phoneNumber ?? u.mobile ?? query,
+          });
+
+          const remoteResults = flattenFindUserPayload(raw)
+            .map(normalize)
+            .filter(u => u.userId && !localResults.some(l => String(l.userId) === String(u.userId)));
+          searchResults.value = [...searchResults.value, ...remoteResults];
+        } catch (findErr) {
+          console.warn('[Search] Global findUser failed, continuing with local results', findErr);
+        }
+      }
+      
+      console.log('[Search] query:', query, '| results:', searchResults.value.length);
     } catch (err) {
       console.error('searchFriends failed:', err);
-      searchResults.value = [];
     } finally {
-      loading.value = false;
+      searchLoading.value = false;
     }
   }
 
   async function sendRequest(accountId: string, userId: string, message?: string) {
-    try {
-      const res = await api.post(`${base(accountId)}/requests`, { userId, message });
-      return res.data?.data ?? res.data;
-    } catch (err) {
-      console.error('sendRequest failed:', err);
-      return null;
-    }
+    const res = await api.post(`${base(accountId)}/requests`, { userId, message });
+    return res.data?.data ?? res.data;
   }
 
   async function acceptRequest(accountId: string, userId: string) {
@@ -342,13 +297,13 @@ export function useFriends() {
 
   return {
     friends,
-    onlineFriends,
     sentRequests,
+    receivedRequests,
     recommendations,
     searchResults,
     loading,
+    searchLoading,
     fetchFriends,
-    fetchOnlineFriends,
     fetchRecommendations,
     fetchSentRequests,
     getRequestStatus,
@@ -364,7 +319,5 @@ export function useFriends() {
     unblockUser,
     blockFeed,
     unblockFeed,
-    setupSocket,
-    destroySocket,
   };
 }

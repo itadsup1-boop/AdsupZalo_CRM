@@ -29,8 +29,8 @@
             density="compact"
           >
             <template #prepend><v-icon size="18" color="primary">mdi-account</v-icon></template>
-            <v-list-item-title>{{ c.fullName || c.phone }}</v-list-item-title>
-            <v-list-item-subtitle v-if="c.diseaseName">{{ c.diseaseName }}</v-list-item-subtitle>
+            <v-list-item-title>{{ c.crmName || c.fullName || c.phone }}</v-list-item-title>
+            <v-list-item-subtitle v-if="contactSubtitle(c)">{{ contactSubtitle(c) }}</v-list-item-subtitle>
           </v-list-item>
         </template>
         <!-- Messages -->
@@ -47,7 +47,9 @@
             <v-list-item-title class="text-truncate" style="max-width: 300px;">
               {{ truncate(m.content, 60) }}
             </v-list-item-title>
-            <v-list-item-subtitle>{{ m.senderName }} · {{ formatDate(m.sentAt) }}</v-list-item-subtitle>
+            <v-list-item-subtitle>
+              {{ m.conversation?.contact?.crmName || m.conversation?.contact?.fullName || m.senderName }} · {{ formatDate(m.sentAt) }}
+            </v-list-item-subtitle>
           </v-list-item>
         </template>
         <!-- Appointments -->
@@ -61,7 +63,7 @@
             density="compact"
           >
             <template #prepend><v-icon size="18" color="warning">mdi-calendar</v-icon></template>
-            <v-list-item-title>{{ a.contact?.fullName }} · {{ formatDate(a.appointmentDate) }}</v-list-item-title>
+            <v-list-item-title>{{ a.contact?.crmName || a.contact?.fullName }} · {{ formatDate(a.appointmentDate) }}</v-list-item-title>
             <v-list-item-subtitle>{{ a.notes }}</v-list-item-subtitle>
           </v-list-item>
         </template>
@@ -84,6 +86,7 @@ import { api } from '@/api/index';
 interface ContactResult {
   id: string;
   fullName: string | null;
+  crmName: string | null;
   phone: string | null;
   diseaseCode: string | null;
   diseaseName: string | null;
@@ -94,7 +97,7 @@ interface MessageResult {
   content: string | null;
   senderName: string | null;
   sentAt: string;
-  conversation?: { id: string; contact?: { fullName: string | null } } | null;
+  conversation?: { id: string; contact?: { fullName: string | null; crmName: string | null } } | null;
 }
 
 interface AppointmentResult {
@@ -102,7 +105,7 @@ interface AppointmentResult {
   appointmentDate: string;
   appointmentTime: string | null;
   notes: string | null;
-  contact?: { fullName: string | null } | null;
+  contact?: { fullName: string | null; crmName: string | null } | null;
 }
 
 interface SearchResults {
@@ -151,6 +154,15 @@ function goTo(path: string, _id?: string) {
 
 function truncate(s: string | null, len: number): string {
   return s && s.length > len ? s.slice(0, len) + '...' : s || '';
+}
+
+function contactSubtitle(contact: ContactResult): string {
+  const details = [];
+  if (contact.crmName && contact.fullName && contact.crmName !== contact.fullName) {
+    details.push(`Zalo: ${contact.fullName}`);
+  }
+  if (contact.diseaseName) details.push(contact.diseaseName);
+  return details.join(' · ');
 }
 
 function formatDate(d: string): string {

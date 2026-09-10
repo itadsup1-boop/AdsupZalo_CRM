@@ -19,6 +19,9 @@ const prismaMock = {
 };
 
 vi.mock('../src/shared/database/prisma-client.js', () => ({ prisma: prismaMock }));
+vi.mock('../src/shared/database/prisma-tenant.js', () => ({
+  getTenantPrisma: vi.fn(() => prismaMock),
+}));
 vi.mock('../src/shared/utils/logger.js', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));

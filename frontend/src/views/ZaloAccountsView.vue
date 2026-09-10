@@ -3,35 +3,127 @@
     <div class="d-flex align-center mb-4">
       <h1 class="text-h4">Tài khoản Zalo</h1>
       <v-spacer />
+      <v-btn
+        class="mr-2"
+        icon="mdi-refresh"
+        variant="tonal"
+        :loading="loading"
+        title="Làm mới trạng thái"
+        @click="fetchAccounts()"
+      />
       <v-btn v-if="authStore.isAdmin" color="primary" prepend-icon="mdi-plus" @click="showAddDialog = true">Thêm Zalo</v-btn>
     </div>
 
-    <v-card>
-      <v-data-table :headers="headers" :items="accounts" :loading="loading" no-data-text="Chưa có tài khoản Zalo nào">
+    <v-alert v-if="fetchError" type="warning" density="compact" variant="tonal" class="mb-3">
+      {{ fetchError }}
+    </v-alert>
+
+    <v-card class="zalo-account-card">
+      <v-data-table
+        class="zalo-account-table"
+        :headers="headers"
+        :items="accounts"
+        :loading="loading"
+        :items-per-page="10"
+        fixed-header
+        no-data-text="Chưa có tài khoản Zalo nào"
+      >
+        <template #item.displayName="{ item }">
+          <span class="text-truncate d-inline-block account-name">{{ item.displayName || 'Chưa đặt tên' }}</span>
+        </template>
+        <template #item.zaloUid="{ item }">
+          <span class="text-medium-emphasis">{{ item.zaloUid || '-' }}</span>
+        </template>
+        <template #item.phone="{ item }">
+          <span class="text-medium-emphasis">{{ item.phone || '-' }}</span>
+        </template>
         <template #item.status="{ item }">
-          <v-chip :color="statusColor(item.liveStatus || item.status)" size="small" variant="flat">
-            {{ statusText(item.liveStatus || item.status) }}
+          <v-chip :color="statusColor(displayStatus(item))" size="small" variant="flat" class="status-chip">
+            {{ statusText(displayStatus(item)) }}
           </v-chip>
         </template>
         <template #item.actions="{ item }">
-          <v-btn v-if="authStore.isAdmin" icon size="small" color="cyan" title="Phân quyền truy cập" @click="openAccess(item)">
-            <v-icon>mdi-shield-account</v-icon>
-          </v-btn>
-          <v-btn icon size="small" color="success" @click="syncContacts(item.id)" title="Đồng bộ danh bạ Zalo" :loading="syncing === item.id">
-            <v-icon>mdi-account-sync</v-icon>
-          </v-btn>
-          <v-btn icon size="small" color="deep-purple" @click="syncFull(item.id)" title="Đồng bộ toàn bộ danh bạ & nhóm" :loading="syncingFull === item.id">
-            <v-icon>mdi-history</v-icon>
-          </v-btn>
-          <v-btn v-if="authStore.isAdmin && item.liveStatus !== 'connected'" icon size="small" color="primary" @click="loginAccount(item.id)" title="Đăng nhập QR">
-            <v-icon>mdi-qrcode</v-icon>
-          </v-btn>
-          <v-btn v-if="authStore.isAdmin && item.liveStatus === 'disconnected' && item.sessionData" icon size="small" color="info" @click="reconnectAccount(item.id)" title="Kết nối lại">
-            <v-icon>mdi-refresh</v-icon>
-          </v-btn>
-          <v-btn v-if="authStore.isAdmin" icon size="small" color="error" @click="confirmDelete(item)" title="Xóa">
-            <v-icon>mdi-delete</v-icon>
-          </v-btn>
+          <div class="action-buttons">
+            <v-btn
+              v-if="authStore.isAdmin"
+              icon
+              size="small"
+              color="cyan"
+              title="Phân quyền truy cập"
+              :disabled="isBusy(item.id)"
+              @click="openAccess(item)"
+            >
+              <v-icon>mdi-shield-account</v-icon>
+            </v-btn>
+            <v-btn
+              icon
+              size="small"
+              color="success"
+              title="Đồng bộ danh bạ Zalo"
+              :loading="syncing === item.id"
+              :disabled="isBusy(item.id)"
+              @click="syncContacts(item.id)"
+            >
+              <v-icon>mdi-account-sync</v-icon>
+            </v-btn>
+            <v-btn
+              icon
+              size="small"
+              color="deep-purple"
+              title="Đồng bộ toàn bộ danh bạ & nhóm"
+              :loading="syncingFull === item.id"
+              :disabled="isBusy(item.id)"
+              @click="syncFull(item.id)"
+            >
+              <v-icon>mdi-history</v-icon>
+            </v-btn>
+            <v-btn
+              icon
+              size="small"
+              color="orange"
+              title="Đồng bộ lại tin nhắn 24 giờ gần nhất"
+              :loading="syncingMessages === item.id"
+              :disabled="isBusy(item.id)"
+              @click="syncMessages(item.id)"
+            >
+              <v-icon>mdi-sync</v-icon>
+            </v-btn>
+            <v-btn
+              v-if="canLogin(item)"
+              icon
+              size="small"
+              color="primary"
+              title="Đăng nhập QR"
+              :loading="loginLoading === item.id"
+              :disabled="isBusy(item.id)"
+              @click="loginAccount(item.id)"
+            >
+              <v-icon>mdi-qrcode</v-icon>
+            </v-btn>
+            <v-btn
+              v-if="canReconnect(item)"
+              icon
+              size="small"
+              color="info"
+              title="Kết nối lại"
+              :loading="reconnectLoading === item.id"
+              :disabled="isBusy(item.id)"
+              @click="reconnectAccount(item.id)"
+            >
+              <v-icon>mdi-refresh</v-icon>
+            </v-btn>
+            <v-btn
+              v-if="authStore.isAdmin"
+              icon
+              size="small"
+              color="error"
+              title="Xóa"
+              :disabled="isBusy(item.id)"
+              @click="confirmDelete(item)"
+            >
+              <v-icon>mdi-delete</v-icon>
+            </v-btn>
+          </div>
         </template>
       </v-data-table>
     </v-card>
@@ -107,11 +199,11 @@ import ZaloAccessDialog from '@/components/settings/ZaloAccessDialog.vue';
 import { api } from '@/api/index';
 
 const {
-  accounts, loading, adding, deleting,
+  accounts, loading, adding, deleting, loginLoading, reconnectLoading, fetchError,
   showQRDialog, qrImage, qrScanned, scannedName, qrError,
-  statusColor, statusText,
+  displayStatus, statusColor, statusText,
   fetchAccounts, addAccount, loginAccount, reconnectAccount, deleteAccount,
-  cancelQR, setupSocket,
+  cancelQR, setupSocket, startAutoRefresh,
 } = useZaloAccounts();
 
 const authStore = useAuthStore();
@@ -119,6 +211,7 @@ const authStore = useAuthStore();
 const showAddDialog = ref(false);
 const syncing = ref<string | null>(null);
 const syncingFull = ref<string | null>(null);
+const syncingMessages = ref<string | null>(null);
 const showDeleteDialog = ref(false);
 const showAccessDialog = ref(false);
 const newAccountName = ref('');
@@ -130,8 +223,26 @@ const headers = [
   { title: 'Zalo UID', key: 'zaloUid' },
   { title: 'SĐT', key: 'phone' },
   { title: 'Trạng thái', key: 'status', sortable: true },
-  { title: 'Hành động', key: 'actions', sortable: false, align: 'end' as const },
+  { title: 'Hành động', key: 'actions', sortable: false, align: 'end' as const, width: 310 },
 ];
+
+function isBusy(accountId: string) {
+  return (
+    syncing.value === accountId ||
+    syncingFull.value === accountId ||
+    syncingMessages.value === accountId ||
+    loginLoading.value === accountId ||
+    reconnectLoading.value === accountId
+  );
+}
+
+function canLogin(account: ZaloAccount) {
+  return authStore.isAdmin && displayStatus(account) !== 'connected';
+}
+
+function canReconnect(account: ZaloAccount) {
+  return authStore.isAdmin && displayStatus(account) !== 'connected' && Boolean(account.hasSession);
+}
 
 async function syncContacts(accountId: string) {
   syncing.value = accountId;
@@ -142,6 +253,7 @@ async function syncContacts(accountId: string) {
     alert('Đồng bộ thất bại: ' + (err.response?.data?.error || err.message));
   } finally {
     syncing.value = null;
+    await fetchAccounts({ silent: true });
   }
 }
 
@@ -155,6 +267,21 @@ async function syncFull(accountId: string) {
     alert('Đồng bộ thất bại: ' + (err.response?.data?.error || err.message));
   } finally {
     syncingFull.value = null;
+    await fetchAccounts({ silent: true });
+  }
+}
+
+async function syncMessages(accountId: string) {
+  syncingMessages.value = accountId;
+  try {
+    const res = await api.post(`/zalo-accounts/${accountId}/sync-messages`, { lookbackHours: 24 });
+    const s = res.data.stats;
+    alert(`Đồng bộ tin nhắn xong!\nQuét ${s.conversationsScanned} hội thoại\n+${s.messagesImported} tin nhắn\nBỏ qua trùng: ${s.duplicatesSkipped}\nLỗi: ${s.errors?.length || 0}`);
+  } catch (err: any) {
+    alert('Đồng bộ tin nhắn thất bại: ' + (err.response?.data?.error || err.message));
+  } finally {
+    syncingMessages.value = null;
+    await fetchAccounts({ silent: true });
   }
 }
 
@@ -188,5 +315,32 @@ async function handleDeleteAccount() {
 onMounted(() => {
   fetchAccounts();
   setupSocket();
+  startAutoRefresh();
 });
 </script>
+
+<style scoped>
+.zalo-account-card {
+  overflow-x: auto;
+}
+
+.zalo-account-table {
+  min-width: 860px;
+}
+
+.account-name {
+  max-width: 240px;
+}
+
+.status-chip {
+  min-width: 112px;
+  justify-content: center;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 292px;
+}
+</style>
