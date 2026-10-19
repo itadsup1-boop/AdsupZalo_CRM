@@ -74,6 +74,25 @@ function buildProviders(): ProviderDef[] {
         m('Moonshot V1', config.kimiDefaultMoonshotV1Model),
       ].filter(Boolean) as ProviderModel[],
     },
+    {
+      id: 'openrouter',
+      name: 'OpenRouter',
+      baseUrl: config.openrouterBaseUrl,
+      authToken: config.openrouterAuthToken,
+      models: [
+        m('Gemma 4 26B (Free)', config.openrouterDefaultModel),
+        m('Nemotron 3.5 Lightning (Free)', config.openrouterFallbackModel),
+      ].filter(Boolean) as ProviderModel[],
+    },
+    {
+      id: 'ollama_remote',
+      name: 'Ollama Remote (api.adsup.vn)',
+      baseUrl: config.ollamaRemoteBaseUrl,
+      authToken: config.ollamaRemoteAuthToken,
+      models: [
+        m('Qwen3 8B', config.ollamaRemoteDefaultModel),
+      ].filter(Boolean) as ProviderModel[],
+    },
   ];
 }
 

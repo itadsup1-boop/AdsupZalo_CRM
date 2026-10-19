@@ -1,0 +1,942 @@
+[
+  {
+    "id": "3b82a0db-a2eb-4e97-b351-d462666bd4f4",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Cắt Mí Eye-Lift",
+    "content": "Cắt Mí Eye-Lift là dịch vụ tạo hình mí mắt, phù hợp với khách hàng có mí sụp, da dư mí trên, mắt nhỏ, mắt thiếu sức sống hoặc nếp mí không rõ. Dịch vụ giúp cải thiện dáng mắt, hỗ trợ gương mặt nhìn tươi tắn và trẻ hơn. Khách hàng cần được bác sĩ thăm khám trực tiếp để đánh giá lượng da dư, mỡ thừa và tình trạng mí trước khi thực hiện. Không tư vấn cam kết kết quả tuyệt đối khi chưa thăm khám.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:17:04.463Z",
+    "updatedAt": "2026-06-19T16:17:04.460Z"
+  },
+  {
+    "id": "93117f7f-b38e-4d8d-b7de-963fc287d2a8",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Nhấn Mí Plasma Tự Nhiên",
+    "content": "Nhấn Mí Plasma Tự Nhiên phù hợp với khách hàng trẻ, chưa có nhiều da dư hoặc mỡ thừa mí mắt, muốn có nếp mí rõ hơn nhưng chưa muốn phẫu thuật cắt mí. Dịch vụ hướng tới dáng mí tự nhiên, nhẹ nhàng, không làm thay đổi quá nhiều đường nét gương mặt. Cần tư vấn khách đến thăm khám để xác định có phù hợp nhấn mí hay phải chuyển sang cắt mí nếu da dư nhiều.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:17:16.084Z",
+    "updatedAt": "2026-06-19T16:17:16.083Z"
+  },
+  {
+    "id": "ec75f0ee-a58d-42ff-8b02-498977e83d1c",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Cấy Mỡ Tự Thân",
+    "content": "Cấy Mỡ Tự Thân là dịch vụ sử dụng mỡ tự thân của khách để cải thiện vùng lõm hóp hoặc thiếu đầy đặn trên gương mặt/cơ thể. Phù hợp với khách có má hóp, thái dương lõm, rãnh sâu hoặc muốn gương mặt mềm mại hơn. Cần tư vấn khách thăm khám để bác sĩ đánh giá vùng lấy mỡ, vùng cần cấy và mức độ phù hợp. Kết quả còn tùy cơ địa và tình trạng mô của từng khách.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:17:56.061Z",
+    "updatedAt": "2026-06-19T16:17:56.060Z"
+  },
+  {
+    "id": "e947bd73-cfdc-47bd-8b5c-aa747210043c",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Tiêm Filler - Botox",
+    "content": "Tiêm Filler - Botox là nhóm dịch vụ thẩm mỹ không phẫu thuật, thường dùng để cải thiện một số vùng thiếu đầy đặn, nếp nhăn động hoặc đường nét gương mặt chưa cân đối. Filler thường dùng để làm đầy hoặc tạo đường nét; Botox thường dùng để hỗ trợ giảm hoạt động cơ ở một số vùng phù hợp. Khách cần được bác sĩ kiểm tra trực tiếp, không tự tư vấn liều lượng hoặc vùng tiêm khi chưa đánh giá tình trạng thật.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:17:42.017Z",
+    "updatedAt": "2026-06-19T16:18:03.704Z"
+  },
+  {
+    "id": "d3c2cfde-bce5-4caf-8dc3-dffe1d7e51eb",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Nâng Mũi Không Phẫu Thuật",
+    "content": "Nâng Mũi Không Phẫu Thuật thường phù hợp với khách muốn cải thiện nhẹ dáng mũi nhưng chưa sẵn sàng phẫu thuật. Dịch vụ có thể hỗ trợ làm sống mũi nhìn cao hơn hoặc dáng mũi cân đối hơn tùy nền mũi ban đầu. Cần tư vấn rõ đây không phải phương án thay thế hoàn toàn cho nâng mũi cấu trúc. Với khách mũi thấp nhiều, đầu mũi to, nền mũi phức tạp thì nên thăm khám để bác sĩ tư vấn phương án phù hợp.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:17:34.825Z",
+    "updatedAt": "2026-06-19T16:18:08.052Z"
+  },
+  {
+    "id": "78da8090-6fa5-42db-846a-9d266c00f14e",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Lấy Mỡ Mí",
+    "content": "Lấy Mỡ Mí là dịch vụ xử lý tình trạng bọng mỡ vùng mí mắt, giúp vùng mắt nhìn gọn và đỡ mệt mỏi hơn. Phù hợp với khách có mỡ mí trên hoặc bọng mắt khiến mắt nặng, già, thiếu sức sống. Tư vấn viên cần hỏi khách tình trạng mắt hiện tại, độ tuổi, đã từng làm mí chưa và hướng khách gửi ảnh hoặc đặt lịch thăm khám để bác sĩ đánh giá chính xác.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:17:25.073Z",
+    "updatedAt": "2026-06-19T16:18:11.274Z"
+  },
+  {
+    "id": "c42c2492-0612-4d0b-8f1c-44490b1d8ca0",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Thu Gọn Môi",
+    "content": "Thu Gọn Môi phù hợp với khách có môi dày, viền môi chưa gọn hoặc muốn dáng môi thanh thoát hơn. Dịch vụ giúp điều chỉnh tỷ lệ môi sao cho hài hòa với gương mặt. Khi tư vấn cần hỏi khách muốn xử lý môi trên, môi dưới hay cả hai, đã từng tiêm filler hoặc can thiệp môi trước đó chưa. Nên hướng khách gửi ảnh chính diện để bác sĩ tư vấn dáng môi phù hợp.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:18:33.492Z",
+    "updatedAt": "2026-06-19T16:18:33.491Z"
+  },
+  {
+    "id": "75680cce-fb3a-4852-8a92-4d4380254cf8",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Trị Sẹo",
+    "content": "Trị Sẹo là nhóm dịch vụ cải thiện các tình trạng sẹo như sẹo rỗ, sẹo lõm, sẹo thâm hoặc bề mặt da không đều màu. Phác đồ xử lý tùy theo loại sẹo, độ sâu, thời gian hình thành và nền da của khách. Tư vấn viên cần hỏi khách bị sẹo bao lâu, nguyên nhân do mụn hay chấn thương, đã từng điều trị chưa và nên xin ảnh vùng sẹo để bác sĩ đánh giá trước.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:18:43.402Z",
+    "updatedAt": "2026-06-19T16:18:43.402Z"
+  },
+  {
+    "id": "cd2c0734-cc61-413e-a074-e9a05f507ac0",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Nâng Mũi Cấu Trúc",
+    "content": "Nâng Mũi Cấu Trúc là dịch vụ can thiệp chỉnh sửa tổng thể dáng mũi, phù hợp với khách mũi thấp, đầu mũi to, cánh mũi bè, dáng mũi ngắn hoặc từng sửa mũi nhưng chưa hài lòng. Mục tiêu là tạo dáng mũi hài hòa với gương mặt, không chỉ làm sống mũi cao. Khách cần được thăm khám trực tiếp để bác sĩ đánh giá nền mũi, da mũi, sụn và phương án thực hiện phù hợp.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:19:19.456Z",
+    "updatedAt": "2026-06-19T16:19:19.456Z"
+  },
+  {
+    "id": "b9c34a2a-c20a-4055-9470-7d54e56b77a2",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Gọt Hàm - Hạ Gò Má",
+    "content": "Gọt Hàm - Hạ Gò Má phù hợp với khách có xương hàm thô, mặt vuông, gò má cao hoặc đường nét gương mặt quá góc cạnh. Đây là nhóm dịch vụ đại phẫu, cần được bác sĩ chuyên môn thăm khám, chụp chiếu và đánh giá kỹ trước khi tư vấn phương án. Tư vấn viên không nên hứa hẹn thay đổi quá mức, chỉ nên giải thích rằng bác sĩ sẽ dựa trên cấu trúc xương thật để đưa ra hướng điều chỉnh an toàn và phù hợp.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:19:30.012Z",
+    "updatedAt": "2026-06-19T16:19:30.011Z"
+  },
+  {
+    "id": "3e016ae9-5564-4830-ac4f-c1a794a94c62",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Độn Cằm V-Line",
+    "content": "Độn Cằm V-Line phù hợp với khách có cằm ngắn, cằm lẹm, mặt thiếu độ thon hoặc tỷ lệ cằm chưa cân đối. Dịch vụ giúp cải thiện đường nét gương mặt, hỗ trợ tạo cảm giác mặt thanh thoát hơn. Cần tư vấn khách gửi ảnh chính diện và góc nghiêng để đánh giá sơ bộ, sau đó đặt lịch thăm khám để bác sĩ tư vấn dáng cằm, chất liệu và phương án phù hợp.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:19:39.989Z",
+    "updatedAt": "2026-06-19T16:19:39.989Z"
+  },
+  {
+    "id": "f9619616-ecf7-4486-8904-f16911ba72cd",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Hút Mỡ Tạo Hình",
+    "content": "Hút Mỡ Tạo Hình phù hợp với khách có mỡ tích tụ ở bụng, eo, lưng, bắp tay, đùi hoặc các vùng khó giảm dù đã ăn kiêng, tập luyện. Mục tiêu là giảm mỡ khu trú và hỗ trợ tạo đường nét cơ thể gọn hơn. Khách cần được kiểm tra tình trạng sức khỏe, lượng mỡ, độ đàn hồi da và vùng thực hiện trước khi tư vấn chi tiết. Không tư vấn thay thế cho giảm cân toàn thân.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:20:03.235Z",
+    "updatedAt": "2026-06-19T16:20:03.235Z"
+  },
+  {
+    "id": "996e7c84-260d-49da-b62d-57ee45b1caa6",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Căng Da Mặt Toàn Phần",
+    "content": "Căng Da Mặt Toàn Phần phù hợp với khách có tình trạng chảy xệ rõ, da dư nhiều, rãnh nhăn sâu, đường viền hàm kém sắc nét hoặc gương mặt già hơn tuổi. Đây là dịch vụ can thiệp sâu, cần bác sĩ thăm khám để xác định mức độ chảy xệ và phương án thực hiện. Khi tư vấn nên phân biệt rõ với các dịch vụ trẻ hóa nhẹ như căng chỉ, filler hoặc chăm sóc da thông thường.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:20:13.196Z",
+    "updatedAt": "2026-06-19T16:20:13.196Z"
+  },
+  {
+    "id": "cc307c4d-1779-4c2a-bf83-16f96413e5ff",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Phẫu Thuật Hàm",
+    "content": "Phẫu Thuật Hàm phù hợp với các trường hợp cấu trúc hàm ảnh hưởng đến thẩm mỹ hoặc khớp cắn, ví dụ hàm hô, móm, lệch hoặc mất cân đối nặng. Đây là dịch vụ cần đánh giá chuyên sâu, có thể cần chụp phim và hội chẩn bác sĩ. Tư vấn viên chỉ nên tiếp nhận thông tin ban đầu, hỏi tình trạng khách gặp phải và hướng khách đặt lịch thăm khám để được tư vấn chính xác.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:20:27.221Z",
+    "updatedAt": "2026-06-19T16:20:27.221Z"
+  },
+  {
+    "id": "456a3ca2-6e84-491b-8d73-f2750a0b001d",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Tạo Hình Thành Bụng",
+    "content": "Tạo Hình Thành Bụng phù hợp với khách có da bụng chùng nhão, rạn da, mỡ thừa hoặc bụng xổ sau sinh/giảm cân nhiều. Dịch vụ giúp xử lý phần da dư và hỗ trợ tạo lại vùng bụng gọn hơn tùy tình trạng. Cần tư vấn khách thăm khám trực tiếp để bác sĩ đánh giá da dư, mỡ thừa, cơ bụng và sức khỏe tổng quát trước khi đưa ra phương án.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:20:36.075Z",
+    "updatedAt": "2026-06-19T16:20:36.075Z"
+  },
+  {
+    "id": "ede0c713-5b99-488a-b9a8-75d59979bc6b",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Căng Chỉ Collagen",
+    "content": "Căng Chỉ Collagen là dịch vụ trẻ hóa không đại phẫu, phù hợp với khách có dấu hiệu da lỏng lẻo, kém săn chắc, mặt bắt đầu chảy xệ nhẹ đến vừa. Dịch vụ hướng tới việc hỗ trợ nâng đỡ mô mềm và cải thiện độ săn chắc của gương mặt. Cần tư vấn khách gửi ảnh chính diện/góc nghiêng để đánh giá vùng chảy xệ, sau đó bác sĩ sẽ tư vấn số vùng và phác đồ phù hợp.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:20:45.663Z",
+    "updatedAt": "2026-06-19T16:20:45.663Z"
+  },
+  {
+    "id": "3b04dc11-58fc-4eed-b2db-2a03279cde89",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Căng Chỉ Nâng Cơ Mặt",
+    "content": "Căng Chỉ Nâng Cơ Mặt phù hợp với khách có má chảy xệ, rãnh mũi má sâu, đường viền hàm mờ, gương mặt nặng hoặc thiếu độ thon gọn. Dịch vụ giúp hỗ trợ nâng đỡ vùng mô bị sa trễ mà không cần đại phẫu. Khi tư vấn cần hỏi khách độ tuổi, vùng muốn cải thiện và đã từng làm filler, botox, căng chỉ hay phẫu thuật trước đó chưa.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:20:59.078Z",
+    "updatedAt": "2026-06-19T16:20:59.077Z"
+  },
+  {
+    "id": "3a983ca6-3791-4526-aa94-21e8f2112300",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Căng Chỉ Mũi",
+    "content": "Căng Chỉ Mũi là phương án hỗ trợ cải thiện dáng mũi ở mức độ nhẹ, phù hợp với khách muốn sống mũi nhìn cao hơn hoặc dáng mũi gọn hơn nhưng chưa muốn phẫu thuật. Dịch vụ không phù hợp với tất cả nền mũi, đặc biệt là mũi quá thấp, đầu mũi to hoặc cần chỉnh cấu trúc nhiều. Cần hướng khách thăm khám để bác sĩ đánh giá có nên làm chỉ mũi hay chuyển sang phương án khác.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:21:08.134Z",
+    "updatedAt": "2026-06-19T16:21:19.685Z"
+  },
+  {
+    "id": "c812e0ca-70ec-4b80-846d-2d451991b32d",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Nâng Ngực Nội Soi",
+    "content": "Nâng Ngực Nội Soi là dịch vụ cải thiện vòng một cho khách có ngực nhỏ, ngực lép, ngực chảy xệ nhẹ hoặc mất dáng sau sinh. Dịch vụ cần được bác sĩ thăm khám trực tiếp để đánh giá mô tuyến, độ đàn hồi da, dáng ngực và lựa chọn size phù hợp. Khi tư vấn cần tránh cam kết size cụ thể qua tin nhắn nếu chưa thăm khám. Nên nhấn mạnh yếu tố an toàn, tự nhiên và cân đối với vóc dáng.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:19:52.740Z",
+    "updatedAt": "2026-06-19T16:21:24.626Z"
+  },
+  {
+    "id": "f93b6cdd-a3f5-45a6-b82a-60a6e455d8ee",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Căng Chỉ Trẻ Hóa Da",
+    "content": "Căng Chỉ Trẻ Hóa Da phù hợp với khách có da kém đàn hồi, nếp nhăn nhẹ, mặt thiếu độ căng mịn hoặc bắt đầu có dấu hiệu lão hóa. Dịch vụ hướng tới cải thiện độ săn chắc và vẻ tươi trẻ của làn da/gương mặt. Khi tư vấn nên giải thích đây là phương pháp hỗ trợ trẻ hóa, kết quả phụ thuộc tình trạng da, cơ địa và cách chăm sóc sau thực hiện.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:21:42.893Z",
+    "updatedAt": "2026-06-19T16:21:42.893Z"
+  },
+  {
+    "id": "0debf2da-70fe-4dee-a22a-963f6d0ba64d",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Căng Chỉ Xóa Rãnh Cười",
+    "content": "Căng Chỉ Xóa Rãnh Cười phù hợp với khách có rãnh mũi má rõ, gương mặt nhìn mệt, già hoặc thiếu sự mềm mại. Dịch vụ hỗ trợ nâng đỡ vùng mô quanh má để cải thiện cảm giác rãnh sâu. Cần phân biệt rãnh cười do chảy xệ, do thiếu mô hay do cấu trúc xương, vì mỗi nguyên nhân sẽ có cách xử lý khác nhau. Nên hướng khách gửi ảnh để bác sĩ đánh giá.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:21:54.929Z",
+    "updatedAt": "2026-06-19T16:21:54.929Z"
+  },
+  {
+    "id": "9d2acfe9-043e-4dfb-aae0-f02ec4ce9454",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Căng Chỉ Nâng Cung Mày",
+    "content": "Căng Chỉ Nâng Cung Mày phù hợp với khách có cung mày thấp, vùng mắt nhìn buồn, mí trên hơi nặng hoặc ánh mắt thiếu sự tươi trẻ. Dịch vụ hỗ trợ nâng nhẹ vùng cung mày, giúp tổng thể vùng mắt sáng và trẻ hơn. Khi tư vấn cần hỏi khách có sụp mí nặng không, có da dư mí nhiều không, vì nếu da dư rõ có thể cần phương án khác như cắt mí hoặc nâng cung chân mày.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:22:06.363Z",
+    "updatedAt": "2026-06-19T16:22:06.362Z"
+  },
+  {
+    "id": "dad592bf-99fb-45d3-bbc6-89a26d2f8f10",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "service",
+    "title": "Hút Mỡ",
+    "content": "Hút Mỡ là dịch vụ xử lý mỡ khu trú tại các vùng như bụng, eo, lưng, bắp tay, đùi, nọng cằm hoặc các vùng tích mỡ khó giảm. Phù hợp với khách có cân nặng tương đối ổn định nhưng một số vùng vẫn nhiều mỡ. Trước khi tư vấn chi tiết cần hỏi khách muốn làm vùng nào, chiều cao, cân nặng, tiền sử bệnh lý và hướng khách thăm khám để bác sĩ đánh giá độ phù hợp.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:22:14.865Z",
+    "updatedAt": "2026-06-19T16:22:14.864Z"
+  },
+  {
+    "id": "6a15fe1b-d5d4-4d05-9c37-6c18a1fe6257",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Cắt Mí Eye-Lift",
+    "content": "Cắt Mí Eye-Lift có giá tham khảo từ 6.000.000đ - 15.000.000đ, tùy tình trạng mí, lượng da dư, mỡ thừa và phương pháp bác sĩ chỉ định. Khách cần được thăm khám trực tiếp để báo giá chính xác. Khi khách hỏi giá, AI tư vấn: “Dạ dịch vụ cắt mí bên em giá từ 6 triệu, tùy tình trạng mí của mình bác sĩ sẽ kiểm tra và tư vấn gói phù hợp nhất ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:24:47.542Z",
+    "updatedAt": "2026-06-19T16:24:47.542Z"
+  },
+  {
+    "id": "99a7d132-7de3-4827-8085-ddc8c094db10",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Nhấn Mí Plasma Tự Nhiên",
+    "content": "Nhấn Mí Plasma Tự Nhiên có giá tham khảo từ 3.000.000đ - 8.000.000đ. Giá phụ thuộc vào nền mí, dáng mí mong muốn và tình trạng mắt hiện tại. Phù hợp với khách chưa có nhiều da dư hoặc mỡ mí. Khi khách hỏi giá, AI tư vấn: “Dạ nhấn mí bên em giá từ 3 triệu, nếu mí mình còn trẻ và ít da dư thì làm rất phù hợp, mình gửi ảnh mắt hoặc qua cơ sở để bác sĩ xem kỹ hơn ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:26:28.800Z",
+    "updatedAt": "2026-06-19T16:26:28.800Z"
+  },
+  {
+    "id": "3e8d8668-62ae-4657-b2e6-270b0be06396",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Lấy Mỡ Mí",
+    "content": "Lấy Mỡ Mí có giá tham khảo từ 4.000.000đ - 10.000.000đ, tùy lượng mỡ mí và vùng cần xử lý. Khách cần được bác sĩ kiểm tra để xác định chỉ lấy mỡ mí hay cần kết hợp cắt mí/nâng mí. Khi khách hỏi giá, AI tư vấn: “Dạ lấy mỡ mí bên em giá từ 4 triệu, mình gửi ảnh vùng mắt để bên em xem sơ qua rồi tư vấn hướng phù hợp cho mình nhé.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:26:38.485Z",
+    "updatedAt": "2026-06-19T16:26:38.485Z"
+  },
+  {
+    "id": "9da92650-9599-4b3c-96e0-fb70fe844e0c",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Tiêm Filler - Botox",
+    "content": "Tiêm Filler - Botox có giá tham khảo từ 2.000.000đ - 10.000.000đ/vùng hoặc theo lượng sản phẩm sử dụng. Giá phụ thuộc vào vùng tiêm, loại hoạt chất, liều lượng và tình trạng thực tế của khách. Không báo giá chốt khi chưa được bác sĩ kiểm tra. Khi khách hỏi giá, AI tư vấn: “Dạ filler/botox bên em giá từ 2 triệu, tùy vùng mình muốn làm và lượng cần dùng bác sĩ sẽ tư vấn kỹ hơn ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:26:56.550Z",
+    "updatedAt": "2026-06-19T16:26:56.550Z"
+  },
+  {
+    "id": "de8002cd-59f6-4e40-af3d-3238e6cc88e6",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Cấy Mỡ Tự Thân",
+    "content": "Cấy Mỡ Tự Thân có giá tham khảo từ 20.000.000đ - 60.000.000đ, tùy vùng lấy mỡ, vùng cấy mỡ và lượng mỡ cần xử lý. Dịch vụ cần thăm khám trực tiếp để đánh giá vùng lõm hóp, mô mỡ và tình trạng cơ địa. Khi khách hỏi giá, AI tư vấn: “Dạ cấy mỡ tự thân bên em giá từ 20 triệu, bác sĩ cần kiểm tra vùng mình muốn làm để báo đúng chi phí và phương án phù hợp ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:27:08.164Z",
+    "updatedAt": "2026-06-19T16:27:08.163Z"
+  },
+  {
+    "id": "c57d1f49-0b3c-4b54-80ee-4399762b9fd1",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Thu Gọn Môi",
+    "content": "Thu Gọn Môi có giá tham khảo từ 6.000.000đ - 15.000.000đ, tùy khách làm môi trên, môi dưới hay cả hai môi. Giá cũng phụ thuộc vào dáng môi hiện tại và mức độ điều chỉnh. Khi khách hỏi giá, AI tư vấn: “Dạ thu gọn môi bên em giá từ 6 triệu, mình muốn làm môi trên, môi dưới hay cả hai môi để em tư vấn sát hơn ạ?”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:27:22.113Z",
+    "updatedAt": "2026-06-19T16:27:22.113Z"
+  },
+  {
+    "id": "99b8090f-81cf-4407-8469-826dd05e36f2",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Trị Sẹo",
+    "content": "Trị Sẹo có giá tham khảo từ 1.000.000đ - 5.000.000đ/buổi, tùy loại sẹo, diện tích sẹo, độ sâu và phác đồ bác sĩ chỉ định. Một số trường hợp cần làm theo liệu trình nhiều buổi. Khi khách hỏi giá, AI tư vấn: “Dạ trị sẹo bên em giá từ 1 triệu/buổi, tùy tình trạng sẹo nông hay sâu bác sĩ sẽ lên phác đồ phù hợp cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:27:31.783Z",
+    "updatedAt": "2026-06-19T16:27:31.782Z"
+  },
+  {
+    "id": "53302757-2790-4362-969a-8ce111cfac09",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Nâng Mũi Cấu Trúc",
+    "content": "Nâng Mũi Cấu Trúc có giá tham khảo từ 25.000.000đ - 80.000.000đ, tùy nền mũi, chất liệu sử dụng, dáng mũi mong muốn và có phải sửa mũi cũ hay không. Khách cần thăm khám trực tiếp để bác sĩ kiểm tra cấu trúc mũi trước khi báo giá chính xác. Khi khách hỏi giá, AI tư vấn: “Dạ nâng mũi cấu trúc bên em giá từ 25 triệu, nếu mình đã từng sửa mũi hoặc nền mũi khó thì bác sĩ cần xem trực tiếp để báo chuẩn hơn ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:27:43.258Z",
+    "updatedAt": "2026-06-19T16:27:43.258Z"
+  },
+  {
+    "id": "75bd9e55-86fc-4bc8-a28a-dd77b71bd191",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Gọt Hàm - Hạ Gò Má",
+    "content": "Gọt Hàm - Hạ Gò Má có giá tham khảo từ 60.000.000đ - 150.000.000đ, tùy mức độ xương hàm, gò má và phương án phẫu thuật. Đây là nhóm đại phẫu cần thăm khám, chụp chiếu và bác sĩ đánh giá kỹ. Khi khách hỏi giá, AI tư vấn: “Dạ gọt hàm/hạ gò má bên em giá từ 60 triệu, dịch vụ này cần bác sĩ thăm khám và chụp kiểm tra để đưa ra phương án an toàn nhất ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:27:52.905Z",
+    "updatedAt": "2026-06-19T16:27:52.905Z"
+  },
+  {
+    "id": "bbe90922-19aa-4659-98ab-632773c25d85",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Độn Cằm V-Line",
+    "content": "Độn Cằm V-Line có giá tham khảo từ 12.000.000đ - 35.000.000đ, tùy dáng cằm, chất liệu độn và mức độ điều chỉnh. Khách nên gửi ảnh chính diện và góc nghiêng để được tư vấn sơ bộ trước. Khi khách hỏi giá, AI tư vấn: “Dạ độn cằm V-Line bên em giá từ 12 triệu, mình gửi ảnh mặt chính diện và góc nghiêng để bên em xem dáng cằm hiện tại trước nhé.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:28:04.063Z",
+    "updatedAt": "2026-06-19T16:28:04.063Z"
+  },
+  {
+    "id": "94d99070-0587-4a32-ad9f-13c2c627cfac",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Nâng Ngực Nội Soi",
+    "content": "Nâng Ngực Nội Soi có giá tham khảo từ 60.000.000đ - 120.000.000đ, tùy dòng túi, size túi, dáng ngực hiện tại và phương án bác sĩ chỉ định. Không chốt size hoặc giá cụ thể khi chưa thăm khám. Khi khách hỏi giá, AI tư vấn: “Dạ nâng ngực nội soi bên em giá từ 60 triệu, tùy dáng ngực và dòng túi mình chọn bác sĩ sẽ tư vấn size phù hợp nhất ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:28:15.700Z",
+    "updatedAt": "2026-06-19T16:28:15.700Z"
+  },
+  {
+    "id": "34f8d88d-eba5-4560-ab1e-a80307270208",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Hút Mỡ Tạo Hình",
+    "content": "Hút Mỡ Tạo Hình có giá tham khảo từ 20.000.000đ - 80.000.000đ/vùng, tùy vùng thực hiện, lượng mỡ, độ đàn hồi da và mức độ tạo hình. Các vùng thường gặp gồm bụng, eo, lưng, bắp tay, đùi. Khi khách hỏi giá, AI tư vấn: “Dạ hút mỡ tạo hình bên em giá từ 20 triệu/vùng, mình muốn làm vùng nào để em tư vấn sát hơn cho mình ạ?”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:28:28.943Z",
+    "updatedAt": "2026-06-19T16:28:28.942Z"
+  },
+  {
+    "id": "ca5bc8c5-2c40-47ad-86a8-06f24c284ece",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Căng Da Mặt Toàn Phần",
+    "content": "Căng Da Mặt Toàn Phần có giá tham khảo từ 80.000.000đ - 180.000.000đ, tùy mức độ chảy xệ, da dư, vùng cần xử lý và phương án bác sĩ chỉ định. Đây là dịch vụ can thiệp sâu, cần thăm khám trực tiếp để báo giá chính xác. Khi khách hỏi giá, AI tư vấn: “Dạ căng da mặt toàn phần bên em giá từ 80 triệu, bác sĩ cần xem mức độ chảy xệ của mình để tư vấn phương án phù hợp ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:28:38.633Z",
+    "updatedAt": "2026-06-19T16:28:38.633Z"
+  },
+  {
+    "id": "19e2ed45-22cd-4897-a215-078dfe943c2e",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Phẫu Thuật Hàm",
+    "content": "Phẫu Thuật Hàm có giá tham khảo từ 80.000.000đ - 200.000.000đ, tùy tình trạng hàm hô, móm, lệch hàm hoặc mất cân đối cấu trúc. Dịch vụ cần bác sĩ thăm khám chuyên sâu, có thể cần chụp phim và hội chẩn. Khi khách hỏi giá, AI tư vấn: “Dạ phẫu thuật hàm bên em giá từ 80 triệu, trường hợp này cần bác sĩ kiểm tra cấu trúc hàm để báo phương án và chi phí chính xác ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:28:47.397Z",
+    "updatedAt": "2026-06-19T16:28:47.397Z"
+  },
+  {
+    "id": "ca16150a-8f9a-4660-9160-fd40fcfa63e0",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Tạo Hình Thành Bụng",
+    "content": "Tạo Hình Thành Bụng có giá tham khảo từ 60.000.000đ - 150.000.000đ, tùy lượng da dư, mỡ thừa, tình trạng bụng xổ sau sinh hoặc sau giảm cân. Khách cần thăm khám để bác sĩ đánh giá vùng bụng và sức khỏe tổng quát. Khi khách hỏi giá, AI tư vấn: “Dạ tạo hình thành bụng bên em giá từ 60 triệu, mình cần bác sĩ kiểm tra phần da dư và mỡ bụng để tư vấn đúng phương án ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:28:56.740Z",
+    "updatedAt": "2026-06-19T16:28:56.739Z"
+  },
+  {
+    "id": "f4c2a962-9679-480e-9a62-1532ad9298d4",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Căng Chỉ Collagen",
+    "content": "Căng Chỉ Collagen có giá tham khảo từ 8.000.000đ - 30.000.000đ, tùy số vùng thực hiện, loại chỉ và mức độ chảy xệ. Phù hợp với khách muốn trẻ hóa, nâng đỡ nhẹ đến vừa mà chưa muốn phẫu thuật. Khi khách hỏi giá, AI tư vấn: “Dạ căng chỉ collagen bên em giá từ 8 triệu, tùy vùng mình muốn nâng và tình trạng chảy xệ bác sĩ sẽ tư vấn số vùng phù hợp ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:29:08.358Z",
+    "updatedAt": "2026-06-19T16:29:08.358Z"
+  },
+  {
+    "id": "4f85dac5-f2fa-43db-b9ab-a7c78266d1d5",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Căng Chỉ Nâng Cơ Mặt",
+    "content": "Căng Chỉ Nâng Cơ Mặt có giá tham khảo từ 15.000.000đ - 60.000.000đ, tùy số vùng nâng cơ, mức độ chảy xệ và loại chỉ sử dụng. Thường áp dụng cho má chảy xệ, rãnh mũi má, đường viền hàm và vùng mặt dưới. Khi khách hỏi giá, AI tư vấn: “Dạ căng chỉ nâng cơ mặt bên em giá từ 15 triệu, mình gửi ảnh mặt hoặc qua cơ sở để bác sĩ xem cần làm mấy vùng là đẹp nhất ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:29:20.512Z",
+    "updatedAt": "2026-06-19T16:29:20.512Z"
+  },
+  {
+    "id": "5ec8087b-7901-426b-81a6-e7ce4faddc4e",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Căng Chỉ Mũi",
+    "content": "Căng Chỉ Mũi có giá tham khảo từ 5.000.000đ - 15.000.000đ, tùy nền mũi, số lượng chỉ và mức độ cải thiện mong muốn. Không phải nền mũi nào cũng phù hợp căng chỉ mũi. Khi khách hỏi giá, AI tư vấn: “Dạ căng chỉ mũi bên em giá từ 5 triệu, bác sĩ cần xem nền mũi của mình trước để biết làm chỉ có phù hợp không ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:29:31.359Z",
+    "updatedAt": "2026-06-19T16:29:31.359Z"
+  },
+  {
+    "id": "c41a4592-27ad-4259-8d9e-f3283997caa0",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Căng Chỉ Trẻ Hóa Da",
+    "content": "Căng Chỉ Trẻ Hóa Da có giá tham khảo từ 8.000.000đ - 25.000.000đ, tùy vùng da cần trẻ hóa, tình trạng lão hóa và loại chỉ sử dụng. Dịch vụ phù hợp với khách da kém săn chắc, mặt bắt đầu lão hóa nhẹ đến vừa. Khi khách hỏi giá, AI tư vấn: “Dạ căng chỉ trẻ hóa da bên em giá từ 8 triệu, tùy vùng mình muốn cải thiện bác sĩ sẽ tư vấn liệu trình phù hợp ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:29:44.971Z",
+    "updatedAt": "2026-06-19T16:29:44.971Z"
+  },
+  {
+    "id": "753e1e7b-de80-4284-98f7-984ad9b87085",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Căng Chỉ Xóa Rãnh Cười",
+    "content": "Căng Chỉ Xóa Rãnh Cười có giá tham khảo từ 8.000.000đ - 25.000.000đ, tùy độ sâu rãnh cười, mức độ chảy xệ vùng má và phương án bác sĩ chỉ định. Một số trường hợp có thể cần kết hợp thêm phương pháp khác nếu rãnh sâu do thiếu mô. Khi khách hỏi giá, AI tư vấn: “Dạ căng chỉ xóa rãnh cười bên em giá từ 8 triệu, bác sĩ cần xem rãnh của mình sâu do chảy xệ hay do thiếu mô để tư vấn đúng ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:29:56.549Z",
+    "updatedAt": "2026-06-19T16:29:56.548Z"
+  },
+  {
+    "id": "9690212f-c207-428c-9661-47cf7cce1bd7",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Căng Chỉ Nâng Cung Mày",
+    "content": "Căng Chỉ Nâng Cung Mày có giá tham khảo từ 8.000.000đ - 25.000.000đ, tùy mức độ cung mày thấp, vùng mắt nặng và số lượng chỉ cần sử dụng. Phù hợp với khách muốn vùng mắt tươi hơn nhưng chưa cần can thiệp phẫu thuật sâu. Khi khách hỏi giá, AI tư vấn: “Dạ căng chỉ nâng cung mày bên em giá từ 8 triệu, bác sĩ cần xem vùng mắt của mình để tư vấn nâng chỉ hay cần phương án khác phù hợp hơn ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:30:10.634Z",
+    "updatedAt": "2026-06-19T16:30:10.634Z"
+  },
+  {
+    "id": "d52dac2d-07c0-4f61-9602-f3695b6898cf",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Hút Mỡ",
+    "content": "Hút Mỡ có giá tham khảo từ 15.000.000đ - 60.000.000đ/vùng, tùy vùng thực hiện, lượng mỡ và tình trạng da. Các vùng phổ biến gồm bụng, eo, lưng, bắp tay, đùi, nọng cằm. Khi khách hỏi giá, AI tư vấn: “Dạ hút mỡ bên em giá từ 15 triệu/vùng, mình muốn làm vùng nào để em xem và tư vấn sát hơn cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:30:21.213Z",
+    "updatedAt": "2026-06-19T16:30:21.213Z"
+  },
+  {
+    "id": "bbf64fd4-7d78-4dbb-ba23-5ea847fd455d",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Cắt Mí Eye-Lift",
+    "content": "Cắt Mí Eye-Lift đang có chương trình ưu đãi giảm đến 30% cho khách đặt lịch thăm khám trước. Khách được bác sĩ kiểm tra tình trạng mí, tư vấn dáng mí phù hợp và hướng xử lý da dư/mỡ mí trước khi thực hiện. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ hiện bên em đang có ưu đãi cho dịch vụ Cắt Mí Eye-Lift, mình đặt lịch trước sẽ được hỗ trợ giá tốt hơn và bác sĩ kiểm tra mí trực tiếp cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:35:45.478Z",
+    "updatedAt": "2026-06-19T16:35:45.478Z"
+  },
+  {
+    "id": "007e9a96-8cd2-4a0e-bb29-2b9b735a7ced",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Nhấn Mí Plasma Tự Nhiên",
+    "content": "Nhấn Mí Plasma Tự Nhiên đang có ưu đãi giảm đến 30% cho khách hàng đăng ký tư vấn trong thời gian khuyến mãi. Phù hợp với khách muốn có nếp mí rõ hơn nhưng chưa muốn cắt mí. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ nhấn mí bên em đang có ưu đãi, nếu mí mình chưa có nhiều da dư thì làm rất hợp. Mình gửi ảnh mắt hoặc đặt lịch để bác sĩ xem giúp mình nhé.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:35:57.676Z",
+    "updatedAt": "2026-06-19T16:35:57.676Z"
+  },
+  {
+    "id": "1ca897f6-6a8b-47d3-9af4-914fe89c5e2c",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Lấy Mỡ Mí",
+    "content": "Lấy Mỡ Mí đang có chương trình ưu đãi giảm đến 25% cho khách đặt lịch trước. Ưu đãi áp dụng cho khách có bọng mỡ mí, mắt nặng, mắt nhìn mệt hoặc muốn vùng mắt gọn hơn. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ lấy mỡ mí bên em đang có ưu đãi, mình gửi ảnh vùng mắt để bác sĩ xem tình trạng mỡ mí và tư vấn phương án phù hợp cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:36:10.108Z",
+    "updatedAt": "2026-06-19T16:36:10.108Z"
+  },
+  {
+    "id": "8b6f8d42-0ff0-4825-a215-7cc9ca4f7753",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Nâng Mũi Không Phẫu Thuật",
+    "content": "Nâng Mũi Không Phẫu Thuật đang có ưu đãi giảm đến 30% cho khách đăng ký lịch tư vấn sớm. Chương trình phù hợp với khách muốn cải thiện nhẹ dáng mũi, nâng sống mũi hoặc làm mũi hài hòa hơn mà chưa muốn phẫu thuật. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ hiện bên em đang có ưu đãi nâng mũi không phẫu thuật, bác sĩ sẽ xem nền mũi trước để tư vấn phương án phù hợp nhất cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:36:19.554Z",
+    "updatedAt": "2026-06-19T16:36:19.554Z"
+  },
+  {
+    "id": "9aad094c-bfac-4918-9922-a9ce2d7568d6",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Tiêm Filler - Botox",
+    "content": "Tiêm Filler - Botox đang có chương trình ưu đãi theo vùng điều trị, giảm đến 30% tùy dịch vụ và sản phẩm sử dụng. Khách cần được bác sĩ kiểm tra vùng muốn cải thiện để tư vấn lượng dùng phù hợp. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ filler/botox bên em đang có ưu đãi theo từng vùng, mình muốn làm vùng nào để em hỗ trợ bác sĩ tư vấn sát hơn cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:36:28.558Z",
+    "updatedAt": "2026-06-19T16:36:28.558Z"
+  },
+  {
+    "id": "3ea7dd8c-fa14-459d-9c87-6e315bae5127",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Cấy Mỡ Tự Thân",
+    "content": "Cấy Mỡ Tự Thân đang có ưu đãi giảm đến 25% cho khách đặt lịch thăm khám trước. Ưu đãi phù hợp với khách có má hóp, thái dương lõm, rãnh sâu hoặc muốn gương mặt đầy đặn tự nhiên hơn. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ cấy mỡ tự thân bên em đang có chương trình ưu đãi, bác sĩ cần xem vùng lõm hóp và vùng lấy mỡ để tư vấn chi phí chính xác cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:37:04.764Z",
+    "updatedAt": "2026-06-19T16:37:04.764Z"
+  },
+  {
+    "id": "27b0733c-e451-4288-9b3c-082b03e12f05",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Thu Gọn Môi",
+    "content": "Thu Gọn Môi đang có ưu đãi giảm đến 25% cho khách đăng ký tư vấn trước. Chương trình áp dụng cho khách muốn môi gọn hơn, dáng môi thanh thoát hơn hoặc cải thiện tỷ lệ môi so với gương mặt. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ thu gọn môi bên em đang có ưu đãi, mình muốn làm môi trên, môi dưới hay cả hai môi để em tư vấn sát hơn cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:37:18.762Z",
+    "updatedAt": "2026-06-19T16:37:18.761Z"
+  },
+  {
+    "id": "ac80712b-0905-4529-a36b-89d4073a68f1",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Trị Sẹo",
+    "content": "Trị Sẹo đang có chương trình ưu đãi theo liệu trình, giảm đến 30% cho khách đăng ký combo nhiều buổi. Ưu đãi phù hợp với khách có sẹo rỗ, sẹo lõm, sẹo thâm hoặc bề mặt da không đều. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ trị sẹo bên em đang có ưu đãi theo liệu trình, mình gửi ảnh vùng sẹo để bác sĩ đánh giá mức độ và tư vấn phác đồ phù hợp ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:39:42.070Z",
+    "updatedAt": "2026-06-19T16:39:42.070Z"
+  },
+  {
+    "id": "5a720532-6b45-4711-9f9a-2c6ca37b4964",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Nâng Mũi Cấu Trúc",
+    "content": "Nâng Mũi Cấu Trúc đang có chương trình ưu đãi giảm đến 30% cho khách đặt lịch thăm khám trước. Khách được bác sĩ đánh giá nền mũi, dáng mũi, da mũi và phương án chỉnh sửa phù hợp. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ nâng mũi cấu trúc bên em đang có ưu đãi, mình đặt lịch trước sẽ được hỗ trợ mức giá tốt hơn và bác sĩ tư vấn dáng mũi phù hợp với gương mặt ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:39:52.916Z",
+    "updatedAt": "2026-06-19T16:39:52.916Z"
+  },
+  {
+    "id": "7cd822f6-b668-4ca8-9b4d-ebed862b11c0",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Gọt Hàm - Hạ Gò Má",
+    "content": "Gọt Hàm - Hạ Gò Má đang có ưu đãi hỗ trợ chi phí thăm khám/chụp kiểm tra cho khách đặt lịch trước. Đây là nhóm dịch vụ đại phẫu cần bác sĩ đánh giá kỹ trước khi báo phương án. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ dịch vụ gọt hàm/hạ gò má bên em có chương trình hỗ trợ cho khách đặt lịch trước, mình nên qua để bác sĩ kiểm tra cấu trúc xương và tư vấn chính xác nhất ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:40:04.327Z",
+    "updatedAt": "2026-06-19T16:40:04.327Z"
+  },
+  {
+    "id": "988091fd-3b35-4ba3-bab4-85d1d891cbc4",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Độn Cằm V-Line",
+    "content": "Độn Cằm V-Line đang có ưu đãi giảm đến 30% cho khách đăng ký lịch tư vấn sớm. Chương trình phù hợp với khách có cằm ngắn, cằm lẹm, mặt thiếu độ thon hoặc muốn cải thiện góc nghiêng. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ độn cằm V-Line bên em đang có ưu đãi, mình gửi ảnh chính diện và góc nghiêng để bác sĩ xem dáng cằm hiện tại rồi tư vấn cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:40:16.042Z",
+    "updatedAt": "2026-06-19T16:40:16.041Z"
+  },
+  {
+    "id": "fd82b8c3-1a07-4518-a50b-a800daeb85e6",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Nâng Ngực Nội Soi",
+    "content": "Nâng Ngực Nội Soi đang có chương trình ưu đãi giảm đến 25% tùy dòng túi và gói dịch vụ. Khách được bác sĩ tư vấn dáng ngực, size túi và phương án phù hợp với vóc dáng. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ nâng ngực bên em đang có ưu đãi theo từng dòng túi, mình đặt lịch thăm khám bác sĩ sẽ tư vấn size và chi phí phù hợp nhất cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:40:29.604Z",
+    "updatedAt": "2026-06-19T16:40:29.603Z"
+  },
+  {
+    "id": "3db15fa7-7ede-4b02-9fd2-8d5b43429a16",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Hút Mỡ Tạo Hình",
+    "content": "Hút Mỡ Tạo Hình đang có chương trình ưu đãi giảm đến 30% theo từng vùng thực hiện. Ưu đãi áp dụng cho các vùng như bụng, eo, lưng, bắp tay, đùi hoặc các vùng mỡ khu trú. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ hút mỡ tạo hình bên em đang có ưu đãi theo vùng, mình muốn làm vùng nào để em tư vấn chương trình phù hợp cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:40:38.925Z",
+    "updatedAt": "2026-06-19T16:40:38.924Z"
+  },
+  {
+    "id": "cb18002c-d957-4bb4-9962-4612817c73f4",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Căng Da Mặt Toàn Phần",
+    "content": "Căng Da Mặt Toàn Phần đang có ưu đãi giảm đến 25% cho khách đặt lịch thăm khám trước. Dịch vụ phù hợp với khách có da dư, chảy xệ rõ, rãnh sâu hoặc gương mặt già hơn tuổi. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ căng da mặt toàn phần bên em đang có ưu đãi, bác sĩ cần xem mức độ chảy xệ để tư vấn phương án và chi phí phù hợp nhất cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:40:49.720Z",
+    "updatedAt": "2026-06-19T16:40:49.720Z"
+  },
+  {
+    "id": "b82208e8-2c92-40c2-bc59-7ecc6b66b92e",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Phẫu Thuật Hàm",
+    "content": "Phẫu Thuật Hàm đang có chương trình hỗ trợ chi phí thăm khám/chụp kiểm tra cho khách đặt lịch trước. Đây là dịch vụ cần bác sĩ chuyên môn đánh giá cấu trúc hàm, tình trạng hô, móm, lệch hàm hoặc mất cân đối. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ phẫu thuật hàm bên em có chương trình hỗ trợ cho khách đặt lịch trước, mình nên qua để bác sĩ kiểm tra cấu trúc hàm rồi tư vấn chính xác ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:40:59.605Z",
+    "updatedAt": "2026-06-19T16:40:59.605Z"
+  },
+  {
+    "id": "09868baf-b3ae-4e9a-9ed7-97159b3d55e7",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Tạo Hình Thành Bụng",
+    "content": "Tạo Hình Thành Bụng đang có ưu đãi giảm đến 25% cho khách đặt lịch thăm khám trước. Ưu đãi phù hợp với khách có bụng chùng nhão, da dư, rạn da, mỡ thừa hoặc bụng xổ sau sinh. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ tạo hình thành bụng bên em đang có ưu đãi, bác sĩ cần xem tình trạng da dư và mỡ bụng để tư vấn phương án phù hợp cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:41:16.297Z",
+    "updatedAt": "2026-06-19T16:41:16.297Z"
+  },
+  {
+    "id": "7cfc570f-27d6-4986-b86e-4f353af2537e",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Căng Chỉ Collagen",
+    "content": "Căng Chỉ Collagen đang có chương trình ưu đãi giảm đến 30% cho khách đăng ký lịch tư vấn sớm. Dịch vụ phù hợp với khách da bắt đầu chảy xệ, kém săn chắc, mặt thiếu độ nâng đỡ. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ căng chỉ collagen bên em đang có ưu đãi, mình gửi ảnh mặt chính diện/góc nghiêng để bác sĩ xem vùng nào cần nâng và tư vấn đúng cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:41:26.770Z",
+    "updatedAt": "2026-06-19T16:41:26.770Z"
+  },
+  {
+    "id": "b235ab69-92ad-4fbc-a63f-9c8ffe12d049",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Căng Chỉ Nâng Cơ Mặt",
+    "content": "Căng Chỉ Nâng Cơ Mặt đang có ưu đãi giảm đến 30% tùy số vùng thực hiện. Ưu đãi phù hợp với khách có má chảy xệ, rãnh mũi má sâu, đường viền hàm mờ hoặc gương mặt nặng. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ căng chỉ nâng cơ mặt bên em đang có ưu đãi theo số vùng, mình gửi ảnh để bác sĩ xem cần làm mấy vùng thì hiệu quả và tiết kiệm nhất ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:41:36.797Z",
+    "updatedAt": "2026-06-19T16:41:36.797Z"
+  },
+  {
+    "id": "873c2c1f-6bd3-4283-b62f-d70eab0d3bed",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Căng Chỉ Mũi",
+    "content": "Căng Chỉ Mũi đang có ưu đãi giảm đến 25% cho khách đặt lịch trước. Phù hợp với khách muốn cải thiện nhẹ sống mũi hoặc dáng mũi mà chưa muốn phẫu thuật. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ căng chỉ mũi bên em đang có ưu đãi, tuy nhiên bác sĩ cần xem nền mũi trước để biết mình có phù hợp làm chỉ mũi không ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:41:55.161Z",
+    "updatedAt": "2026-06-19T16:41:55.161Z"
+  },
+  {
+    "id": "fec6ed41-f387-438d-90c6-5d21f8f210d6",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Căng Chỉ Trẻ Hóa Da",
+    "content": "Căng Chỉ Trẻ Hóa Da đang có chương trình ưu đãi giảm đến 30% cho khách đăng ký tư vấn trong thời gian khuyến mãi. Dịch vụ phù hợp với khách da kém săn chắc, bắt đầu có dấu hiệu lão hóa nhẹ đến vừa. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ căng chỉ trẻ hóa da bên em đang có ưu đãi, mình gửi ảnh tình trạng da hoặc đặt lịch để bác sĩ tư vấn vùng cần cải thiện cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:42:12.961Z",
+    "updatedAt": "2026-06-19T16:42:12.961Z"
+  },
+  {
+    "id": "4459a9b3-ec8b-45b9-95fd-b813866f9e5d",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Căng Chỉ Xóa Rãnh Cười",
+    "content": "Căng Chỉ Xóa Rãnh Cười đang có ưu đãi giảm đến 30% cho khách đặt lịch thăm khám trước. Chương trình phù hợp với khách có rãnh cười sâu, gương mặt nhìn mệt, già hoặc thiếu sự mềm mại. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ căng chỉ xóa rãnh cười bên em đang có ưu đãi, bác sĩ cần xem rãnh của mình do chảy xệ hay thiếu mô để tư vấn đúng phương án ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:42:42.720Z",
+    "updatedAt": "2026-06-19T16:42:42.720Z"
+  },
+  {
+    "id": "f6d435cf-d32a-4eb3-a23d-bfedc7001253",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Căng Chỉ Nâng Cung Mày",
+    "content": "Căng Chỉ Nâng Cung Mày đang có ưu đãi giảm đến 25% cho khách đăng ký lịch tư vấn trước. Phù hợp với khách có cung mày thấp, vùng mắt nhìn buồn, mí trên nặng hoặc ánh mắt thiếu tươi trẻ. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ căng chỉ nâng cung mày bên em đang có ưu đãi, mình gửi ảnh vùng mắt để bác sĩ xem có phù hợp nâng chỉ hay cần phương án khác tốt hơn ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:42:54.481Z",
+    "updatedAt": "2026-06-19T16:42:54.481Z"
+  },
+  {
+    "id": "704b424a-2007-4008-bb35-a44da9255658",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "promotion",
+    "title": "Khuyến mãi Hút Mỡ",
+    "content": "Hút Mỡ đang có chương trình ưu đãi giảm đến 30% theo từng vùng thực hiện. Các vùng thường được tư vấn gồm bụng, eo, lưng, bắp tay, đùi, nọng cằm hoặc vùng mỡ khu trú khó giảm. Khi khách hỏi khuyến mãi, AI tư vấn: “Dạ hút mỡ bên em đang có ưu đãi theo vùng, mình muốn làm vùng nào để em hỗ trợ tư vấn chương trình phù hợp cho mình ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:43:05.068Z",
+    "updatedAt": "2026-06-19T16:43:05.068Z"
+  },
+  {
+    "id": "67f2068a-9973-42bb-9abf-4929aee61717",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Cắt Mí Eye-Lift",
+    "content": "Câu hỏi 1: Cắt mí Eye-Lift phù hợp với ai?\nTrả lời: Dạ phù hợp với khách có mí sụp, da dư mí trên, mỡ mí, mắt nhỏ hoặc nếp mí không rõ. Bác sĩ cần xem trực tiếp tình trạng mí để tư vấn dáng mí tự nhiên và phù hợp với gương mặt.\n\nCâu hỏi 2: Cắt mí có cần nghỉ dưỡng lâu không?\nTrả lời: Dạ thời gian hồi phục tùy cơ địa từng khách. Thông thường khách sẽ cần chăm sóc vùng mí theo hướng dẫn của bác sĩ và tái khám đúng lịch để mí ổn định đẹp hơn.\n\nCâu hỏi 3: Cắt mí có bị lộ hay già không?\nTrả lời: Dạ nếu thiết kế nếp mí phù hợp với gương mặt thì dáng mí sẽ tự nhiên hơn. Bên em không làm mí quá to hoặc quá sâu khi chưa đánh giá kỹ, bác sĩ sẽ tư vấn dáng mí hài hòa cho mình ạ.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:54:03.174Z",
+    "updatedAt": "2026-06-19T16:54:03.174Z"
+  },
+  {
+    "id": "cf048c6e-38dc-4af2-8644-4b0970d2dbef",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Nhấn Mí Plasma Tự Nhiên",
+    "content": "Câu hỏi 1: Nhấn mí khác gì cắt mí?\nTrả lời: Dạ nhấn mí phù hợp với khách mí còn trẻ, ít da dư và ít mỡ mí. Cắt mí phù hợp hơn nếu mí có nhiều da dư, mỡ thừa hoặc sụp mí rõ. Bác sĩ cần xem mắt của mình để tư vấn đúng phương án.\n\nCâu hỏi 2: Nhấn mí có tự nhiên không?\nTrả lời: Dạ nhấn mí hướng đến dáng mí nhẹ nhàng, tự nhiên, không thay đổi quá nhiều đường nét gương mặt. Dáng mí đẹp hay không còn phụ thuộc nền mí ban đầu và cách bác sĩ thiết kế.\n\nCâu hỏi 3: Nhấn mí có phù hợp với người lớn tuổi không?\nTrả lời: Dạ nếu khách lớn tuổi có nhiều da dư thì thường cần xem xét cắt mí thay vì nhấn mí. Mình có thể gửi ảnh vùng mắt để bên em xem sơ bộ trước ạ.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:54:16.352Z",
+    "updatedAt": "2026-06-19T16:54:16.352Z"
+  },
+  {
+    "id": "fb9c4be4-6d41-433a-8839-c54cbff337a8",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Lấy Mỡ Mí",
+    "content": "Câu hỏi 1: Lấy mỡ mí dành cho trường hợp nào?\nTrả lời: Dạ phù hợp với khách có bọng mỡ vùng mí, mắt nặng, mắt nhìn mệt hoặc vùng mí trên/mí dưới bị phồng do mỡ. Bác sĩ cần kiểm tra xem chỉ lấy mỡ mí là đủ hay cần kết hợp phương án khác.\n\nCâu hỏi 2: Lấy mỡ mí có làm mắt trẻ hơn không?\nTrả lời: Dạ lấy mỡ mí có thể giúp vùng mắt nhìn gọn và tươi hơn, nhưng mức độ cải thiện còn tùy tình trạng da dư, mỡ mí và độ lão hóa vùng mắt của mình.\n\nCâu hỏi 3: Có cần gửi ảnh trước không?\nTrả lời: Dạ có ạ. Mình gửi ảnh mắt chính diện, nhìn thẳng và ánh sáng rõ để bác sĩ xem sơ bộ, sau đó qua cơ sở thăm khám sẽ chính xác hơn.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:54:32.227Z",
+    "updatedAt": "2026-06-19T16:54:32.226Z"
+  },
+  {
+    "id": "9bb4e0f0-bb2c-409e-bd36-7988bdefbd19",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Gọt Hàm - Hạ Gò Má",
+    "content": "Câu hỏi 1: Gọt hàm - hạ gò má phù hợp với ai?\nTrả lời: Dạ phù hợp với khách có xương hàm thô, mặt vuông, gò má cao hoặc đường nét gương mặt quá góc cạnh. Đây là dịch vụ đại phẫu nên cần bác sĩ thăm khám và chụp kiểm tra kỹ.\n\nCâu hỏi 2: Có thể tư vấn qua ảnh được không?\nTrả lời: Dạ ảnh chỉ giúp đánh giá sơ bộ. Với dịch vụ liên quan cấu trúc xương, khách cần thăm khám trực tiếp và có chỉ định chuyên môn để đưa ra phương án an toàn.\n\nCâu hỏi 3: Làm xong mặt có nhỏ hơn không?\nTrả lời: Dạ mục tiêu là điều chỉnh đường nét gương mặt hài hòa hơn. Mức độ thay đổi tùy cấu trúc xương thật của từng khách, bác sĩ sẽ tư vấn sau khi kiểm tra.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:52:18.048Z",
+    "updatedAt": "2026-06-19T17:00:38.053Z"
+  },
+  {
+    "id": "38d48f1d-1b5f-480f-b055-488069f46dfd",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Nâng Mũi Không Phẫu Thuật",
+    "content": "Câu hỏi 1: Nâng mũi không phẫu thuật phù hợp với ai?\nTrả lời: Dạ phù hợp với khách muốn cải thiện nhẹ dáng mũi, nâng sống mũi hoặc làm mũi hài hòa hơn nhưng chưa muốn phẫu thuật. Nếu nền mũi quá thấp hoặc cần chỉnh cấu trúc nhiều thì bác sĩ sẽ tư vấn phương án khác phù hợp hơn.\n\nCâu hỏi 2: Nâng mũi không phẫu thuật có thay thế nâng mũi cấu trúc không?\nTrả lời: Dạ không thay thế hoàn toàn được ạ. Phương pháp này chỉ phù hợp với một số nền mũi và mức độ cải thiện nhẹ đến vừa. Mũi cần thay đổi nhiều thì nên thăm khám để bác sĩ tư vấn kỹ.\n\nCâu hỏi 3: Làm xong có tự nhiên không?\nTrả lời: Dạ mục tiêu là cải thiện hài hòa, không làm mũi bị cứng hoặc quá khác mặt. Bác sĩ sẽ xem nền mũi hiện tại trước khi tư vấn phương án cho mình.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:54:44.409Z",
+    "updatedAt": "2026-06-19T16:54:44.409Z"
+  },
+  {
+    "id": "ec4997b7-cd51-4d7b-95b6-094303d71454",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Tiêm Filler - Botox",
+    "content": "Câu hỏi 1: Filler và Botox khác nhau thế nào?\nTrả lời: Dạ filler thường dùng để làm đầy hoặc tạo đường nét ở vùng phù hợp. Botox thường dùng để hỗ trợ giảm hoạt động cơ tại một số vùng. Mình muốn cải thiện vùng nào thì bác sĩ sẽ tư vấn nên dùng phương án nào.\n\nCâu hỏi 2: Tiêm filler/botox có cần bác sĩ làm không?\nTrả lời: Dạ có ạ. Các dịch vụ tiêm thẩm mỹ cần được bác sĩ đánh giá vùng tiêm, liều lượng và tình trạng thật để đảm bảo phù hợp, không nên tự chọn liều hoặc sản phẩm khi chưa thăm khám.\n\nCâu hỏi 3: Làm filler/botox có giữ được lâu không?\nTrả lời: Dạ thời gian duy trì tùy cơ địa, vùng thực hiện, loại sản phẩm và cách chăm sóc sau làm. Bác sĩ sẽ tư vấn cụ thể hơn sau khi kiểm tra tình trạng của mình.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:55:00.122Z",
+    "updatedAt": "2026-06-19T16:55:00.122Z"
+  },
+  {
+    "id": "22a607aa-84a4-46f8-af41-3ce728df3461",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Cấy Mỡ Tự Thân",
+    "content": "Câu hỏi 1: Cấy mỡ tự thân phù hợp với ai?\nTrả lời: Dạ phù hợp với khách có má hóp, thái dương lõm, rãnh sâu hoặc gương mặt thiếu độ đầy đặn. Bác sĩ sẽ kiểm tra vùng cần cấy và vùng có thể lấy mỡ để tư vấn.\n\nCâu hỏi 2: Cấy mỡ tự thân có tự nhiên không?\nTrả lời: Dạ mục tiêu là cải thiện độ đầy đặn mềm mại, giúp gương mặt hài hòa hơn. Kết quả tùy cơ địa, chất lượng mô mỡ và tình trạng vùng cấy của từng khách.\n\nCâu hỏi 3: Có phải ai cũng cấy mỡ được không?\nTrả lời: Dạ không phải ai cũng phù hợp. Bác sĩ cần kiểm tra lượng mỡ có thể lấy, tình trạng vùng lõm hóp và sức khỏe tổng quát trước khi đưa ra phương án.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:55:13.159Z",
+    "updatedAt": "2026-06-19T16:55:13.158Z"
+  },
+  {
+    "id": "e412aad7-0b0b-4545-ab71-b89654a58e88",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Thu Gọn Môi",
+    "content": "Câu hỏi 1: Thu gọn môi phù hợp với ai?\nTrả lời: Dạ phù hợp với khách có môi dày, môi chưa gọn, viền môi chưa thanh thoát hoặc muốn điều chỉnh tỷ lệ môi hài hòa hơn với gương mặt.\n\nCâu hỏi 2: Có làm được môi trên hoặc môi dưới riêng không?\nTrả lời: Dạ được ạ. Tùy tình trạng môi của mình, bác sĩ có thể tư vấn làm môi trên, môi dưới hoặc cả hai môi để đạt tỷ lệ cân đối.\n\nCâu hỏi 3: Thu gọn môi có cần xem ảnh trước không?\nTrả lời: Dạ nên gửi ảnh chính diện vùng môi, không dùng app chỉnh sửa để bác sĩ xem dáng môi hiện tại và tư vấn hướng điều chỉnh phù hợp.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:55:26.967Z",
+    "updatedAt": "2026-06-19T16:55:26.967Z"
+  },
+  {
+    "id": "57c43af0-1d01-4ee5-8b54-4632f17b3c85",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Trị Sẹo",
+    "content": "Câu hỏi 1: Trị sẹo có hết hoàn toàn không?\nTrả lời: Dạ trị sẹo là quá trình cải thiện bề mặt da và mức độ sẹo, hiệu quả tùy loại sẹo, độ sâu, thời gian hình thành và cơ địa từng khách. Bác sĩ cần xem tình trạng thật để tư vấn phác đồ phù hợp.\n\nCâu hỏi 2: Sẹo rỗ lâu năm có làm được không?\nTrả lời: Dạ sẹo lâu năm vẫn có thể thăm khám để đánh giá hướng cải thiện. Tùy mức độ sẹo, bác sĩ sẽ tư vấn liệu trình và số buổi phù hợp.\n\nCâu hỏi 3: Cần gửi ảnh gì để tư vấn sẹo?\nTrả lời: Dạ mình gửi ảnh vùng sẹo dưới ánh sáng rõ, chụp gần và chụp toàn mặt để bác sĩ đánh giá cả bề mặt da lẫn diện tích vùng cần xử lý.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:55:56.875Z",
+    "updatedAt": "2026-06-19T16:55:56.875Z"
+  },
+  {
+    "id": "64576d74-db05-47d7-acc1-7f012682baa6",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Nâng Mũi Cấu Trúc",
+    "content": "Câu hỏi 1: Nâng mũi cấu trúc phù hợp với ai?\nTrả lời: Dạ phù hợp với khách có mũi thấp, đầu mũi to, mũi ngắn, cánh mũi bè, dáng mũi chưa hài hòa hoặc từng sửa mũi nhưng chưa ưng ý.\n\nCâu hỏi 2: Nâng mũi cấu trúc có làm mũi tự nhiên không?\nTrả lời: Dạ bác sĩ sẽ thiết kế dáng mũi dựa trên nền mũi và tỷ lệ gương mặt, mục tiêu là hài hòa chứ không làm quá cao hoặc quá khác mặt.\n\nCâu hỏi 3: Sửa mũi cũ có làm được không?\nTrả lời: Dạ có thể thăm khám để đánh giá lại nền mũi cũ. Với trường hợp từng sửa mũi, bác sĩ cần kiểm tra kỹ tình trạng da mũi, sụn, mô và phương án chỉnh sửa phù hợp.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:56:08.569Z",
+    "updatedAt": "2026-06-19T16:56:08.569Z"
+  },
+  {
+    "id": "08d9b7fb-dabb-4cf7-bc41-b3cc193f218a",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Gọt Hàm - Hạ Gò Má",
+    "content": "Câu hỏi 1: Gọt hàm - hạ gò má phù hợp với ai?\nTrả lời: Dạ phù hợp với khách có xương hàm thô, mặt vuông, gò má cao hoặc đường nét gương mặt quá góc cạnh. Đây là dịch vụ đại phẫu nên cần bác sĩ thăm khám và chụp kiểm tra kỹ.\n\nCâu hỏi 2: Có thể tư vấn qua ảnh được không?\nTrả lời: Dạ ảnh chỉ giúp đánh giá sơ bộ. Với dịch vụ liên quan cấu trúc xương, khách cần thăm khám trực tiếp và có chỉ định chuyên môn để đưa ra phương án an toàn.\n\nCâu hỏi 3: Làm xong mặt có nhỏ hơn không?\nTrả lời: Dạ mục tiêu là điều chỉnh đường nét gương mặt hài hòa hơn. Mức độ thay đổi tùy cấu trúc xương thật của từng khách, bác sĩ sẽ tư vấn sau khi kiểm tra.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:56:20.057Z",
+    "updatedAt": "2026-06-19T16:56:20.057Z"
+  },
+  {
+    "id": "34c02212-70c1-4ee9-8231-dae52121c265",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Độn Cằm V-Line",
+    "content": "Câu hỏi 1: Độn cằm V-Line phù hợp với ai?\nTrả lời: Dạ phù hợp với khách có cằm ngắn, cằm lẹm, mặt thiếu độ thon hoặc góc nghiêng chưa cân đối. Bác sĩ sẽ đánh giá tỷ lệ cằm so với mũi, môi và tổng thể gương mặt.\n\nCâu hỏi 2: Độn cằm có bị nhọn quá không?\nTrả lời: Dạ bác sĩ sẽ tư vấn dáng cằm phù hợp với gương mặt, không làm quá nhọn hoặc quá dài nếu không hợp tỷ lệ khuôn mặt.\n\nCâu hỏi 3: Cần gửi ảnh góc nào để tư vấn?\nTrả lời: Dạ mình gửi ảnh chính diện, góc nghiêng trái/phải và ảnh cười nhẹ để bác sĩ xem tỷ lệ cằm hiện tại rồi tư vấn phù hợp hơn.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:56:30.848Z",
+    "updatedAt": "2026-06-19T16:56:30.848Z"
+  },
+  {
+    "id": "229b0352-aed1-4931-aecb-e4543e5fa82d",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Nâng Ngực Nội Soi",
+    "content": "Câu hỏi 1: Nâng ngực nội soi phù hợp với ai?\nTrả lời: Dạ phù hợp với khách có vòng một nhỏ, lép, ngực mất dáng sau sinh hoặc muốn cải thiện dáng ngực cân đối hơn. Bác sĩ cần thăm khám để tư vấn size và dòng túi phù hợp.\n\nCâu hỏi 2: Có chọn size ngực theo ý muốn được không?\nTrả lời: Dạ khách có thể chia sẻ mong muốn, nhưng size phù hợp cần dựa trên vóc dáng, mô tuyến, độ đàn hồi da và chỉ định của bác sĩ để đảm bảo cân đối.\n\nCâu hỏi 3: Nâng ngực có cần tái khám không?\nTrả lời: Dạ có ạ. Sau nâng ngực, khách cần chăm sóc và tái khám theo lịch bác sĩ hẹn để theo dõi quá trình ổn định.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:56:43.393Z",
+    "updatedAt": "2026-06-19T16:56:43.393Z"
+  },
+  {
+    "id": "f0a994bb-8e95-4b65-83a4-18a3ecaed6b4",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Hút Mỡ Tạo Hình",
+    "content": "Câu hỏi 1: Hút mỡ tạo hình phù hợp với ai?\nTrả lời: Dạ phù hợp với khách có mỡ khu trú ở bụng, eo, lưng, bắp tay, đùi hoặc vùng khó giảm dù đã ăn kiêng/tập luyện.\n\nCâu hỏi 2: Hút mỡ có phải phương pháp giảm cân không?\nTrả lời: Dạ không phải phương pháp giảm cân toàn thân. Hút mỡ chủ yếu xử lý mỡ khu trú và hỗ trợ tạo đường nét vùng cơ thể cần cải thiện.\n\nCâu hỏi 3: Muốn hút mỡ cần kiểm tra gì?\nTrả lời: Dạ bác sĩ cần kiểm tra vùng mỡ, độ đàn hồi da, sức khỏe tổng quát và mong muốn của khách trước khi tư vấn phương án phù hợp.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:56:55.828Z",
+    "updatedAt": "2026-06-19T16:56:55.828Z"
+  },
+  {
+    "id": "f74d5b5e-98b0-4e71-a38c-ad2ac08cb0ff",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Căng Da Mặt Toàn Phần",
+    "content": "Câu hỏi 1: Căng da mặt toàn phần phù hợp với ai?\nTrả lời: Dạ phù hợp với khách có da chảy xệ rõ, da dư nhiều, rãnh nhăn sâu, đường viền hàm mờ hoặc gương mặt già hơn tuổi.\n\nCâu hỏi 2: Căng da mặt khác gì căng chỉ?\nTrả lời: Dạ căng chỉ thường phù hợp với chảy xệ nhẹ đến vừa, không muốn đại phẫu. Căng da mặt toàn phần phù hợp hơn với tình trạng da dư và chảy xệ rõ. Bác sĩ cần thăm khám để tư vấn chính xác.\n\nCâu hỏi 3: Có cần nghỉ dưỡng sau căng da mặt không?\nTrả lời: Dạ có ạ. Vì đây là dịch vụ can thiệp sâu hơn, khách cần chăm sóc và tái khám theo hướng dẫn của bác sĩ để quá trình hồi phục ổn định.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:57:07.178Z",
+    "updatedAt": "2026-06-19T16:57:07.178Z"
+  },
+  {
+    "id": "1a77bb12-afd9-4eb9-aa62-022e6cb21ed8",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Phẫu Thuật Hàm",
+    "content": "Câu hỏi 1: Phẫu thuật hàm dành cho trường hợp nào?\nTrả lời: Dạ thường phù hợp với khách có hàm hô, móm, lệch hàm hoặc cấu trúc hàm mất cân đối. Dịch vụ cần bác sĩ chuyên môn kiểm tra kỹ trước khi tư vấn.\n\nCâu hỏi 2: Có thể báo phương án qua tin nhắn không?\nTrả lời: Dạ chỉ có thể tư vấn sơ bộ qua tin nhắn. Phẫu thuật hàm cần thăm khám, kiểm tra cấu trúc và có thể cần chụp phim để bác sĩ đưa ra phương án chính xác.\n\nCâu hỏi 3: Phẫu thuật hàm có phải ai cũng làm được không?\nTrả lời: Dạ không phải ai cũng phù hợp. Bác sĩ cần đánh giá tình trạng hàm, sức khỏe tổng quát và chỉ định chuyên môn trước khi thực hiện.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:57:33.728Z",
+    "updatedAt": "2026-06-19T16:57:33.728Z"
+  },
+  {
+    "id": "24baffe8-78db-4b43-a2ff-b9795a1143ca",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Tạo Hình Thành Bụng",
+    "content": "Câu hỏi 1: Tạo hình thành bụng phù hợp với ai?\nTrả lời: Dạ phù hợp với khách có bụng chùng nhão, da dư, rạn da, mỡ thừa hoặc bụng xổ sau sinh/giảm cân nhiều.\n\nCâu hỏi 2: Tạo hình thành bụng khác gì hút mỡ bụng?\nTrả lời: Dạ hút mỡ chủ yếu xử lý mỡ khu trú, còn tạo hình thành bụng có thể xử lý thêm tình trạng da dư/chùng nhão tùy chỉ định bác sĩ. Khách cần thăm khám để biết nên làm phương án nào.\n\nCâu hỏi 3: Sau sinh bao lâu có thể tư vấn tạo hình bụng?\nTrả lời: Dạ mình có thể đặt lịch để bác sĩ kiểm tra khi sức khỏe đã ổn định. Thời điểm phù hợp sẽ tùy tình trạng cơ thể, lịch sử sinh nở và đánh giá trực tiếp của bác sĩ.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:57:44.216Z",
+    "updatedAt": "2026-06-19T16:57:44.216Z"
+  },
+  {
+    "id": "f1e634da-fac5-4882-8c0d-f455fba908c9",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Căng Chỉ Collagen",
+    "content": "Câu hỏi 1: Căng chỉ collagen phù hợp với ai?\nTrả lời: Dạ phù hợp với khách da bắt đầu chảy xệ, mặt kém săn chắc, má sa nhẹ hoặc muốn trẻ hóa mà chưa muốn phẫu thuật.\n\nCâu hỏi 2: Căng chỉ collagen có cần làm nhiều lần không?\nTrả lời: Dạ tùy tình trạng da và mức độ chảy xệ. Bác sĩ sẽ kiểm tra để tư vấn số vùng, loại chỉ và phác đồ phù hợp cho từng khách.\n\nCâu hỏi 3: Căng chỉ collagen có làm mặt bị đơ không?\nTrả lời: Dạ mục tiêu là nâng đỡ tự nhiên, giúp gương mặt săn chắc hơn. Bác sĩ sẽ tư vấn hướng làm phù hợp để không tạo cảm giác quá căng hoặc thiếu tự nhiên.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:57:54.942Z",
+    "updatedAt": "2026-06-19T16:57:54.942Z"
+  },
+  {
+    "id": "2bb09ece-0044-422e-bbaf-25e45de2043c",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Căng Chỉ Nâng Cơ Mặt",
+    "content": "Câu hỏi 1: Căng chỉ nâng cơ mặt xử lý vùng nào?\nTrả lời: Dạ thường xử lý các vùng như má chảy xệ, rãnh mũi má, mặt dưới, đường viền hàm hoặc vùng mô bị sa trễ nhẹ đến vừa.\n\nCâu hỏi 2: Căng chỉ nâng cơ mặt có phù hợp với mặt chảy xệ nhiều không?\nTrả lời: Dạ nếu chảy xệ nhẹ đến vừa thì có thể phù hợp. Nếu da dư và chảy xệ rõ, bác sĩ có thể tư vấn phương án khác như căng da mặt để hiệu quả hơn.\n\nCâu hỏi 3: Có cần gửi ảnh trước khi tư vấn không?\nTrả lời: Dạ có ạ. Mình gửi ảnh chính diện, góc nghiêng và ảnh vùng mặt dưới để bác sĩ xem mức độ chảy xệ và tư vấn cần làm mấy vùng.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:58:33.384Z",
+    "updatedAt": "2026-06-19T16:58:33.384Z"
+  },
+  {
+    "id": "3200e925-ef6c-43ad-831f-373b733fea4b",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Căng Chỉ Mũi",
+    "content": "Câu hỏi 1: Căng chỉ mũi phù hợp với nền mũi nào?\nTrả lời: Dạ phù hợp với một số khách muốn cải thiện nhẹ sống mũi hoặc dáng mũi mà chưa muốn phẫu thuật. Nếu mũi quá thấp, đầu mũi to hoặc cần chỉnh nhiều thì có thể không phù hợp.\n\nCâu hỏi 2: Căng chỉ mũi có thay thế nâng mũi cấu trúc không?\nTrả lời: Dạ không thay thế hoàn toàn được. Căng chỉ mũi chỉ phù hợp với một số nền mũi và mức độ cải thiện nhẹ. Bác sĩ cần xem mũi của mình trước.\n\nCâu hỏi 3: Làm chỉ mũi có cần thăm khám không?\nTrả lời: Dạ cần ạ. Bác sĩ phải đánh giá nền mũi, da mũi và mong muốn cải thiện để tư vấn có nên làm chỉ mũi hay chọn phương án khác.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:58:48.785Z",
+    "updatedAt": "2026-06-19T16:58:48.785Z"
+  },
+  {
+    "id": "5e405ea1-b622-42f8-a1e0-0dad0eb32c15",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Căng Chỉ Trẻ Hóa Da",
+    "content": "Câu hỏi 1: Căng chỉ trẻ hóa da phù hợp với ai?\nTrả lời: Dạ phù hợp với khách có da kém săn chắc, nếp nhăn nhẹ, mặt thiếu độ căng mịn hoặc bắt đầu có dấu hiệu lão hóa.\n\nCâu hỏi 2: Căng chỉ trẻ hóa da có giống chăm sóc da thông thường không?\nTrả lời: Dạ không giống hoàn toàn. Chăm sóc da chủ yếu cải thiện bề mặt da, còn căng chỉ trẻ hóa hướng tới hỗ trợ nâng đỡ và cải thiện độ săn chắc tùy tình trạng.\n\nCâu hỏi 3: Căng chỉ trẻ hóa có cần chăm sóc sau làm không?\nTrả lời: Dạ có ạ. Sau khi làm, khách cần chăm sóc theo hướng dẫn của bác sĩ và tái khám đúng lịch để theo dõi quá trình ổn định.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:59:02.121Z",
+    "updatedAt": "2026-06-19T16:59:02.120Z"
+  },
+  {
+    "id": "f326815f-faef-4bc0-befc-ef61aea50989",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Căng Chỉ Xóa Rãnh Cười",
+    "content": "Câu hỏi 1: Rãnh cười sâu có căng chỉ được không?\nTrả lời: Dạ tùy nguyên nhân rãnh cười sâu. Nếu do mô má chảy xệ thì căng chỉ có thể là một hướng cải thiện. Nếu do thiếu mô hoặc cấu trúc xương, bác sĩ có thể tư vấn kết hợp phương án khác.\n\nCâu hỏi 2: Căng chỉ xóa rãnh cười có làm mặt tự nhiên không?\nTrả lời: Dạ mục tiêu là nâng đỡ vùng má và cải thiện cảm giác rãnh sâu một cách hài hòa, không làm mặt bị căng cứng nếu chỉ định phù hợp.\n\nCâu hỏi 3: Muốn biết có phù hợp không thì làm sao?\nTrả lời: Dạ mình gửi ảnh chính diện và ảnh cười nhẹ để bác sĩ xem rãnh cười của mình do chảy xệ hay thiếu mô, từ đó tư vấn đúng hơn.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:59:13.406Z",
+    "updatedAt": "2026-06-19T16:59:13.406Z"
+  },
+  {
+    "id": "b2e4d475-1456-42e9-a628-c4151447915f",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Căng Chỉ Nâng Cung Mày",
+    "content": "Câu hỏi 1: Căng chỉ nâng cung mày phù hợp với ai?\nTrả lời: Dạ phù hợp với khách có cung mày thấp, vùng mắt nhìn buồn, mí trên hơi nặng hoặc ánh mắt thiếu tươi trẻ nhưng chưa muốn phẫu thuật sâu.\n\nCâu hỏi 2: Căng chỉ nâng cung mày khác gì cắt mí?\nTrả lời: Dạ căng chỉ nâng cung mày hỗ trợ nâng nhẹ vùng cung mày. Cắt mí xử lý da dư/mỡ mí và tạo hình nếp mí. Nếu mí có nhiều da dư, bác sĩ sẽ kiểm tra để tư vấn phương án phù hợp hơn.\n\nCâu hỏi 3: Làm xong mắt có sáng hơn không?\nTrả lời: Dạ khi cung mày được nâng phù hợp, tổng thể vùng mắt có thể nhìn tươi và sáng hơn. Mức độ cải thiện còn tùy tình trạng cung mày và mí của từng khách.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:59:24.920Z",
+    "updatedAt": "2026-06-19T16:59:24.920Z"
+  },
+  {
+    "id": "20d507b2-aa85-44e5-bc3a-847213dc5aca",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Hút Mỡ",
+    "content": "Câu hỏi 1: Hút mỡ phù hợp với vùng nào?\nTrả lời: Dạ các vùng thường được tư vấn gồm bụng, eo, lưng, bắp tay, đùi, nọng cằm hoặc các vùng mỡ khu trú khó giảm.\n\nCâu hỏi 2: Hút mỡ có giúp giảm cân không?\nTrả lời: Dạ hút mỡ không phải phương pháp giảm cân toàn thân. Dịch vụ tập trung xử lý mỡ khu trú và hỗ trợ vùng cơ thể gọn hơn tùy tình trạng.\n\nCâu hỏi 3: Trước khi hút mỡ cần cung cấp thông tin gì?\nTrả lời: Dạ mình nên cung cấp vùng muốn làm, chiều cao, cân nặng, tình trạng sức khỏe, đã từng hút mỡ hay phẫu thuật chưa. Sau đó bác sĩ sẽ thăm khám để tư vấn phương án phù hợp.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:59:36.522Z",
+    "updatedAt": "2026-06-19T16:59:36.522Z"
+  },
+  {
+    "id": "1d8a789e-e948-477b-8b67-ab220c13dde3",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "faq",
+    "title": "Câu hỏi thường gặp Căng Chỉ Nâng Cơ Mặt",
+    "content": "Câu hỏi 1: Căng chỉ nâng cơ mặt xử lý vùng nào?\nTrả lời: Dạ thường xử lý các vùng như má chảy xệ, rãnh mũi má, mặt dưới, đường viền hàm hoặc vùng mô bị sa trễ nhẹ đến vừa.\n\nCâu hỏi 2: Căng chỉ nâng cơ mặt có phù hợp với mặt chảy xệ nhiều không?\nTrả lời: Dạ nếu chảy xệ nhẹ đến vừa thì có thể phù hợp. Nếu da dư và chảy xệ rõ, bác sĩ có thể tư vấn phương án khác như căng da mặt để hiệu quả hơn.\n\nCâu hỏi 3: Có cần gửi ảnh trước khi tư vấn không?\nTrả lời: Dạ có ạ. Mình gửi ảnh chính diện, góc nghiêng và ảnh vùng mặt dưới để bác sĩ xem mức độ chảy xệ và tư vấn cần làm mấy vùng.",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:58:09.176Z",
+    "updatedAt": "2026-06-19T17:00:31.577Z"
+  },
+  {
+    "id": "aa1ab8a1-ab91-450c-9985-65065a97fa9d",
+    "orgId": "b2db7caa-b9a0-4146-8d6e-c517987d6dcf",
+    "category": "price",
+    "title": "Bảng giá Nâng Mũi Không Phẫu Thuật",
+    "content": "Nâng Mũi Không Phẫu Thuật có giá tham khảo từ 5.000.000đ - 15.000.000đ, tùy phương pháp thực hiện, nền mũi và mức độ cải thiện mong muốn. Dịch vụ phù hợp với khách muốn cải thiện nhẹ dáng mũi, chưa muốn can thiệp phẫu thuật. Khi khách hỏi giá, AI tư vấn: “Dạ nâng mũi không phẫu thuật bên em giá từ 5 triệu, bác sĩ cần xem nền mũi trước để tư vấn mình nên làm phương pháp nào cho hợp nhất ạ.”",
+    "isActive": true,
+    "createdAt": "2026-06-19T16:26:47.505Z",
+    "updatedAt": "2026-06-19T17:00:42.968Z"
+  }
+]

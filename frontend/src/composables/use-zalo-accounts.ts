@@ -21,6 +21,7 @@ export interface ZaloAccount {
   disconnectedAt?: string | null;
   lastReconnectAt?: string | null;
   connectionError?: string | null;
+  aiEnabled: boolean; // new field for per‑account AI toggle
 }
 
 export function useZaloAccounts() {
@@ -96,6 +97,21 @@ export function useZaloAccounts() {
       fetchError.value = 'Không tải được trạng thái Zalo. Hệ thống sẽ tự thử lại.';
     } finally {
       if (!options.silent) loading.value = false;
+    }
+  }
+
+  // Toggle AI agent on/off for a specific account (admin/owner only)
+  async function toggleAi(accountId: string, enabled: boolean) {
+    try {
+      await api.patch(`/zalo-accounts/${accountId}/ai-toggle`, { aiEnabled: enabled });
+      // optimistic update of local state
+      accounts.value = accounts.value.map(a =>
+        a.id === accountId ? { ...a, aiEnabled: enabled } : a
+      );
+    } catch (err: any) {
+      console.error('Failed to toggle AI for account:', err);
+      // keep UI consistent by re‑fetching
+      await fetchAccounts({ silent: true });
     }
   }
 
@@ -252,6 +268,7 @@ export function useZaloAccounts() {
     showQRDialog, qrImage, qrScanned, scannedName, qrError,
     displayStatus, statusColor, statusText,
     fetchAccounts, addAccount, loginAccount, reconnectAccount, deleteAccount,
+    toggleAi, // new function to toggle AI per account
     cancelQR, setupSocket, startAutoRefresh,
   };
 }

@@ -42,6 +42,21 @@
             {{ statusText(displayStatus(item)) }}
           </v-chip>
         </template>
+        <template #item.aiEnabled="{ item }">
+          <v-switch
+            v-if="authStore.isAdmin"
+            v-model="item.aiEnabled"
+            :true-value="true"
+            :false-value="false"
+            @change="toggleAi(item.id, item.aiEnabled)"
+            hide-details
+            density="compact"
+            color="primary"
+            class="mt-2"
+            :label="item.aiEnabled ? 'Bật' : 'Tắt'"
+          />
+          <span v-else>{{ item.aiEnabled ? 'Bật' : 'Tắt' }}</span>
+        </template>
         <template #item.actions="{ item }">
           <div class="action-buttons">
             <v-btn
@@ -202,7 +217,7 @@ const {
   accounts, loading, adding, deleting, loginLoading, reconnectLoading, fetchError,
   showQRDialog, qrImage, qrScanned, scannedName, qrError,
   displayStatus, statusColor, statusText,
-  fetchAccounts, addAccount, loginAccount, reconnectAccount, deleteAccount,
+  fetchAccounts, addAccount, loginAccount, reconnectAccount, deleteAccount, toggleAi,
   cancelQR, setupSocket, startAutoRefresh,
 } = useZaloAccounts();
 
@@ -223,6 +238,7 @@ const headers = [
   { title: 'Zalo UID', key: 'zaloUid' },
   { title: 'SĐT', key: 'phone' },
   { title: 'Trạng thái', key: 'status', sortable: true },
+  { title: 'AI', key: 'aiEnabled', sortable: false, align: 'center' as const, width: 100 },
   { title: 'Hành động', key: 'actions', sortable: false, align: 'end' as const, width: 310 },
 ];
 

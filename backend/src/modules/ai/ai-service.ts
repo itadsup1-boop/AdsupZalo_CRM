@@ -6,6 +6,7 @@ import { getProviderConfig, getAvailableProviders } from './provider-registry.js
 import { generateWithAnthropic } from './providers/anthropic.js';
 import { generateWithGemini } from './providers/gemini.js';
 import { generateWithOpenaiCompat } from './providers/openai-compat.js';
+import { generateWithOllama } from './providers/ollama.js';
 import { buildReplyDraftPrompt } from './prompts/reply-draft.js';
 import { buildSummaryPrompt } from './prompts/summary.js';
 import { buildSentimentPrompt } from './prompts/sentiment.js';
@@ -188,12 +189,17 @@ async function generateText(provider: string, apiKey: string, model: string, sys
   if (provider === 'anthropic') return generateWithAnthropic(baseUrl, apiKey, model, system, prompt);
   if (provider === 'gemini') return generateWithGemini(baseUrl, apiKey, model, system, prompt);
 
-  /* OpenAI, Qwen, Kimi all use OpenAI-compatible chat/completions API */
+  /* OpenAI, Qwen, Kimi, OpenRouter — all use OpenAI-compatible chat/completions API */
   if (provider === 'openai') return generateWithOpenaiCompat(`${baseUrl}/v1/chat/completions`, apiKey, model, system, prompt);
+  if (provider === 'openrouter') return generateWithOpenaiCompat(`${baseUrl}/chat/completions`, apiKey, model, system, prompt);
   if (provider === 'qwen') return generateWithOpenaiCompat(`${baseUrl}/compatible-mode/v1/chat/completions`, apiKey, model, system, prompt);
   if (provider === 'kimi') return generateWithOpenaiCompat(`${baseUrl}/v1/chat/completions`, apiKey, model, system, prompt);
 
+  /* Native Ollama protocol — api.adsup.vn và local Ollama */
+  if (provider === 'ollama_remote') return generateWithOllama(baseUrl, apiKey, model, system, prompt);
+
   throw new Error(`Unsupported AI provider: ${provider}`);
+
 }
 
 async function saveSuggestion(input: { orgId: string; conversationId: string; messageId?: string; type: AiTaskType; content: string; confidence: number }) {

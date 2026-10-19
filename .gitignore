@@ -6,12 +6,3 @@ backups/
 .DS_Store
 .gstack/
 graphify-out/
-*.zip
-*.apk
-*.tar.gz
-*.deb
-backend/browser-profiles/
-backend/*_export.json
-backend/static/assets/
-android/app/build/
-ZaloCRM/

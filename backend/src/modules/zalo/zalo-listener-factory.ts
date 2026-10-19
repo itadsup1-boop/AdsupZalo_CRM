@@ -142,8 +142,38 @@ export function attachZaloListener(ctx: ListenerContext): void {
       let content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent || '');
       
       // Hiển thị nhãn thân thiện cho các loại tin nhắn đặc biệt
-      if (contentType === 'call' || content === 'sendBubbleMessage') {
+      // Zalo đôi khi gửi 'sendBubbleMessage' dưới dạng string thuần hoặc bọc trong JSON
+      const isBubbleOrCall = contentType === 'call' ||
+        content === 'sendBubbleMessage' ||
+        (typeof rawContent === 'object' && rawContent !== null && 'sendBubbleMessage' in rawContent) ||
+        (typeof content === 'string' && content.startsWith('{') && content.includes('sendBubbleMessage'));
+      if (isBubbleOrCall) {
         content = '📞 Cuộc gọi đến';
+      }
+
+      // Parse location messages — lưu dưới dạng JSON có cấu trúc để frontend render bản đồ
+      if (contentType === 'location' && typeof rawContent === 'object' && rawContent !== null) {
+        try {
+          const loc = rawContent as Record<string, unknown>;
+          let params: Record<string, unknown> = {};
+          try {
+            params = typeof loc.params === 'string' ? JSON.parse(loc.params as string) : (loc.params as Record<string, unknown> ?? {});
+          } catch { params = {}; }
+          const lat = Number(params.latitude ?? params.lat);
+          const lng = Number(params.longitude ?? params.lng);
+          const address = (loc.description as string) || (loc.title as string) || '';
+          content = JSON.stringify({
+            _type: 'location',
+            address,
+            latitude: Number.isFinite(lat) ? lat : null,
+            longitude: Number.isFinite(lng) ? lng : null,
+            mapsUrl: Number.isFinite(lat) && Number.isFinite(lng)
+              ? `https://www.google.com/maps?q=${lat},${lng}`
+              : null,
+          });
+        } catch {
+          // giữ nguyên content nếu parse thất bại
+        }
       }
 
       const album = extractAlbumInfo(contentType, rawContent);
@@ -245,9 +275,18 @@ export function attachZaloListener(ctx: ListenerContext): void {
         }
 
         const rawContent = message.data?.content;
-        const content =
+        let content =
           typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent || '');
         const contentType = detectContentType(message.data?.msgType, rawContent);
+
+        // Lọc sendBubbleMessage trong tin nhắn cũ (backfill) — giống logic tin nhắn live
+        const isBubbleOrCallOld = contentType === 'call' ||
+          content === 'sendBubbleMessage' ||
+          (typeof rawContent === 'object' && rawContent !== null && 'sendBubbleMessage' in rawContent) ||
+          (typeof content === 'string' && content.startsWith('{') && content.includes('sendBubbleMessage'));
+        if (isBubbleOrCallOld) {
+          content = '📞 Cuộc gọi đến';
+        }
         const album = extractAlbumInfo(contentType, rawContent);
         const media = extractMessageMedia(contentType, rawContent);
         if (contentType === 'voice' && media.fileUrl) {

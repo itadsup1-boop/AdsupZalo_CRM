@@ -153,6 +153,7 @@ model ZaloAccount {
   connectionError   String?                     @map("connection_error")
   disconnectedAt    DateTime?                   @map("disconnected_at")
   lastReconnectAt   DateTime?                   @map("last_reconnect_at")
+  aiEnabled         Boolean                     @default(true) @map("ai_enabled")
   syncState         ZaloConversationSyncState[]
   campaigns         Campaign[]
   conversations     Conversation[]

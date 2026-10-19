@@ -34,6 +34,7 @@ export async function zaloRoutes(app: FastifyInstance): Promise<void> {
         lastReconnectAt: true,
         connectionError: true,
         createdAt: true,
+        aiEnabled: true,
         owner: { select: { id: true, fullName: true, email: true } },
       },
       orderBy: { createdAt: 'asc' },
@@ -179,6 +180,37 @@ export async function zaloRoutes(app: FastifyInstance): Promise<void> {
       await db.zaloAccount.delete({ where: { id } });
 
       return reply.status(204).send();
+    },
+  );
+
+  // PATCH /api/v1/zalo-accounts/:id/ai-toggle — bật/tắt AI agent cho tài khoản
+  app.patch<{ Params: { id: string }; Body: { aiEnabled: boolean } }>(
+    '/api/v1/zalo-accounts/:id/ai-toggle',
+    { preHandler: requireRole('owner', 'admin') },
+    async (request, reply) => {
+      const { id } = request.params;
+      const user = request.user!;
+      const { aiEnabled } = request.body ?? {};
+
+      if (typeof aiEnabled !== 'boolean') {
+        return reply.status(400).send({ error: 'aiEnabled must be a boolean' });
+      }
+
+      const db = getTenantPrisma(user.orgId);
+      const account = await db.zaloAccount.findFirst({
+        where: { id, orgId: user.orgId },
+      });
+      if (!account) {
+        return reply.status(404).send({ error: 'Account not found' });
+      }
+
+      const updated = await db.zaloAccount.update({
+        where: { id },
+        data: { aiEnabled },
+        select: { id: true, aiEnabled: true },
+      });
+
+      return { accountId: updated.id, aiEnabled: updated.aiEnabled };
     },
   );
 

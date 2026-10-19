@@ -85,7 +85,7 @@ export async function handleIncomingMessage(
     if (!account || !('teamId' in account)) {
       account = await prisma.zaloAccount.findUnique({
         where: { id: msg.accountId },
-        select: { id: true, orgId: true, ownerUserId: true, teamId: true },
+        select: { id: true, orgId: true, ownerUserId: true, teamId: true, aiEnabled: true },
       }) as any;
     }
     
@@ -352,6 +352,13 @@ export async function handleIncomingMessage(
           const { config } = await import('../../config/index.js');
           const axios = (await import('axios')).default;
           
+          // Kiểm tra aiEnabled của tài khoản Zalo này
+          const accountAiEnabled = (account as any)?.aiEnabled !== false;
+          if (!accountAiEnabled) {
+            console.log("[AI_AGENT] skipped forwarding: AI bị tắt trên tài khoản", msg.accountId);
+            return;
+          }
+
           if (config.aiAgentEnabled && config.aiAgentWebhookUrl) {
             const payload = {
               event: "zalo_message",

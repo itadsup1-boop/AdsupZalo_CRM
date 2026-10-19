@@ -47,6 +47,15 @@ export const config = {
   kimiAuthToken: process.env.KIMI_AUTH_TOKEN || '',
   kimiDefaultMoonshotV1Model: process.env.KIMI_DEFAULT_MOONSHOT_V1_MODEL || '',
 
+  openrouterBaseUrl: process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
+  openrouterAuthToken: process.env.OPENROUTER_AUTH_TOKEN || '',
+  openrouterDefaultModel: process.env.OPENROUTER_DEFAULT_MODEL || 'google/gemma-4-26b-a4b-it:free',
+  openrouterFallbackModel: process.env.OPENROUTER_FALLBACK_MODEL || 'nvidia/nemotron-3.5-lightning:free',
+
+  ollamaRemoteBaseUrl: process.env.OLLAMA_REMOTE_BASE_URL || '',
+  ollamaRemoteAuthToken: process.env.OLLAMA_REMOTE_AUTH_TOKEN || '',
+  ollamaRemoteDefaultModel: process.env.OLLAMA_REMOTE_DEFAULT_MODEL || 'qwen3:8b',
+
   vapidPublicKey: process.env.VAPID_PUBLIC_KEY || '',
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
   vapidSubject: process.env.VAPID_SUBJECT || 'mailto:admin@adsup.vn',

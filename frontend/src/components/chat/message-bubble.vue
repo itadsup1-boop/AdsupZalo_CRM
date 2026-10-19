@@ -124,6 +124,21 @@
              </div>
           </div>
 
+          <!-- Location / Map -->
+          <div v-else-if="getLocationInfo(message)" class="location-card" @click="openFile(getLocationInfo(message)!.mapsUrl)">
+            <div class="location-map-placeholder d-flex align-center justify-center">
+              <v-icon size="32" color="white">mdi-map-marker</v-icon>
+            </div>
+            <div class="location-card-body pa-3">
+              <div class="d-flex align-center mb-1">
+                <v-icon size="14" color="error" class="mr-1">mdi-map-marker-radius</v-icon>
+                <span class="text-caption font-weight-bold" style="color: #E53935;">Vị trí</span>
+              </div>
+              <div class="text-body-2 font-weight-medium location-address">{{ getLocationInfo(message)!.address || 'Xem trên bản đồ' }}</div>
+              <div class="text-caption mt-1" style="color: #1a73e8;">Mở Google Maps ↗</div>
+            </div>
+          </div>
+
           <!-- Default text -->
           <div v-else>{{ parseDisplayContent(message.content) }}</div>
         </template>
@@ -411,11 +426,33 @@ function getLinkPreviewImage(msg: Message): string | undefined {
 
 // ---------------------------
 
+function getLocationInfo(msg: Message): { address: string; mapsUrl: string } | null {
+  if (!msg.content?.startsWith('{')) return null;
+  try {
+    const p = JSON.parse(msg.content);
+    if (p._type === 'location') {
+      return {
+        address: p.address || '',
+        mapsUrl: p.mapsUrl || `https://www.google.com/maps?q=${p.latitude},${p.longitude}`,
+      };
+    }
+    // fallback: detect bằng tọa độ nếu không có _type
+    if (typeof p.latitude === 'number' && typeof p.longitude === 'number') {
+      return {
+        address: p.description || p.address || '',
+        mapsUrl: `https://www.google.com/maps?q=${p.latitude},${p.longitude}`,
+      };
+    }
+  } catch {}
+  return null;
+}
+
 function parseDisplayContent(content: string | null): string {
   if (!content) return '';
   if (!content.startsWith('{')) return content;
   try {
     const p = JSON.parse(content);
+    if (p._type === 'location') return `📍 ${p.address || 'Vị trí'}`;
     if (p.title && p.href) return `🔗 ${p.title}`;
     if (p.title) return p.title;
     if (p.href) return `🔗 ${p.description || p.href}`;
@@ -487,6 +524,32 @@ function openFile(href: string) {
   border-radius: 8px;
   background: rgba(0, 242, 255, 0.05);
   border: 1px solid rgba(0, 242, 255, 0.1);
+}
+.location-card {
+  border-radius: 10px;
+  overflow: hidden;
+  width: 240px;
+  cursor: pointer;
+  border: 1px solid #E0E0E0;
+  transition: box-shadow 0.2s;
+}
+.location-card:hover {
+  box-shadow: 0 4px 12px rgba(26,115,232,0.2);
+}
+.location-map-placeholder {
+  height: 110px;
+  background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ccircle cx='50' cy='50' r='40' fill='none' stroke='rgba(255,255,255,0.15)' stroke-width='1'/%3E%3Ccircle cx='50' cy='50' r='25' fill='none' stroke='rgba(255,255,255,0.1)' stroke-width='1'/%3E%3C/svg%3E");
+}
+.location-card-body {
+  background: white;
+}
+.location-address {
+  color: #212121;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .chat-image {
   max-width: 100%;
